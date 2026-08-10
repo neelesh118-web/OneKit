@@ -842,3 +842,12 @@ a.result-title:hover {
   color: var(--danger, #dc2626);
   font-weight: 600;
 }
+
+/* Reading & utilities round ------------------------------------------ */
+.result-line {
+  margin: 8px 0 4px;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--accent, #2563eb);
+  word-break: break-word;
+}

@@ -11,18 +11,18 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>113 tools · 100% local · free forever</span>
+          <span>125 tools · 100% local · free forever</span>
         </div>
       </header>
 
       <nav class="tab-nav" aria-label="OneKit tools">
-        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">19</span></button>
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">20</span></button>
         <button type="button" class="tab-btn" data-tab="vault">💬 Vault <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">10</span></button>
+        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">12</span></button>
         <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">11</span></button>
-        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">9</span></button>
+        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">11</span></button>
         <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">9</span></button>
-        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">24</span></button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">31</span></button>
         <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">8</span></button>
         <button type="button" class="tab-btn" data-tab="convert">🔄 Convert <span class="tab-count">4</span></button>
         <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">2</span></button>
@@ -272,6 +272,18 @@
             <button id="he-export" type="button" class="mini-btn">⬇ Export highlights as Markdown</button>
           </div>
           <p id="he-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎲 Random revisit</span>
+          </div>
+          <p class="hint">Saved pages turn into graveyards. Let OneKit pick a random unread page or highlight so your library works for you again.</p>
+          <div class="btn-row">
+            <button id="rv-pick" type="button" class="mini-btn primary">🎲 Pick something to revisit</button>
+          </div>
+          <div id="rv-result" class="results"></div>
+          <p id="rv-status" class="status"></p>
         </div>
       </section>
 
@@ -528,6 +540,38 @@
           </div>
           <p id="ps-summary" class="status"></p>
           <ul id="ps-tips" class="privacy-tips"></ul>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🛡 Vault health report</span>
+          </div>
+          <p class="hint">A whole-vault scan of your local passwords: weak ones, reused ones, and obvious ones, with a one-line verdict. Needs your master passphrase to read an encrypted vault.</p>
+          <div class="btn-row">
+            <input id="vh-pass" type="password" placeholder="Master passphrase (if vault is locked)" autocomplete="off" />
+            <button id="vh-refresh" type="button" class="mini-btn">Run health scan</button>
+          </div>
+          <p id="vh-score" class="status"></p>
+          <div id="vh-list" class="results"></div>
+          <p id="vh-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔐 Encrypted text locker</span>
+          </div>
+          <p class="hint">AES-GCM encrypt or decrypt any text with a passphrase — the blob is self-contained, nothing is stored or sent. Wrong passphrase means no recovery, so keep it safe.</p>
+          <div class="btn-row">
+            <select id="tl-mode">
+              <option value="lock">Encrypt</option>
+              <option value="unlock">Decrypt</option>
+            </select>
+            <input id="tl-pass" type="password" placeholder="Passphrase (min 6 chars)" autocomplete="off" />
+            <button id="tl-run" type="button" class="mini-btn primary">Run</button>
+          </div>
+          <textarea id="tl-input" rows="3" placeholder="Text to encrypt, or a OneKit blob to decrypt…"></textarea>
+          <textarea id="tl-output" rows="3" readonly placeholder="Result appears here…"></textarea>
+          <p id="tl-status" class="status"></p>
         </div>
       </section>
 
@@ -851,6 +895,31 @@
           <p id="vn-status" class="status"></p>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📖 Speed reader</span>
+          </div>
+          <p class="hint">Word-by-word reading for the active article — one centered word at a time at your pace. Pure timing, no AI.</p>
+          <div class="btn-row">
+            <input id="sr-wpm" type="number" min="100" max="900" step="25" value="300" aria-label="Words per minute" />
+            <button id="sr-start" type="button" class="mini-btn primary">▶ Start reading</button>
+            <button id="sr-stop" type="button" class="mini-btn danger">Stop</button>
+          </div>
+          <p id="sr-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧘 Break & stretch reminders</span>
+          </div>
+          <p class="hint">A desk-break timer with real stretch suggestions. Fires through browser alarms, so it works even with this popup closed.</p>
+          <div class="btn-row">
+            <input id="br-interval" type="number" min="5" max="120" step="5" value="45" aria-label="Minutes between breaks" />
+            <button id="br-start" type="button" class="mini-btn primary">Start reminders</button>
+            <button id="br-stop" type="button" class="mini-btn danger">Stop</button>
+          </div>
+          <p id="br-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -1331,6 +1400,110 @@
           <p id="tc-status" class="status"></p>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📝 Local TL;DR</span>
+          </div>
+          <p class="hint">A short extractive summary of the active article — sentence scoring, fully local, honest about being heuristic.</p>
+          <div class="btn-row">
+            <button id="sum-run" type="button" class="mini-btn primary">Summarize this page</button>
+          </div>
+          <div id="sum-output" class="results"></div>
+          <p id="sum-stats" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📑 Page table of contents</span>
+          </div>
+          <p class="hint">A sticky outline for long articles — toggle it on the page, click any heading to jump, or copy it as Markdown.</p>
+          <div class="btn-row">
+            <button id="ptc-toggle" type="button" class="mini-btn">Toggle outline on page</button>
+            <button id="ptc-md" type="button" class="mini-btn">Copy as Markdown</button>
+          </div>
+          <p id="ptc-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📐 Size chart switcher</span>
+          </div>
+          <p class="hint">Convert US/UK/EU clothing and shoe sizes in one click instead of squinting at three charts.</p>
+          <div class="btn-row">
+            <select id="sc-cat">
+              <option value="clothing">Clothing</option>
+              <option value="men-shoes">Men's shoes</option>
+              <option value="women-shoes">Women's shoes</option>
+              <option value="kids">Kids</option>
+            </select>
+            <select id="sc-from-sys">
+              <option value="us">US</option>
+              <option value="uk">UK</option>
+              <option value="eu">EU</option>
+              <option value="intl">International</option>
+            </select>
+            <input id="sc-value" type="text" placeholder="e.g. M or 42" list="sc-sizes" />
+            <datalist id="sc-sizes"></datalist>
+            <select id="sc-to-sys">
+              <option value="us">US</option>
+              <option value="uk" selected>UK</option>
+              <option value="eu">EU</option>
+              <option value="intl">International</option>
+            </select>
+          </div>
+          <p id="sc-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔢 Calculator</span>
+          </div>
+          <p class="hint">Instant local math — parentheses, % and ^ included. A safe parser, never eval().</p>
+          <div class="btn-row">
+            <input id="calc-input" type="text" placeholder="e.g. (12 + 8) * 3 / 2" autocomplete="off" />
+            <button id="calc-eval" type="button" class="mini-btn primary">=</button>
+          </div>
+          <p id="calc-result" class="result-line"></p>
+          <p id="calc-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🕵️ QR scanner</span>
+          </div>
+          <p class="hint">Decode a QR code from an image file or the visible tab — jsQR on-device, nothing is uploaded.</p>
+          <div class="btn-row">
+            <input id="qr-file" type="file" accept="image/*" />
+            <button id="qr-tab" type="button" class="mini-btn">Scan visible tab</button>
+          </div>
+          <div id="qr-result" class="results"></div>
+          <p id="qr-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🖼 EXIF viewer</span>
+          </div>
+          <p class="hint">Image metadata from a local file — dimensions, format, and camera/date EXIF tags when the file has them. Everything stays on-device.</p>
+          <div class="btn-row">
+            <input id="exif-file" type="file" accept="image/*" />
+          </div>
+          <div id="exif-result" class="results"></div>
+          <p id="exif-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📧 Contact extractor</span>
+          </div>
+          <p class="hint">Emails and phone numbers from the current page, deduplicated and ready to copy as a clean list or CSV.</p>
+          <div class="btn-row">
+            <button id="ce-copy" type="button" class="mini-btn">Copy contacts from this page</button>
+            <button id="ce-csv" type="button" class="mini-btn">Copy as CSV</button>
+          </div>
+          <div id="ce-list" class="results"></div>
+          <p id="ce-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->

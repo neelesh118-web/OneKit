@@ -57,6 +57,8 @@ export interface ToolToggles {
   autoRefresh: boolean;
   /** Apply per-site custom CSS rules (default OFF — changes page styling). */
   customCss: boolean;
+  /** Fire break & stretch reminders on an interval (default OFF — notifications). */
+  breakReminders: boolean;
 }
 
 export interface OneKitSettings {
@@ -98,7 +100,8 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     emailBlocker: false,
     tabLimiter: false,
     autoRefresh: false,
-    customCss: false
+    customCss: false,
+    breakReminders: false
   },
   textExpanderEnabled: true,
   onboarded: false

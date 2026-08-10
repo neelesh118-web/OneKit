@@ -211,6 +211,25 @@ Built from 1-star review complaints about the biggest utility extensions — the
 | 🧹 Highlight exporter | Page highlights as one readable Markdown document, grouped by page | Popup → Memory |
 | 🔌 Custom CSS per site | Per-site CSS tweaks — hide clutter, fix contrast, restyle anything. Fully local. Settings toggle | Popup → Dev + on-page |
 
+### Phase 17 (12 features — 125 tools total)
+
+Built from the 5ly.co idea guide, Chrome Goldmine's "solve a small pain inside a big recurring behavior", and low-star-review lessons ("doesn't work on this site", "I want a lightweight alternative") — OneKit's exact positioning. All 100% local, no models, no network.
+
+| Feature | What it does | Where |
+|---|---|---|
+| 📖 Speed reader | Word-by-word RSVP reading for any article — one centered word at a time, pure timing math, no AI | Popup → Focus + on-page |
+| 📝 Local TL;DR | Extractive sentence-scoring summary of the active page — honest about being heuristic, no model | Popup → Tools |
+| 📐 Size chart switcher | US / UK / EU / International clothing and shoe sizes in one click, with a pickable list | Popup → Tools |
+| 🧘 Break & stretch reminders | Desk-break timer with real stretch suggestions — fires via browser alarms even with the popup closed. Settings toggle | Popup → Focus + background |
+| 📑 Page table of contents | Sticky outline for long articles — click any heading to jump, copy it as Markdown | Popup → Tools + on-page |
+| 🔐 Encrypted text locker | AES-GCM encrypt/decrypt any text with a passphrase — the blob is self-contained, nothing stored or sent | Popup → Safety |
+| 🛡 Vault health report | Whole-vault scan: weak, reused, and common passwords with a one-line verdict | Popup → Safety |
+| 🔢 Calculator | Instant local math — parentheses, %, and ^ with right-associativity. Safe parser, never eval() | Popup → Tools |
+| 🕵️ QR scanner | Decode QR codes from a file or the visible tab — jsQR on-device, nothing uploaded | Popup → Tools |
+| 🖼 EXIF viewer | Image metadata from a local file: dimensions, format, camera/date EXIF tags when present | Popup → Tools |
+| 📧 Contact extractor | Emails and phones on the current page, deduplicated, copied as a clean list or CSV | Popup → Tools |
+| 🎲 Random revisit | Picks a random unread saved page or highlight so your library works for you again | Popup → Memory |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

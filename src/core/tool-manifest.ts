@@ -864,6 +864,92 @@ export const TOOLS: ToolDef[] = [
     description: "Per-site CSS tweaks — hide clutter, fix contrast, restyle anything. Fully local, nothing leaves the device.",
     toggleKey: "customCss",
     settingLabel: "Apply per-site custom CSS rules"
+  },
+  {
+    id: "speedReader",
+    name: "Speed reader",
+    icon: "📖",
+    tab: "focus",
+    description: "Word-by-word reading mode for any article — your eyes never move, pure timing math, no AI."
+  },
+  {
+    id: "summarizer",
+    name: "Local TL;DR",
+    icon: "📝",
+    tab: "tools",
+    description: "Extractive sentence-scoring summary of any page. Honest about being heuristic — no model, no network."
+  },
+  {
+    id: "sizeCharts",
+    name: "Size chart switcher",
+    icon: "📐",
+    tab: "tools",
+    description: "Convert US/UK/EU clothing and shoe sizes in one click instead of squinting at three charts."
+  },
+  {
+    id: "breakReminders",
+    name: "Break & stretch reminders",
+    icon: "🧘",
+    tab: "focus",
+    description: "Desk-break timer with real stretch suggestions — fires via browser alarms even with the popup closed.",
+    toggleKey: "breakReminders",
+    settingLabel: "Fire break & stretch reminders on an interval"
+  },
+  {
+    id: "pageToc",
+    name: "Page table of contents",
+    icon: "📑",
+    tab: "tools",
+    description: "Sticky outline for long articles — click any heading to jump straight there."
+  },
+  {
+    id: "textLocker",
+    name: "Encrypted text locker",
+    icon: "🔐",
+    tab: "safety",
+    description: "AES-GCM encrypt/decrypt any text with a passphrase — nothing stored, nothing sent."
+  },
+  {
+    id: "vaultHealth",
+    name: "Vault health report",
+    icon: "🛡",
+    tab: "safety",
+    description: "Strength/reuse/weakness scan across your whole local password vault."
+  },
+  {
+    id: "calculator",
+    name: "Calculator",
+    icon: "🔢",
+    tab: "tools",
+    description: "Instant local calculator — safe parser, no eval(), handles precedence, unary minus and %."
+  },
+  {
+    id: "qrScanner",
+    name: "QR scanner",
+    icon: "🕵️",
+    tab: "tools",
+    description: "Decode QR codes from a file or the visible tab — on-device with jsQR, nothing uploaded."
+  },
+  {
+    id: "exifViewer",
+    name: "EXIF viewer",
+    icon: "🖼",
+    tab: "tools",
+    description: "Image metadata from a local file: dimensions, format, and camera/date EXIF tags when present."
+  },
+  {
+    id: "contactExtractor",
+    name: "Contact extractor",
+    icon: "📧",
+    tab: "tools",
+    description: "Emails and phones on the current page, copied as a clean list or CSV."
+  },
+  {
+    id: "randomRevisit",
+    name: "Random revisit",
+    icon: "🎲",
+    tab: "memory",
+    description: "Resurface a random unread saved page or highlight so your library works for you again."
   }
 ];
 

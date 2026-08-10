@@ -130,6 +130,9 @@ import { measureElementAt, type RulerBox } from "../src/core/page-ruler";
 import { classifyField, fakePerson, valueForKind } from "../src/core/fake-filler";
 import { tableToCsv } from "../src/core/table-csv";
 import { addVideoNote, listVideoNotes, removeVideoNote, localStorageVideoNotes } from "../src/core/video-notes";
+import { normalizeWpm, planReading, readerTextFromDocument } from "../src/core/speed-reader";
+import { summarizeText, summaryStats } from "../src/core/summarizer";
+import { extractToc, tocIndent, tocStats, tocToMarkdown } from "../src/core/page-toc";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -1058,6 +1061,204 @@ function pageReadableText(): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* Speed reader (RSVP) overlay                                       */
+/* ------------------------------------------------------------------ */
+
+let speedReaderBox: HTMLElement | null = null;
+let speedReaderTimer: number | null = null;
+let speedReaderTokens: { word: string; durationMs: number }[] = [];
+let speedReaderIndex = 0;
+let speedReaderPaused = false;
+
+function stopSpeedReader(): void {
+  if (speedReaderTimer !== null) window.clearTimeout(speedReaderTimer);
+  speedReaderTimer = null;
+  speedReaderTokens = [];
+  speedReaderIndex = 0;
+  speedReaderPaused = false;
+  speedReaderBox?.remove();
+  speedReaderBox = null;
+}
+
+function speedReaderShowWord(): void {
+  const wordEl = speedReaderBox?.querySelector<HTMLElement>(".ok-sr-word");
+  const progressEl = speedReaderBox?.querySelector<HTMLElement>(".ok-sr-progress");
+  const token = speedReaderTokens[speedReaderIndex];
+  if (!wordEl || !progressEl || !token) {
+    stopSpeedReader();
+    showToast("Speed reading finished.", "ok");
+    return;
+  }
+  wordEl.textContent = token.word;
+  progressEl.textContent = `${speedReaderIndex + 1} / ${speedReaderTokens.length}`;
+  if (speedReaderPaused) return;
+  speedReaderTimer = window.setTimeout(() => {
+    speedReaderIndex++;
+    speedReaderShowWord();
+  }, token.durationMs);
+}
+
+function startSpeedReader(wpm: number): void {
+  stopSpeedReader();
+  const text = readerTextFromDocument(document);
+  if (!text) {
+    showToast("Nothing readable found on this page.", "info");
+    return;
+  }
+  const plan = planReading(text, normalizeWpm(wpm));
+  if (plan.tokens.length === 0) {
+    showToast("Nothing readable found on this page.", "info");
+    return;
+  }
+  speedReaderTokens = plan.tokens;
+  speedReaderIndex = 0;
+  speedReaderPaused = false;
+
+  const box = document.createElement("div");
+  box.id = "onekit-speed-reader";
+  box.style.cssText = [
+    "position:fixed",
+    "top:50%",
+    "left:50%",
+    "transform:translate(-50%,-50%)",
+    "z-index:2147483647",
+    "background:#111827",
+    "color:#f9fafb",
+    "border-radius:14px",
+    "padding:28px 36px",
+    "min-width:320px",
+    "max-width:80vw",
+    "text-align:center",
+    "box-shadow:0 12px 48px rgba(0,0,0,.5)",
+    "font:400 32px/1.4 system-ui,sans-serif"
+  ].join(";");
+  const word = document.createElement("div");
+  word.className = "ok-sr-word";
+  word.style.minHeight = "44px";
+  const progress = document.createElement("div");
+  progress.className = "ok-sr-progress";
+  progress.style.cssText = "font:400 12px/1 system-ui,sans-serif;opacity:.6;margin-top:10px";
+  const controls = document.createElement("div");
+  controls.style.cssText = "margin-top:14px;display:flex;gap:8px;justify-content:center";
+  const pauseBtn = document.createElement("button");
+  pauseBtn.type = "button";
+  pauseBtn.textContent = "⏸";
+  const stopBtn = document.createElement("button") as HTMLButtonElement;
+  stopBtn.type = "button";
+  stopBtn.textContent = "✕";
+  const wpmInput = document.createElement("input");
+  wpmInput.type = "number";
+  wpmInput.min = "100";
+  wpmInput.max = "900";
+  wpmInput.step = "25";
+  wpmInput.value = String(normalizeWpm(wpm));
+  wpmInput.title = "Words per minute";
+  wpmInput.style.cssText = "width:76px;padding:4px 6px;border-radius:6px;border:1px solid #374151;background:#1f2937;color:#f9fafb;font:400 13px/1 system-ui,sans-serif";
+  const btnStyle = "border:none;border-radius:8px;padding:6px 12px;background:#374151;color:#f9fafb;font:600 13px/1 system-ui,sans-serif;cursor:pointer";
+  pauseBtn.style.cssText = btnStyle;
+  stopBtn.style.cssText = btnStyle;
+  for (const b of [pauseBtn, stopBtn]) {
+    b.addEventListener("click", () => {
+      if (b === stopBtn) {
+        stopSpeedReader();
+      } else {
+        speedReaderPaused = !speedReaderPaused;
+        pauseBtn.textContent = speedReaderPaused ? "▶" : "⏸";
+        if (!speedReaderPaused && speedReaderTimer === null) {
+          speedReaderTimer = window.setTimeout(() => {
+            speedReaderIndex++;
+            speedReaderShowWord();
+          }, speedReaderTokens[speedReaderIndex]?.durationMs ?? 300);
+        }
+      }
+    });
+  }
+  wpmInput.addEventListener("change", () => {
+    // Restart pacing at the new speed from the current word.
+    speedReaderPaused = false;
+    pauseBtn.textContent = "⏸";
+    const plan2 = planReading(text, normalizeWpm(Number(wpmInput.value)));
+    speedReaderTokens = plan2.tokens.slice(speedReaderIndex) as typeof speedReaderTokens;
+    speedReaderIndex = 0;
+    if (speedReaderTimer !== null) window.clearTimeout(speedReaderTimer);
+    speedReaderTimer = null;
+    speedReaderShowWord();
+  });
+  controls.append(pauseBtn, wpmInput, stopBtn);
+  box.append(word, progress, controls);
+  document.documentElement.appendChild(box);
+  speedReaderBox = box;
+  showToast("Speed reading — adjust WPM or ✕ to stop.", "info");
+  speedReaderShowWord();
+}
+
+/* ------------------------------------------------------------------ */
+/* Page table of contents sidebar                                     */
+/* ------------------------------------------------------------------ */
+
+let tocBox: HTMLElement | null = null;
+
+function togglePageToc(): { entries: number; open: boolean } {
+  if (tocBox) {
+    tocBox.remove();
+    tocBox = null;
+    return { entries: 0, open: false };
+  }
+  const entries = extractToc(document.body);
+  if (entries.length === 0) {
+    showToast("No headings found on this page.", "info");
+    return { entries: 0, open: false };
+  }
+  const indents = tocIndent(entries);
+  const headings = Array.from(document.querySelectorAll<HTMLElement>("h1, h2, h3, h4"));
+  const box = document.createElement("aside");
+  box.id = "onekit-page-toc";
+  box.style.cssText = [
+    "position:fixed",
+    "top:72px",
+    "right:16px",
+    "z-index:2147483646",
+    "width:280px",
+    "max-height:70vh",
+    "overflow-y:auto",
+    "background:#111827",
+    "color:#f9fafb",
+    "border-radius:12px",
+    "padding:14px",
+    "box-shadow:0 8px 32px rgba(0,0,0,.4)",
+    "font:400 13px/1.5 system-ui,sans-serif"
+  ].join(";");
+  const title = document.createElement("div");
+  title.textContent = `📑 On this page (${entries.length})`;
+  title.style.cssText = "font-weight:600;margin-bottom:10px";
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.textContent = "✕";
+  closeBtn.style.cssText = "position:absolute;top:8px;right:10px;border:none;background:none;color:#9ca3af;font-size:14px;cursor:pointer";
+  closeBtn.addEventListener("click", () => {
+    tocBox?.remove();
+    tocBox = null;
+  });
+  const list = document.createElement("nav");
+  entries.forEach((entry, i) => {
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = entry.text;
+    link.title = entry.text;
+    link.style.cssText = `display:block;color:#d1d5db;text-decoration:none;padding:3px 0;margin-left:${indents[i]! * 14}px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap`;
+    link.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      headings[entry.index]?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    list.appendChild(link);
+  });
+  box.append(title, closeBtn, list);
+  document.documentElement.appendChild(box);
+  tocBox = box;
+  return { entries: entries.length, open: true };
+}
+
+/* ------------------------------------------------------------------ */
 /* Ctrl+Shift+K unified search palette                               */
 /* ------------------------------------------------------------------ */
 
@@ -1310,8 +1511,40 @@ async function renderVideoNoteChip(): Promise<void> {
 
 browser.runtime.onMessage.addListener(
   (message: unknown, _sender, sendResponse) => {
-    const msg = message as { type?: string; url?: string; text?: string; key?: string };
-    if (msg.type === "ok:copy-clean-link" && typeof msg.url === "string") {
+    const msg = message as { type?: string; url?: string; text?: string; key?: string; wpm?: number };
+    if (msg.type === "ok:speed-reader-start") {
+    const wpm = typeof msg.wpm === "number" ? msg.wpm : 300;
+    startSpeedReader(wpm);
+    return;
+  }
+  if (msg.type === "ok:speed-reader-stop") {
+    stopSpeedReader();
+    return;
+  }
+  if (msg.type === "ok:summarize-page") {
+    const raw = readerTextFromDocument(document);
+    if (!raw) {
+      sendResponse({ ok: false, reason: "Nothing readable found on this page." });
+      return;
+    }
+    const summary = summarizeText(raw, { maxSentences: 4, maxChars: 900 });
+    sendResponse({ ok: true, summary, stats: summaryStats(raw, summary) });
+    return;
+  }
+  if (msg.type === "ok:toc-toggle") {
+    sendResponse(togglePageToc());
+    return;
+  }
+  if (msg.type === "ok:page-toc-md") {
+    const entries = extractToc(document.body);
+    sendResponse({ markdown: tocToMarkdown(entries), entries: entries.length });
+    return;
+  }
+  if (msg.type === "ok:page-text") {
+    sendResponse({ text: document.body?.innerText ?? document.body?.textContent ?? "" });
+    return;
+  }
+  if (msg.type === "ok:copy-clean-link" && typeof msg.url === "string") {
     const cleaned = cleanLink(msg.url);
     void copyToClipboard(cleaned).then(() => {
       showToast(`Copied clean link: ${cleaned}`, "ok");

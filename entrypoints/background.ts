@@ -30,6 +30,14 @@ import {
 } from "../src/core/scheduled-sessions";
 import { localStorageActivity, logActivity } from "../src/core/activity-log";
 import { localStorageMeetingLinks, meetingTabLike, recordMeetingTab } from "../src/core/meeting-links";
+import {
+  BREAK_ALARM_NAME,
+  isDue,
+  localStorageBreakReminders,
+  pickSuggestion,
+  readBreakSettings,
+  snoozeBreakReminder
+} from "../src/core/break-reminders";
 import { windowSizeForPreset, presetById } from "../src/core/window-resizer";
 
 /**
@@ -182,6 +190,7 @@ export default defineBackground(() => {
       await browser.alarms.create(TAB_SNOOZE_ALARM, { periodInMinutes: 1 });
       // Scheduled sessions check every half hour (and on tab events).
       await browser.alarms.create("ok-scheduled-sessions", { periodInMinutes: 30 });
+      await browser.alarms.create(BREAK_ALARM_NAME, { periodInMinutes: 1 });
     } catch {
       // Alarms unavailable in this environment.
     }
@@ -634,6 +643,29 @@ export default defineBackground(() => {
     }
   }
 
+  /* Break & stretch reminders — notify + roll forward ------------------ */
+  async function fireBreakReminder(): Promise<void> {
+    try {
+      const storage = localStorageBreakReminders();
+      const settings = await readBreakSettings(storage);
+      if (!settings.enabled) return;
+      const now = Date.now();
+      if (!isDue(settings, now)) return;
+      const suggestion = pickSuggestion(now, String(now));
+      await browser.notifications.create({
+        type: "basic",
+        iconUrl: browser.runtime.getURL("/icon/128.png"),
+        title: "🧘 Time for a break",
+        message: suggestion
+      });
+      // Roll the snooze window forward to the next interval.
+      await snoozeBreakReminder(storage, now + settings.intervalMinutes * 60_000);
+      void logActivity(localStorageActivity(), "break.reminder", "Fired a break & stretch reminder.");
+    } catch {
+      // Best-effort: a reminder failure must never break the service worker.
+    }
+  }
+
   /* Reminders — fire due reminders as notifications --------------------- */
   let lastReminderFire = 0;
   async function fireDueReminders(): Promise<void> {
@@ -722,6 +754,7 @@ export default defineBackground(() => {
       else if (alarm.name === TAB_SNOOZE_ALARM) void reopenDueSnoozes();
       else if (alarm.name.startsWith("ok-reminder-")) void fireDueReminders();
       else if (alarm.name === "ok-scheduled-sessions") void openDueScheduledSessions();
+      else if (alarm.name === BREAK_ALARM_NAME) void fireBreakReminder();
     });
     // Reminders, scheduled sessions and the tab limiter also catch up on
     // tab events so a machine that slept past alarms still fires on the

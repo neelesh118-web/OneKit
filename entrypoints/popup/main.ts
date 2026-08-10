@@ -20,6 +20,7 @@ import { createUtilitiesController } from "../../src/popup/utilities-controller"
 import { createMemoryToolsController } from "../../src/popup/memory-tools-controller";
 import { createSessionToolsController } from "../../src/popup/session-tools-controller";
 import { createPowerToolsController } from "../../src/popup/power-tools-controller";
+import { createReadingToolsController } from "../../src/popup/reading-tools-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -398,6 +399,7 @@ void (async () => {
   createMemoryToolsController(caps);
   createSessionToolsController(caps);
   createPowerToolsController(caps);
+  createReadingToolsController(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);
