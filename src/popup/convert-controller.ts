@@ -10,6 +10,7 @@ import { TARGET_LABELS, targetsFor } from "../core/converter/matrix";
 import { decodeAudioInBrowser } from "../core/converter/audio";
 import { initWoff2 } from "../core/converter/fonts";
 import { planBatch, type BatchFile } from "../core/converter/batch";
+import { convertBatchToZip } from "../core/converter/batch-zip";
 import type { OneKitCapabilities } from "./capabilities";
 // Bundle the WOFF2 wasm as an asset and initialize it once.
 import woff2WasmUrl from "../core/converter/woff2.wasm?url";
@@ -32,6 +33,7 @@ export function createConvertController(caps: OneKitCapabilities): () => void {
   const fileInput = $<HTMLInputElement>("convert-file");
   const targetSelect = $<HTMLSelectElement>("convert-target");
   const convertBtn = $<HTMLButtonElement>("convert-btn");
+  const zipBtn = $<HTMLButtonElement>("convert-zip-btn");
   const sourceInfo = $("convert-source");
   const status = $("convert-status");
   const results = $("convert-results");
@@ -56,6 +58,18 @@ export function createConvertController(caps: OneKitCapabilities): () => void {
     "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif", "image-svg"
   ]);
 
+  const buildImageSettings = (target: string): { quality?: number; maxDimension?: number } => {
+    if (!currentSource || !IMAGE_SOURCES.has(currentSource)) return {};
+    const settings: { quality?: number; maxDimension?: number } = {};
+    const quality = Number(qualitySlider.value);
+    if ((target === "image-jpeg" || target === "image-webp") && Number.isFinite(quality)) {
+      settings.quality = Math.min(1, Math.max(0.1, quality / 100));
+    }
+    const maxDim = Number(maxDimInput.value);
+    if (Number.isFinite(maxDim) && maxDim > 0) settings.maxDimension = Math.round(maxDim);
+    return settings;
+  };
+
   const updateImageControls = (sourceType: string | null, target: string | null): void => {
     const isImage = sourceType !== null && IMAGE_SOURCES.has(sourceType);
     imageControls.hidden = !isImage;
@@ -78,6 +92,7 @@ export function createConvertController(caps: OneKitCapabilities): () => void {
     targetSelect.appendChild(placeholder);
     currentTarget = null;
     convertBtn.disabled = true;
+    zipBtn.disabled = true;
   };
 
   const showResults = (items: { ok: boolean; label: string }[]): void => {
@@ -189,6 +204,7 @@ export function createConvertController(caps: OneKitCapabilities): () => void {
   targetSelect.addEventListener("change", () => {
     currentTarget = targetSelect.value || null;
     convertBtn.disabled = !currentTarget;
+    zipBtn.disabled = !currentTarget;
     updateImageControls(currentSource, currentTarget);
   });
 
@@ -197,15 +213,7 @@ export function createConvertController(caps: OneKitCapabilities): () => void {
       if (currentFiles.length === 0 || !currentTarget || !currentSource) return;
       const target = currentTarget as Parameters<typeof convertFile>[1];
       const label = TARGET_LABELS[target];
-      const imageSettings: { quality?: number; maxDimension?: number } = {};
-      if (IMAGE_SOURCES.has(currentSource)) {
-        const quality = Number(qualitySlider.value);
-        if ((target === "image-jpeg" || target === "image-webp") && Number.isFinite(quality)) {
-          imageSettings.quality = Math.min(1, Math.max(0.1, quality / 100));
-        }
-        const maxDim = Number(maxDimInput.value);
-        if (Number.isFinite(maxDim) && maxDim > 0) imageSettings.maxDimension = Math.round(maxDim);
-      }
+      const imageSettings = buildImageSettings(target);
       setStatus(`Converting ${currentFiles.length} file${currentFiles.length === 1 ? "" : "s"} to ${label}…`);
       convertBtn.disabled = true;
       const done: { ok: boolean; label: string }[] = [];
@@ -237,6 +245,38 @@ export function createConvertController(caps: OneKitCapabilities): () => void {
         }
       } finally {
         convertBtn.disabled = !targetSelect.value;
+        zipBtn.disabled = !targetSelect.value;
+      }
+    })().catch((err) => {
+      setStatus(err instanceof Error ? err.message : String(err), true);
+    });
+  });
+
+  zipBtn.addEventListener("click", () => {
+    void (async () => {
+      if (currentFiles.length === 0 || !currentTarget || !currentSource) return;
+      const target = currentTarget as Parameters<typeof convertFile>[1];
+      const label = TARGET_LABELS[target];
+      const imageSettings = buildImageSettings(target);
+      setStatus(`Converting ${currentFiles.length} file${currentFiles.length === 1 ? "" : "s"} to ${label} and zipping…`);
+      zipBtn.disabled = true;
+      try {
+        const outcome = await convertBatchToZip(currentFiles, target, {
+          audioDecoder: decodeAudioInBrowser,
+          image: imageSettings
+        });
+        const zipName = `converted-${outcome.converted.length}-files.zip`;
+        caps.saveFile(outcome.zip, zipName, "application/zip");
+        showResults([
+          ...outcome.converted.map((c) => ({ ok: true, label: `${c.source} → ${c.output} (${fmt(c.size)})` })),
+          ...outcome.failed.map((f) => ({ ok: false, label: `${f.source} — ${f.error}` }))
+        ]);
+        const failedNote = outcome.failed.length > 0 ? `; ${outcome.failed.length} failed` : "";
+        setStatus(`Saved ${outcome.converted.length} file${outcome.converted.length === 1 ? "" : "s"} as ${label} inside ${zipName}${failedNote}.`);
+      } catch (err) {
+        setStatus(err instanceof Error ? err.message : String(err), true);
+      } finally {
+        zipBtn.disabled = !targetSelect.value;
       }
     })().catch((err) => {
       setStatus(err instanceof Error ? err.message : String(err), true);

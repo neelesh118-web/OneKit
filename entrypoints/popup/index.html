@@ -750,7 +750,7 @@
           <div class="tool-heading">
             <span class="tool-label">🔄 File converter</span>
           </div>
-          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick or drop one or several files of the same type, choose a target, convert. Files that don't match the batch are listed and skipped, never silently converted wrong.</p>
+          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick or drop one or several files of the same type, choose a target, then convert individually or bundle the results into one ZIP. Files that don't match the batch are listed and skipped, never silently converted wrong.</p>
           <div class="drop-zone" id="convert-dropzone">
             <input id="convert-file" type="file" multiple />
             <p class="drop-hint">…or drop files anywhere in this box</p>
@@ -763,6 +763,7 @@
               </select>
             </label>
             <button id="convert-btn" type="button" class="mini-btn" disabled>Convert</button>
+            <button id="convert-zip-btn" type="button" class="mini-btn" disabled>Convert &amp; ZIP</button>
           </div>
           <div class="btn-row" id="convert-image-controls" hidden>
             <label class="quality-row">Quality

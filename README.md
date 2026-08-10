@@ -111,7 +111,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 
 | Feature | What it does | Where |
 |---|---|---|
-| 🔄 File converter | Convert files 100% locally — one file or a whole batch: images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF is a 256-color format, honest about the depth loss) with a quality slider (JPEG/WebP) and max-size downscaling, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, MP3/OGG/M4A → WAV and WAV → MP3. Detection uses magic bytes, not just the file extension; unsupported pairs are honestly refused, and batch picks that don't match are listed and skipped rather than converted wrong. Files never leave the device | Popup → Convert |
+| 🔄 File converter | Convert files 100% locally — one file or a whole batch, saved individually or bundled into one ZIP: images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF is a 256-color format, honest about the depth loss) with a quality slider (JPEG/WebP) and max-size downscaling, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, MP3/OGG/M4A → WAV and WAV → MP3. Detection uses magic bytes, not just the file extension; unsupported pairs are honestly refused, and batch picks that don't match are listed and skipped rather than converted wrong. Files never leave the device | Popup → Convert |
 
 ## Defaults & privacy posture
 
@@ -162,7 +162,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (379 tests)
+npm test               # vitest (386 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```
