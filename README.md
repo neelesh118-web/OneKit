@@ -156,6 +156,23 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | 🌊 Focus sounds | White, pink, brown noise or rain generated locally with Web Audio — nothing streams, nothing leaves the device; volume control, stops on popup close | Popup → Focus |
 | 📺 Floating video (PiP) | Pops the page's best video (playing + visible wins) into Chrome's Document Picture-in-Picture window; falls back to native PiP | Popup → Tools + on-page |
 
+### Phase 14 (12 features — 89 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🛡️ Password strength analyzer | Scores any password locally: entropy, common-password/keyboard-sequence/repeat flags, and an honest crack-time estimate. Nothing leaves the device | Popup → Tools |
+| 📮 Email-signup blocker | Intercepts newsletter/signup forms (email field + subscribe-style button) and asks the user to confirm before anything is submitted — the dark-pattern fight, done honestly; never fabricates an email, never auto-submits | On-page (Settings toggle) |
+| ⏰ Local reminders | One-off reminders that fire as browser notifications even when the popup is closed (chrome.alarms); pending/dismissed list, clear-all. No account, no cloud | Popup → Memory |
+| 🛑 Tab limiter | Soft cap on open tabs — warns when way over (once per 10 min) and can suspend the oldest inactive tabs. Never force-closes anything | Popup → Speed + background |
+| 🌐 Multi-search | One query, several engines (Google, Bing, DuckDuckGo, YouTube, Wikipedia, Perplexity, GitHub, Reddit) — each opens in its own tab | Popup → Tools |
+| 🔗 Link collector | Right-click a link/page → OneKit — “Collect link (export later)”; stash links while researching, then export the collection as Markdown or CSV | Right-click + Popup → Memory |
+| 📋 Copy tab list | Download every open tab as a Markdown list or CSV — research notes, sharing a session, quick backup of what's open | Popup → Speed |
+| 📑 Text → list tools | Split pasted text into lines, split on commas/semicolons, dedupe, sort, reverse, or convert to CSV — pure local transforms | Popup → Typing |
+| 🎨 WCAG contrast checker | Checks two colors against WCAG AA/AAA for normal and large text — pure local math | Popup → Tools |
+| 🗄️ Data export hub | Download every OneKit store as one JSON file, or a friendly Markdown digest (links, todos, reminders) | Popup → Settings |
+| 〰️ Barcode generator | Code 128 barcodes for any ASCII text (product codes, asset tags, serials), rendered locally as SVG — downloadable | Popup → Tools |
+| 🔎 Link status inspector | Local heuristics for a pasted URL: spaces, missing scheme, broken percent-encoding, placeholder hosts, local-only hosts. No network pings — checks the URL's own structure | Popup → Dev |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

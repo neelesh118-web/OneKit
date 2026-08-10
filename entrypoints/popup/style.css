@@ -785,3 +785,40 @@ a.result-title:hover {
   width: 16px;
   height: 16px;
 }
+
+/* 2026 round — password strength, multi-search, contrast, barcode ---------- */
+.ps-issues {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--muted, #64748b);
+  font-size: 12px;
+}
+.ms-engines {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 6px 0;
+}
+.contrast-result {
+  font: 12px/1.6 ui-monospace, monospace;
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+.bc-output {
+  margin: 8px 0 4px;
+  overflow-x: auto;
+}
+.bc-output svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  border-radius: 6px;
+}
+.status.warn {
+  color: #d97706;
+}
+.status.over {
+  color: var(--danger, #dc2626);
+  font-weight: 600;
+}

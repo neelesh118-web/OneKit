@@ -53,7 +53,10 @@ export const BACKUP_KEYS = [
   "ok.passwordsMeta",
   "ok.totp.accounts",
   "ok.totp.meta",
-  "ok.secureNotes"
+  "ok.secureNotes",
+  "ok.reminders",
+  "ok.linkCollection",
+  "ok.tabLimit"
 ] as const;
 
 export interface OneKitBackup {
@@ -105,6 +108,9 @@ const KEY_VALIDATORS: Record<(typeof BACKUP_KEYS)[number], (value: unknown) => b
   "ok.passwordsMeta": isObject,
   "ok.totp.accounts": isObject,
   "ok.totp.meta": isObject,
+  "ok.reminders": isArray,
+  "ok.linkCollection": isArray,
+  "ok.tabLimit": (v) => typeof v === "number",
   "ok.secureNotes": isObject
 };
 

@@ -49,6 +49,10 @@ export interface ToolToggles {
   readingProgress: boolean;
   /** Apply saved playback speeds to videos + [ ] \\ shortcuts (default OFF). */
   videoSpeed: boolean;
+  /** Confirm before newsletter/signup forms submit (default OFF). */
+  emailBlocker: boolean;
+  /** Warn when too many tabs are open (default OFF — changes behavior). */
+  tabLimiter: boolean;
 }
 
 export interface OneKitSettings {
@@ -86,7 +90,9 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     webNotes: false,
     mouseGestures: false,
     readingProgress: false,
-    videoSpeed: false
+    videoSpeed: false,
+    emailBlocker: false,
+    tabLimiter: false
   },
   textExpanderEnabled: true,
   onboarded: false

@@ -11,22 +11,22 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>77 tools · 100% local · free forever</span>
+          <span>89 tools · 100% local · free forever</span>
         </div>
       </header>
 
       <nav class="tab-nav" aria-label="OneKit tools">
-        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">9</span></button>
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">11</span></button>
         <button type="button" class="tab-btn" data-tab="vault">💬 Vault <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">8</span></button>
-        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">8</span></button>
-        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">8</span></button>
-        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">7</span></button>
-        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">14</span></button>
-        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">3</span></button>
+        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">9</span></button>
+        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">10</span></button>
+        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">9</span></button>
+        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">8</span></button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">18</span></button>
+        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">4</span></button>
         <button type="button" class="tab-btn" data-tab="convert">🔄 Convert <span class="tab-count">4</span></button>
         <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">5</span></button>
+        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">6</span></button>
       </nav>
 
       <!-- ============================================================ -->
@@ -142,6 +142,37 @@
           </div>
           <p id="reading-time-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏰ Local reminders</span>
+          </div>
+          <p class="hint">A one-off reminder that fires as a browser notification even when the popup is closed. No account, no cloud.</p>
+          <div class="btn-row">
+            <input id="rem-text" type="text" placeholder="What should we remind you about?" autocomplete="off" />
+            <input id="rem-when" type="datetime-local" aria-label="When" />
+            <button id="rem-add" type="button" class="mini-btn primary">Set reminder</button>
+          </div>
+          <div id="rem-list" class="results"></div>
+          <div class="btn-row">
+            <button id="rem-clear" type="button" class="mini-btn danger">Clear all</button>
+          </div>
+          <p id="rem-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔗 Link collector</span>
+          </div>
+          <p class="hint">Right-click any link or page → OneKit — “Collect link (export later)”. Stash links while you research, then export them as Markdown or CSV.</p>
+          <div id="lc-list" class="results"></div>
+          <div class="btn-row">
+            <button id="lc-export-md" type="button" class="mini-btn">Export Markdown</button>
+            <button id="lc-export-csv" type="button" class="mini-btn">Export CSV</button>
+            <button id="lc-clear" type="button" class="mini-btn danger">Clear all</button>
+          </div>
+          <p id="lc-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -183,7 +214,12 @@
           </div>
         </div>
 
-                  <p id="sn-state" class="status"></p>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📓 Encrypted secure notes</span>
+          </div>
+          <p class="hint">Private notes encrypted at rest with a passphrase (PBKDF2 + AES-GCM, key held in memory only). No recovery — a lost passphrase means lost notes.</p>
+          <p id="sn-state" class="status"></p>
                   <div class="btn-row">
                     <input id="sn-pass" type="password" placeholder="Passphrase" autocomplete="off" />
                     <button id="sn-unlock" type="button" class="mini-btn">🔓 Unlock</button>
@@ -210,12 +246,6 @@
       <!-- ============================================================ -->
       <!-- Safety                                                        -->
       <!-- ============================================================ -->
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">📓 Encrypted secure notes</span>
-          </div>
-          <p class="hint">Private notes encrypted at rest with a passphrase (PBKDF2 + AES-GCM, key held in memory only). No recovery — a lost passphrase means lost notes.</p>
-
       <section class="tab-panel" id="panel-safety" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -378,6 +408,14 @@
           <div id="sweep-list" class="results"></div>
           <p id="sweep-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📮 Email-signup blocker</span>
+          </div>
+          <p class="hint">Newsletter and signup forms get intercepted and OneKit asks before anything is submitted — the dark-pattern fight, done honestly. It never fabricates an email and never auto-submits.</p>
+          <p class="status">Turn it on in Settings → Tools → “Confirm before newsletter/signup forms submit”.</p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -491,6 +529,34 @@
           </div>
           <div id="snooze-list" class="results"></div>
           <p id="snooze-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🛑 Tab limiter</span>
+          </div>
+          <p class="hint">A soft cap on open tabs — OneKit warns when you're way over and can suspend the oldest inactive tabs. It never force-closes anything.</p>
+          <div class="btn-row">
+            <label>Warn above
+              <input id="tl-limit" type="number" min="10" max="500" value="40" style="width:70px" />
+              tabs
+            </label>
+            <button id="tl-save" type="button" class="mini-btn">Save limit</button>
+            <button id="tl-suspend" type="button" class="mini-btn">Suspend oldest inactive</button>
+          </div>
+          <p id="tl-status2" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📋 Copy tab list</span>
+          </div>
+          <p class="hint">Download every open tab as a Markdown list or CSV — for research notes, sharing a session, or a quick backup of what's open.</p>
+          <div class="btn-row">
+            <button id="cl-markdown" type="button" class="mini-btn">Copy as Markdown file</button>
+            <button id="cl-csv" type="button" class="mini-btn">Copy as CSV file</button>
+          </div>
+          <p id="cl-status" class="status"></p>
         </div>
       </section>
 
@@ -606,6 +672,7 @@
           <p id="habit-status" class="status"></p>
         </div>
 
+                <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">☑️ Todo list</span>
                   </div>
@@ -723,6 +790,7 @@
           <p id="fr-status" class="status"></p>
         </div>
 
+                <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">✍️ Local spell-checker</span>
                   </div>
@@ -734,13 +802,25 @@
                   <div id="sc-result" class="results"></div>
                 </div>
 
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">📑 Text → list tools</span>
+                  </div>
+                  <p class="hint">Split pasted text into lines, dedupe, sort, reverse, or turn it into CSV — pure local transforms.</p>
+                  <textarea id="tl-input" rows="5" placeholder="Paste a list, one item per line (or comma-separated)…"></textarea>
+                  <div class="btn-row">
+                    <select id="tl-op" aria-label="Operation"></select>
+                    <button id="tl-run" type="button" class="mini-btn primary">Run</button>
+                    <button id="tl-copy" type="button" class="mini-btn" disabled>Copy</button>
+                  </div>
+                  <textarea id="tl-output" rows="5" readonly placeholder="Result appears here"></textarea>
+                  <p id="tl-status" class="status"></p>
+                </div>
       </section>
 
       <!-- ============================================================ -->
       <!-- Tools                                                         -->
       <!-- ============================================================ -->
-        <div class="tool-block">
-
       <section class="tab-panel" id="panel-tools" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -874,6 +954,56 @@
 
         <div class="tool-block">
           <div class="tool-heading">
+            <span class="tool-label">🛡️ Password strength analyzer</span>
+          </div>
+          <p class="hint">Score any password locally — entropy, common-pattern flags, and an honest crack-time estimate. Nothing leaves this device.</p>
+          <input id="ps-input" type="text" placeholder="Type or paste a password to analyze…" autocomplete="off" spellcheck="false" />
+          <p id="ps-result" class="status strength"></p>
+          <ul id="ps-issues" class="ps-issues"></ul>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🌐 Multi-search</span>
+          </div>
+          <p class="hint">One query, several engines — each opens in its own tab. Pick the engines below.</p>
+          <div class="btn-row">
+            <input id="ms-input" type="search" placeholder="Search for…" autocomplete="off" />
+            <button id="ms-go" type="button" class="mini-btn primary">Search</button>
+          </div>
+          <div id="ms-engines" class="ms-engines"></div>
+          <p id="ms-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎨 WCAG contrast checker</span>
+          </div>
+          <p class="hint">Check two colors against WCAG AA/AAA for normal and large text — pure local math.</p>
+          <div class="btn-row">
+            <label>Foreground <input id="ct-fg" type="color" value="#000000" /></label>
+            <label>Background <input id="ct-bg" type="color" value="#ffffff" /></label>
+            <button id="ct-check" type="button" class="mini-btn primary">Check</button>
+          </div>
+          <pre id="ct-result" class="contrast-result"></pre>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">〰️ Barcode generator</span>
+          </div>
+          <p class="hint">Code 128 barcodes for any ASCII text (product codes, asset tags, serials) — rendered locally as SVG.</p>
+          <div class="btn-row">
+            <input id="bc-input" type="text" placeholder="Text to encode (printable ASCII)…" autocomplete="off" spellcheck="false" />
+            <button id="bc-make" type="button" class="mini-btn primary">Generate</button>
+            <button id="bc-download" type="button" class="mini-btn" disabled>Save SVG</button>
+          </div>
+          <div id="bc-output" class="bc-output"></div>
+          <p id="bc-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
             <span class="tool-label">📅 Date &amp; time tools</span>
           </div>
           <p class="hint">Days between dates, add days, and see an instant in any IANA time zone.</p>
@@ -898,6 +1028,7 @@
           <p class="status">Leave the date-time blank to use right now.</p>
         </div>
 
+                <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">⏩ Video speed controller</span>
                   </div>
@@ -957,8 +1088,6 @@
       <!-- ============================================================ -->
       <!-- Dev                                                           -->
       <!-- ============================================================ -->
-        <div class="tool-block">
-
       <section class="tab-panel" id="panel-dev" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1087,6 +1216,18 @@
           </div>
           <p id="api-status" class="status"></p>
           <pre id="api-output" class="api-output" hidden></pre>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔎 Link status inspector</span>
+          </div>
+          <p class="hint">Local heuristics for a pasted link: spaces, missing scheme, broken percent-encoding, placeholder hosts, local-only hosts. No network pings — it checks the URL's own structure, so it's honest about what it can't see.</p>
+          <div class="btn-row">
+            <input id="ls-input" type="text" placeholder="Paste a URL to inspect…" spellcheck="false" />
+            <button id="ls-check" type="button" class="mini-btn primary">Inspect</button>
+          </div>
+          <div id="ls-result" class="results"></div>
         </div>
       </section>
 
@@ -1283,6 +1424,18 @@ wikipedia.org"></textarea>
             <input id="backup-restore-file" type="file" accept="application/json,.json" hidden />
           </div>
           <p id="backup-status-settings" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗄️ Data export hub</span>
+          </div>
+          <p class="hint">Download your OneKit data as one JSON file (every store) or a friendly Markdown digest (links, todos, reminders). Everything was already on this device — this just packages it.</p>
+          <div class="btn-row">
+            <button id="ex-json" type="button" class="mini-btn">⬇ Export all as JSON</button>
+            <button id="ex-md" type="button" class="mini-btn">⬇ Export friendly Markdown</button>
+          </div>
+          <p id="ex-status" class="status"></p>
         </div>
 
         <p class="footer-note">OneKit keeps everything on this device. No account, no cloud, no tracking. Uninstalling removes all OneKit data.</p>

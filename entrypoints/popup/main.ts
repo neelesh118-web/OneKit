@@ -16,6 +16,8 @@ import { createDownloadsController } from "../../src/popup/downloads-controller"
 import { createDevController } from "../../src/popup/dev-controller";
 import { createPasswordVaultController } from "../../src/popup/password-vault-controller";
 import { createMediaController } from "../../src/popup/media-controller";
+import { createUtilitiesController } from "../../src/popup/utilities-controller";
+import { createMemoryToolsController } from "../../src/popup/memory-tools-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -378,6 +380,8 @@ void (async () => {
   createTypingController(caps);
   createToolsController(caps);
   createMediaController(caps);
+  createUtilitiesController(caps);
+  createMemoryToolsController(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);

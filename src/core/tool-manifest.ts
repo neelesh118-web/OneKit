@@ -604,6 +604,94 @@ export const TOOLS: ToolDef[] = [
     icon: "📺",
     tab: "tools",
     description: "Pop the current page's video into a draggable always-on-top window with one click."
+  },
+  {
+    id: "passwordStrength",
+    name: "Password strength analyzer",
+    icon: "🛡️",
+    tab: "tools",
+    description: "Score any password locally: entropy, common-pattern flags, and an honest crack-time estimate. Nothing is sent anywhere."
+  },
+  {
+    id: "emailBlocker",
+    name: "Email-signup blocker",
+    icon: "📮",
+    tab: "safety",
+    description: "Intercepts newsletter signup forms and asks before anything is submitted — the dark-pattern fight, done honestly.",
+    toggleKey: "emailBlocker",
+    settingLabel: "Confirm before newsletter/signup forms submit"
+  },
+  {
+    id: "reminders",
+    name: "Local reminders",
+    icon: "⏰",
+    tab: "memory",
+    description: "Set a one-off reminder; it fires as a notification even when the popup is closed. No account, no cloud."
+  },
+  {
+    id: "tabLimiter",
+    name: "Tab limiter",
+    icon: "🛑",
+    tab: "speed",
+    description: "A soft cap on open tabs: warns when you're over, suggests suspending the oldest inactive ones. Never force-closes.",
+    toggleKey: "tabLimiter",
+    settingLabel: "Warn when too many tabs are open (tab limiter)"
+  },
+  {
+    id: "multiSearch",
+    name: "Multi-search",
+    icon: "🌐",
+    tab: "tools",
+    description: "One query, several engines — open Google, YouTube, Wikipedia, Reddit and more in parallel tabs."
+  },
+  {
+    id: "linkCollector",
+    name: "Link collector",
+    icon: "🔗",
+    tab: "memory",
+    description: "Right-click a link to stash it, then export the collection as Markdown or CSV — great for research sessions."
+  },
+  {
+    id: "tabList",
+    name: "Copy tab list",
+    icon: "📋",
+    tab: "speed",
+    description: "Copy every open tab as a Markdown list or CSV — for research notes, sharing a session, or backing up what's open."
+  },
+  {
+    id: "textList",
+    name: "Text → list tools",
+    icon: "📑",
+    tab: "typing",
+    description: "Split pasted text into lines, dedupe, sort, reverse, or turn it into CSV — all pure local transforms."
+  },
+  {
+    id: "contrast",
+    name: "WCAG contrast checker",
+    icon: "🎨",
+    tab: "tools",
+    description: "Check two colors against WCAG AA/AAA for normal and large text — pure local math, no upload."
+  },
+  {
+    id: "exportHub",
+    name: "Data export hub",
+    icon: "🗄️",
+    tab: "settings",
+    description: "Download your OneKit data as one JSON file or a friendly Markdown digest — everything was already on this device."
+  },
+  {
+    id: "barcode",
+    name: "Barcode generator",
+    icon: "〰️",
+    tab: "tools",
+    description: "Code 128 barcodes for any ASCII text, rendered locally as SVG — product codes, asset tags, serial numbers."
+  },
+  {
+    id: "linkStatus",
+    name: "Link status inspector",
+    icon: "🔎",
+    tab: "dev",
+    description: "Local heuristics for a pasted link: spaces, missing scheme, broken encoding, placeholders, local-only hosts. No network pings, so it's honest."
   }
 ];
 

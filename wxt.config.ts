@@ -7,9 +7,9 @@ export default defineConfig({
   manifest: {
     // Chrome Web Store title limit is 75 chars; the first ~30 survive grid
     // truncation, so the brand + the core promise sit up front.
-    name: "OneKit — Local Browser Toolbox (77 tools, no cloud)",
+    name: "OneKit — Local Browser Toolbox (89 tools, no cloud)",
     description:
-      "77 local tools: history search, AI chat vault, session backup, tab snooze, focus sessions, TOTP 2FA authenticator, local password vault, video speed controller, tab recorder, OCR, spell-checker, todo list, secure notes, focus sounds, floating video, file converter, PDF tools, citation generator, API tester, new-tab dashboard, full-page screenshots, dark mode — 100% on-device, free forever.",
+      "89 local tools: history search, AI chat vault, session backup, tab snooze, focus sessions, TOTP 2FA authenticator, local password vault, video speed controller, tab recorder, OCR, spell-checker, todo list, secure notes, reminders, link collector, barcode generator, file converter, PDF tools, citation generator, API tester, new-tab dashboard — 100% on-device, free forever.",
     // storage (settings + all local data), unlimitedStorage (large local
     // history/clipboard vault), tabs (tab finder + duplicate killer),
     // contextMenus (right-click quick actions), clipboardWrite (copy from
@@ -29,7 +29,8 @@ export default defineConfig({
       "cookies",
       "history",
       "browsingData",
-      "tabCapture"
+      "tabCapture",
+      "notifications"
     ],
     // Type "ok" + a word in the address bar to search history/tabs/clipboard.
     omnibox: { keyword: "ok" },

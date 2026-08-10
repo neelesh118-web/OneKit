@@ -18,6 +18,9 @@ import {
 } from "../src/core/tab-snooze";
 import { localStorageHistory, searchHistory } from "../src/core/history-store";
 import { listClipboard, localStorageClipboard } from "../src/core/clipboard-store";
+import { dueReminders, localStorageReminders, markFired } from "../src/core/reminders";
+import { loadLimit, localStorageTabLimit, statusFor } from "../src/core/tab-limiter";
+import { addCollectedLink, localStorageLinkCollection } from "../src/core/link-collector";
 
 /**
  * OneKit background — owns right-click quick actions, install-time defaults,
@@ -43,6 +46,7 @@ const COPY_LINK_MD_MENU_ID = "onekit-copy-link-md";
 const COPY_PAGE_MD_MENU_ID = "onekit-copy-page-md";
 const COPY_LINKS_MENU_ID = "onekit-copy-all-links";
 const PRINT_FRIENDLY_MENU_ID = "onekit-print-friendly";
+const COLLECT_LINK_MENU_ID = "onekit-collect-link";
 const SEARCH_GOOGLE_MENU_ID = "onekit-search-google";
 const SEARCH_YOUTUBE_MENU_ID = "onekit-search-youtube";
 const SEARCH_WIKIPEDIA_MENU_ID = "onekit-search-wikipedia";
@@ -130,6 +134,11 @@ export default defineBackground(() => {
         id: PRINT_FRIENDLY_MENU_ID,
         title: "OneKit — Print-friendly version",
         contexts: ["page"]
+      });
+      browser.contextMenus.create({
+        id: COLLECT_LINK_MENU_ID,
+        title: "OneKit — Collect link (export later)",
+        contexts: ["link", "page"]
       });
       browser.contextMenus.create({
         id: SEARCH_GOOGLE_MENU_ID,
@@ -455,6 +464,15 @@ export default defineBackground(() => {
             url: `${browser.runtime.getURL("/reader.html")}?url=${encodeURIComponent(url)}&print=1`
           });
         }
+      } else if (info.menuItemId === COLLECT_LINK_MENU_ID) {
+        const url = info.linkUrl ?? info.pageUrl;
+        if (url) {
+          await addCollectedLink(
+            { url, title: info.linkUrl ? (info.selectionText ?? "") || url : (tab?.title ?? "") || url },
+            localStorageLinkCollection(),
+            Date.now()
+          );
+        }
       } else if (info.menuItemId === SEARCH_GOOGLE_MENU_ID) {
         if (info.selectionText) {
           await browser.tabs.create({ url: `https://www.google.com/search?q=${encodeURIComponent(info.selectionText)}` });
@@ -579,13 +597,77 @@ export default defineBackground(() => {
     }
   }
 
+  /* Reminders — fire due reminders as notifications --------------------- */
+  let lastReminderFire = 0;
+  async function fireDueReminders(): Promise<void> {
+    try {
+      const storage = localStorageReminders();
+      const due = await dueReminders(storage, Date.now());
+      for (const reminder of due.slice(0, 5)) {
+        await markFired(reminder.id, storage);
+        const title = `⏰ ${reminder.text.slice(0, 60)}`;
+        const url = browser.runtime.getURL("/popup.html");
+        if (Date.now() - lastReminderFire > 1_000) {
+          lastReminderFire = Date.now();
+          try {
+            await browser.notifications.create({
+              type: "basic",
+              iconUrl: browser.runtime.getURL("/icon/128.png"),
+              title,
+              message: "Set with OneKit — tap the extension to dismiss it."
+            });
+          } catch {
+            // Notifications may be unavailable (Firefox) — fall back silently.
+          }
+        }
+        void url;
+      }
+    } catch {
+      // Best-effort: a reminder failure must never break the service worker.
+    }
+  }
+
+  /* Tab limiter — warn when the tab count is way over ------------------- */
+  let lastLimitWarn = 0;
+  async function checkTabLimit(): Promise<void> {
+    try {
+      const settings = await loadSettings();
+      if (!settings.tools.tabLimiter) return;
+      const limit = await loadLimit(localStorageTabLimit());
+      const tabs = (await browser.tabs.query({})) as TabLike[];
+      const { action, message } = statusFor(tabs.length, limit);
+      if (action !== "over") return;
+      if (Date.now() - lastLimitWarn < 10 * 60 * 1000) return; // once per 10 min
+      lastLimitWarn = Date.now();
+      try {
+        await browser.notifications.create({
+          type: "basic",
+          iconUrl: browser.runtime.getURL("/icon/128.png"),
+          title: "🛑 Too many tabs open",
+          message
+        });
+      } catch {
+        // Best-effort.
+      }
+    } catch {
+      // Best-effort.
+    }
+  }
+
   /* Alarm-driven background jobs --------------------------------------- */
   try {
     browser.alarms.onAlarm.addListener((alarm) => {
       if (alarm.name === SESSION_BACKUP_ALARM) void snapshotTabs();
       else if (alarm.name === TAB_SUSPENDER_ALARM) void suspendIdleTabs();
       else if (alarm.name === TAB_SNOOZE_ALARM) void reopenDueSnoozes();
+      else if (alarm.name.startsWith("ok-reminder-")) void fireDueReminders();
     });
+    // Reminders and the tab limiter also catch up on tab events so a
+    // machine that slept past alarms still fires on the next interaction.
+    browser.tabs.onCreated.addListener(() => void fireDueReminders());
+    browser.tabs.onUpdated.addListener(() => void checkTabLimit());
+    browser.tabs.onCreated.addListener(() => void checkTabLimit());
+    browser.tabs.onRemoved.addListener(() => void checkTabLimit());
   } catch {
     // No alarms in this environment.
   }
