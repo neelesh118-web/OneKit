@@ -77,7 +77,9 @@ function fakeCaps(storage: ReturnType<typeof createMemoryStorage>): OneKitCapabi
     ocrImage: async () => "",
     fileToDataUrl: async () => "data:image/png;base64,",
     loadWordlist: async () => [],
-    readerUrl: () => "chrome-extension://reader/reader.html"
+    readerUrl: () => "chrome-extension://reader/reader.html",
+    resizeWindow: async () => {},
+    getProtectedTools: async () => []
   };
 }
 

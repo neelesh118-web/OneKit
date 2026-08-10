@@ -124,6 +124,12 @@ import {
   readPomodoro,
   POMODORO_STORAGE_KEY
 } from "../src/core/pomodoro";
+import { cssForHostname, hostnameOf, localStorageCustomCss } from "../src/core/custom-css";
+import { autoRefreshFor, clearAutoRefresh, localStorageAutoRefresh, setAutoRefresh } from "../src/core/auto-refresh";
+import { measureElementAt, type RulerBox } from "../src/core/page-ruler";
+import { classifyField, fakePerson, valueForKind } from "../src/core/fake-filler";
+import { tableToCsv } from "../src/core/table-csv";
+import { addVideoNote, listVideoNotes, removeVideoNote, localStorageVideoNotes } from "../src/core/video-notes";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -1092,6 +1098,213 @@ function onPaletteShortcut(event: KeyboardEvent): void {
 }
 
 /* ------------------------------------------------------------------ */
+/* Custom per-site CSS                                                 */
+/* ------------------------------------------------------------------ */
+
+async function applyCustomCss(): Promise<void> {
+  const s = await currentSettings();
+  if (!s.tools.customCss) {
+    document.getElementById("onekit-custom-css")?.remove();
+    return;
+  }
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  const css = await cssForHostname(localStorageCustomCss(), hostnameOf(window.location.href));
+  const existing = document.getElementById("onekit-custom-css");
+  if (css && !existing) {
+    const style = document.createElement("style");
+    style.id = "onekit-custom-css";
+    style.textContent = css;
+    document.documentElement.appendChild(style);
+  } else if (!css && existing) {
+    existing.remove();
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Auto-refresh — a local timer that reloads this page on an interval */
+/* ------------------------------------------------------------------ */
+
+let refreshTimer: number | undefined;
+let refreshIntervalSeconds = 0;
+
+async function armAutoRefresh(): Promise<void> {
+  if (refreshTimer !== undefined) {
+    window.clearTimeout(refreshTimer);
+    refreshTimer = undefined;
+  }
+  refreshIntervalSeconds = 0;
+  const s = await currentSettings();
+  if (!s.tools.autoRefresh) return;
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  const rule = await autoRefreshFor(localStorageAutoRefresh(), window.location.href);
+  if (!rule) return;
+  refreshIntervalSeconds = rule.intervalSeconds;
+  refreshTimer = window.setTimeout(() => {
+    window.location.reload();
+  }, refreshIntervalSeconds * 1000);
+}
+
+/* ------------------------------------------------------------------ */
+/* Page ruler overlay — drag a box, read the size                     */
+/* ------------------------------------------------------------------ */
+
+let rulerOverlay: HTMLElement | null = null;
+let rulerStart: { x: number; y: number } | null = null;
+let rulerBoxEl: HTMLElement | null = null;
+
+function destroyRuler(): void {
+  rulerOverlay?.remove();
+  rulerOverlay = null;
+  rulerBoxEl = null;
+  rulerStart = null;
+}
+
+function onRulerMove(event: MouseEvent): void {
+  if (!rulerStart || !rulerBoxEl) return;
+  const box: RulerBox = {
+    x: rulerStart.x,
+    y: rulerStart.y,
+    width: event.clientX - rulerStart.x,
+    height: event.clientY - rulerStart.y
+  };
+  const rect = event.target instanceof HTMLElement ? (event.target as HTMLElement).getBoundingClientRect() : null;
+  const w = Math.abs(box.width);
+  const h = Math.abs(box.height);
+  rulerBoxEl.style.left = `${Math.min(box.x, box.x + box.width)}px`;
+  rulerBoxEl.style.top = `${Math.min(box.y, box.y + box.height)}px`;
+  rulerBoxEl.style.width = `${w}px`;
+  rulerBoxEl.style.height = `${h}px`;
+  rulerBoxEl.textContent = `${Math.round(w)} × ${Math.round(h)}px`;
+  void (async () => {
+    const measure = measureElementAt(document, event.clientX, event.clientY);
+    if (measure) rulerBoxEl.textContent = `${measure.label}: ${Math.round(measure.width)} × ${Math.round(measure.height)}px`;
+  })();
+}
+
+function enableRuler(): void {
+  destroyRuler();
+  const overlay = document.createElement("div");
+  overlay.id = "onekit-ruler-overlay";
+  overlay.style.cssText = [
+    "position:fixed", "inset:0", "z-index:2147483647",
+    "background:rgba(79,70,229,.08)", "cursor:crosshair", "touch-action:none"
+  ].join(";");
+  const box = document.createElement("div");
+  box.style.cssText = [
+    "position:fixed", "pointer-events:none", "z-index:2147483647",
+    "border:1px solid #4f46e5", "background:rgba(79,70,229,.15)",
+    "color:#4f46e5", "font:600 12px/1.4 system-ui,sans-serif",
+    "padding:2px 6px", "display:flex", "align-items:flex-start", "justify-content:flex-start"
+  ].join(";");
+  overlay.appendChild(box);
+  overlay.addEventListener("mousedown", (event) => {
+    rulerStart = { x: event.clientX, y: event.clientY };
+    rulerBoxEl = box;
+    box.style.display = "block";
+  });
+  overlay.addEventListener("mousemove", onRulerMove);
+  overlay.addEventListener("mouseup", () => {
+    rulerStart = null;
+  });
+  overlay.addEventListener("dblclick", destroyRuler);
+  document.documentElement.appendChild(overlay);
+  rulerOverlay = overlay;
+}
+
+/* ------------------------------------------------------------------ */
+/* Fake form filler — fill a page's form with test data               */
+/* ------------------------------------------------------------------ */
+
+function fillFormWithFakeData(): number {
+  const person = fakePerson();
+  let filled = 0;
+  for (const el of document.querySelectorAll<HTMLElement>("input, textarea, select")) {
+    if (el instanceof HTMLInputElement && (el.type === "hidden" || el.type === "password" || el.type === "submit" || el.type === "button")) continue;
+    const autocomplete = el.getAttribute("autocomplete");
+    const kind = classifyField({
+      name: el instanceof HTMLInputElement ? el.name : "",
+      id: el.id,
+      placeholder: el instanceof HTMLInputElement ? el.placeholder : "",
+      ...(autocomplete ? { autocomplete } : {}),
+      ...(el instanceof HTMLInputElement ? { type: el.type } : {})
+    });
+    const value = valueForKind(kind, person);
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      el.value = value;
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      filled++;
+    } else if (el instanceof HTMLSelectElement) {
+      if (el.options.length > 1) {
+        el.selectedIndex = 1 + Math.floor(Math.random() * (el.options.length - 1));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        filled++;
+      }
+    }
+  }
+  return filled;
+}
+
+/* ------------------------------------------------------------------ */
+/* Table → CSV — copy the active table as CSV                         */
+/* ------------------------------------------------------------------ */
+
+function copyTableAsCsv(): number {
+  const table =
+    document.querySelector<HTMLTableElement>("table") ??
+    (document.activeElement?.closest?.("table") ?? null);
+  if (!table) return 0;
+  const csv = tableToCsv(table);
+  void copyToClipboard(csv);
+  return table.rows.length;
+}
+
+/* ------------------------------------------------------------------ */
+/* Video notes — note while watching, saved with the timestamp        */
+/* ------------------------------------------------------------------ */
+
+let videoNoteChip: HTMLElement | null = null;
+
+function currentVideoTime(): number {
+  const video = document.querySelector<HTMLVideoElement>("video");
+  return video && Number.isFinite(video.currentTime) ? video.currentTime : 0;
+}
+
+async function renderVideoNoteChip(): Promise<void> {
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  if (!document.querySelector<HTMLVideoElement>("video")) return; // only on video pages
+  const notes = await listVideoNotes(localStorageVideoNotes(), window.location.href);
+  if (notes.length === 0) {
+    videoNoteChip?.remove();
+    videoNoteChip = null;
+    return;
+  }
+  if (videoNoteChip) return;
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.id = "onekit-video-notes-chip";
+  chip.textContent = `⏱ ${notes.length} note${notes.length === 1 ? "" : "s"} — view in popup`;
+  chip.title = "OneKit video notes — take notes while watching, jump back any time";
+  chip.style.cssText = [
+    "position:fixed", "left:16px", "bottom:16px", "z-index:2147483646",
+    "background:#1e293b", "color:#f1f5f9", "border:none", "padding:8px 14px",
+    "border-radius:8px", "font:600 13px/1 system-ui,sans-serif", "cursor:pointer",
+    "box-shadow:0 4px 16px rgba(0,0,0,.35)"
+  ].join(";");
+  chip.addEventListener("click", () => {
+    void (async () => {
+      const text = window.prompt("Add a note at " + currentVideoTime().toFixed(1) + "s:");
+      if (!text) return;
+      await addVideoNote(localStorageVideoNotes(), window.location.href, currentVideoTime(), text);
+      chip.remove();
+      videoNoteChip = null;
+      void renderVideoNoteChip();
+    })();
+  });
+  document.documentElement.appendChild(chip);
+  videoNoteChip = chip;
+}
+
+/* ------------------------------------------------------------------ */
 /* Messages from background (right-click actions)                     */
 /* ------------------------------------------------------------------ */
 
@@ -1305,6 +1518,47 @@ browser.runtime.onMessage.addListener(
       sendResponse(result);
     })();
     return true;
+  }
+  if (msg.type === "ok:ruler-toggle") {
+    if (rulerOverlay) destroyRuler();
+    else enableRuler();
+    return;
+  }
+  if (msg.type === "ok:fake-fill") {
+    const filled = fillFormWithFakeData();
+    showToast(filled > 0 ? `Filled ${filled} field${filled === 1 ? "" : "s"} with test data — nothing real.` : "No fillable fields found on this page.", filled > 0 ? "ok" : "info");
+    return { filled };
+  }
+  if (msg.type === "ok:table-csv") {
+    const rows = copyTableAsCsv();
+    showToast(rows > 0 ? `Copied table (${rows} rows) as CSV ✓` : "No table found on this page.", rows > 0 ? "ok" : "info");
+    return { rows };
+  }
+  if (msg.type === "ok:video-notes-add") {
+    const text = typeof msg.text === "string" ? msg.text : "";
+    if (!text.trim()) {
+      showToast("Click the note chip to add a timestamped note.", "info");
+      return;
+    }
+    void (async () => {
+      await addVideoNote(localStorageVideoNotes(), window.location.href, currentVideoTime(), text);
+      showToast("Note saved with timestamp ✓", "ok");
+      void renderVideoNoteChip();
+    })();
+    return;
+  }
+  if (msg.type === "ok:video-notes-refresh") {
+    void renderVideoNoteChip();
+    return;
+  }
+  if (msg.type === "ok:stop-auto-refresh") {
+    if (refreshTimer !== undefined) {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = undefined;
+      refreshIntervalSeconds = 0;
+      void clearAutoRefresh(localStorageAutoRefresh(), window.location.href).catch(() => {});
+    }
+    return;
   }
   }
 );
@@ -1882,6 +2136,16 @@ function boot(): void {
     // Best-effort.
   });
 
+  // Custom per-site CSS.
+  void applyCustomCss().catch(() => {
+    // Best-effort.
+  });
+
+  // Auto-refresh timer (re-arms itself after every reload).
+  void armAutoRefresh().catch(() => {
+    // Best-effort.
+  });
+
   // Read-aloud chip watcher while speech is running.
   window.setInterval(updateReadAloudChip, 2000);
 
@@ -1942,6 +2206,16 @@ function boot(): void {
         // Best-effort.
       });
     }
+    if (changes["ok.settings"] || changes["ok.customCss"]) {
+      void applyCustomCss().catch(() => {
+        // Best-effort.
+      });
+    }
+    if (changes["ok.settings"] || changes["ok.autoRefresh"]) {
+      void armAutoRefresh().catch(() => {
+        // Best-effort.
+      });
+    }
     if (changes["ok.settings"] || changes["ok.webNotes"]) {
       notesHost?.remove();
       notesHost = null;
@@ -1992,6 +2266,12 @@ function boot(): void {
   void renderPomodoroChip().catch(() => {
     // Best-effort.
   });
+
+  // Video notes chip (appears when a video page has saved notes).
+  void renderVideoNoteChip().catch(() => {
+    // Best-effort.
+  });
+  window.setInterval(() => void renderVideoNoteChip().catch(() => {}), 5000);
 }
 
 export default defineContentScript({

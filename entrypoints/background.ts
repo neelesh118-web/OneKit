@@ -29,6 +29,8 @@ import {
   saveScheduledSessions
 } from "../src/core/scheduled-sessions";
 import { localStorageActivity, logActivity } from "../src/core/activity-log";
+import { localStorageMeetingLinks, meetingTabLike, recordMeetingTab } from "../src/core/meeting-links";
+import { windowSizeForPreset, presetById } from "../src/core/window-resizer";
 
 /**
  * OneKit background — owns right-click quick actions, install-time defaults,
@@ -286,6 +288,31 @@ export default defineBackground(() => {
         return (async () => {
           if (typeof msg.url === "string" && msg.url) {
             await browser.tabs.create({ url: msg.url });
+          }
+        })();
+      }
+      if (msg.type === "ok:resize-window") {
+        return (async () => {
+          const preset = typeof (msg as { presetId?: unknown }).presetId === "string" ? presetById((msg as { presetId: string }).presetId) : undefined;
+          if (!preset) return;
+          const size = windowSizeForPreset(preset);
+          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+          if (tab?.windowId !== undefined) {
+            await browser.windows.update(tab.windowId, { width: size.width, height: size.height });
+          }
+        })();
+      }
+      if (msg.type === "ok:clear-page-refresh") {
+        return (async () => {
+          if (typeof msg.url === "string") {
+            const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+            if (tab?.id !== undefined) {
+              try {
+                await browser.tabs.sendMessage(tab.id, { type: "ok:stop-auto-refresh" });
+              } catch {
+                // Content script not injected — nothing to stop.
+              }
+            }
           }
         })();
       }
@@ -704,6 +731,15 @@ export default defineBackground(() => {
     browser.tabs.onUpdated.addListener(() => void checkTabLimit());
     browser.tabs.onCreated.addListener(() => void checkTabLimit());
     browser.tabs.onRemoved.addListener(() => void checkTabLimit());
+    // Meeting links: whenever a tab lands on a known join URL, record it.
+    browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+      if (changeInfo.url) {
+        void recordMeetingTab(localStorageMeetingLinks(), meetingTabLike(tab)).catch(() => {});
+      }
+    });
+    browser.tabs.onCreated.addListener((tab) => {
+      void recordMeetingTab(localStorageMeetingLinks(), meetingTabLike(tab)).catch(() => {});
+    });
   } catch {
     // No alarms in this environment.
   }

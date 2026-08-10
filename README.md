@@ -192,6 +192,25 @@ Built from real 1-star review complaints about the biggest utility extensions �
 | 🗂️ Session export / import | Workspaces, parked tabs and the session backup travel as one portable JSON file — your tabs, your file, restorable on another machine | Popup → Memory |
 | 🧹 Activity log | A local audit trail of what OneKit did — reminders fired, scheduled opens, exports made. Capped at 200 events | Popup → Memory |
 
+### Phase 16 (12 features — 113 tools total)
+
+Built from 1-star review complaints about the biggest utility extensions — the Auto Refresh Plus hijack (1M+ users), "saved 500 articles but can't find anything", "just tell me if my setup is safe", "I want to save timestamps with notes". Everything stays 100% local.
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🔄 Tab auto-refresh | Reloads the active tab on an interval — dashboards, auctions, order boards. A plain local timer (never a hijacker like the infamous Auto Refresh Plus). Settings toggle | Popup → Speed + on-page |
+| 📐 Window resizer | Resize the window to common device viewports — desktop, tablet, phone — for responsive checks | Popup → Dev |
+| 📏 Page ruler | Measure any element on the page in pixels — drag a box, read the size, see what's under the cursor | Popup → Dev + on-page |
+| 🎭 Fake form filler | Fill a page's form with random-but-valid test data — names, emails, cards — generated locally from a seeded RNG, never real | Popup → Dev + on-page |
+| 🎙 Meeting link launcher | Recent Zoom / Meet / Teams / Webex / Jitsi join links in one place — recorded automatically when you open one | Popup → Memory + background |
+| 🏷 Auto-tag saved content | Tags read-later pages and highlights by domain + keywords so your library is findable — no manual organizing | Popup → Memory |
+| 🔐 Privacy score | One honest A–F score of your browser footprint — cookies, history trail, protective tools — with concrete next steps | Popup → Safety |
+| 🧾 Price-with-fees calculator | Real total: tax, shipping, marketplace fees, discounts — and what a seller actually keeps. European decimal commas handled | Popup → Tools |
+| ⏱ Video timestamp notes | Notes for the active page's video, each saved with its timestamp so you can jump straight back | Popup → Focus + on-page |
+| 📊 Table → CSV extractor | Copy any page's table as clean CSV — researchers' tables without the mangling | Popup → Tools + on-page |
+| 🧹 Highlight exporter | Page highlights as one readable Markdown document, grouped by page | Popup → Memory |
+| 🔌 Custom CSS per site | Per-site CSS tweaks — hide clutter, fix contrast, restyle anything. Fully local. Settings toggle | Popup → Dev + on-page |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

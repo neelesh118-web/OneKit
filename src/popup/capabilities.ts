@@ -89,6 +89,10 @@ export interface OneKitCapabilities {
   loadWordlist(): Promise<string[]>;
   /** Reader page URL (page→PDF opens it with ?url=…&print=1). */
   readerUrl(): string;
+  /** Resizes the current window to a viewport preset (window resizer). */
+  resizeWindow(presetId: string): Promise<void>;
+  /** Which protective tools are currently enabled (privacy score). */
+  getProtectedTools(): Promise<string[]>;
 }
 
 import type { CookieLike } from "../core/cookie-manager";

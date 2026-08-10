@@ -53,6 +53,10 @@ export interface ToolToggles {
   emailBlocker: boolean;
   /** Warn when too many tabs are open (default OFF — changes behavior). */
   tabLimiter: boolean;
+  /** Allow OneKit auto-refresh timers on pages (default OFF — changes behavior). */
+  autoRefresh: boolean;
+  /** Apply per-site custom CSS rules (default OFF — changes page styling). */
+  customCss: boolean;
 }
 
 export interface OneKitSettings {
@@ -92,7 +96,9 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     readingProgress: false,
     videoSpeed: false,
     emailBlocker: false,
-    tabLimiter: false
+    tabLimiter: false,
+    autoRefresh: false,
+    customCss: false
   },
   textExpanderEnabled: true,
   onboarded: false

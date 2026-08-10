@@ -776,6 +776,94 @@ export const TOOLS: ToolDef[] = [
     icon: "🧹",
     tab: "memory",
     description: "A local audit trail of what OneKit did — reminders fired, scheduled opens, exports made. Capped at 200 events."
+  },
+  {
+    id: "autoRefresh",
+    name: "Tab auto-refresh",
+    icon: "🔄",
+    tab: "speed",
+    description: "Reload the active tab on an interval — track dashboards and live pages. A plain local timer; never a hijacker.",
+    toggleKey: "autoRefresh",
+    settingLabel: "Allow OneKit auto-refresh timers on pages"
+  },
+  {
+    id: "windowResizer",
+    name: "Window resizer",
+    icon: "📐",
+    tab: "dev",
+    description: "Resize the window to common device viewports — desktop, tablet, phone — for responsive checks."
+  },
+  {
+    id: "pageRuler",
+    name: "Page ruler",
+    icon: "📏",
+    tab: "dev",
+    description: "Measure any element on the page in pixels — drag a box, read the size, see what's under the cursor."
+  },
+  {
+    id: "fakeFiller",
+    name: "Fake form filler",
+    icon: "🎭",
+    tab: "dev",
+    description: "Fill a page's form with random-but-valid test data — names, emails, cards — generated locally, never real."
+  },
+  {
+    id: "meetingLinks",
+    name: "Meeting link launcher",
+    icon: "🎙",
+    tab: "memory",
+    description: "Recent Zoom / Meet / Teams join links in one place — no more digging through chat for the link."
+  },
+  {
+    id: "autoTag",
+    name: "Auto-tag saved content",
+    icon: "🏷",
+    tab: "memory",
+    description: "Tags your saved pages and highlights by domain + keywords so your library is findable — no manual organizing."
+  },
+  {
+    id: "privacyScore",
+    name: "Privacy score",
+    icon: "🔐",
+    tab: "safety",
+    description: "One honest A–F score of your browser footprint — cookies, history trail, protections — with concrete next steps."
+  },
+  {
+    id: "priceFees",
+    name: "Price-with-fees calculator",
+    icon: "🧾",
+    tab: "tools",
+    description: "See the real total: tax, shipping, marketplace fees, discounts — and what a seller actually keeps."
+  },
+  {
+    id: "videoNotes",
+    name: "Video timestamp notes",
+    icon: "⏱",
+    tab: "focus",
+    description: "Take notes while watching any video, each saved with its timestamp so you can jump straight back."
+  },
+  {
+    id: "tableCsv",
+    name: "Table → CSV extractor",
+    icon: "📊",
+    tab: "tools",
+    description: "Copy any page's table (or your selection in it) as clean CSV — researchers' tables without the mangling."
+  },
+  {
+    id: "highlightExport",
+    name: "Highlight exporter",
+    icon: "🧹",
+    tab: "memory",
+    description: "Your page highlights as one readable Markdown document, grouped by page — a research session you can keep."
+  },
+  {
+    id: "customCss",
+    name: "Custom CSS per site",
+    icon: "🔌",
+    tab: "dev",
+    description: "Per-site CSS tweaks — hide clutter, fix contrast, restyle anything. Fully local, nothing leaves the device.",
+    toggleKey: "customCss",
+    settingLabel: "Apply per-site custom CSS rules"
   }
 ];
 

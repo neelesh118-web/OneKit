@@ -19,6 +19,7 @@ import { createMediaController } from "../../src/popup/media-controller";
 import { createUtilitiesController } from "../../src/popup/utilities-controller";
 import { createMemoryToolsController } from "../../src/popup/memory-tools-controller";
 import { createSessionToolsController } from "../../src/popup/session-tools-controller";
+import { createPowerToolsController } from "../../src/popup/power-tools-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -181,6 +182,17 @@ const caps: OneKitCapabilities = {
       byHost.set(host, (byHost.get(host) ?? 0) + 1);
     }
     return [...byHost.entries()].map(([host, visits]) => ({ host, visits }));
+  },
+  resizeWindow: async (presetId) => {
+    await browser.runtime.sendMessage({ type: "ok:resize-window", presetId });
+  },
+  getProtectedTools: async () => {
+    const settings = await loadSettings();
+    const enabled: string[] = [];
+    if (settings.tools.cookieReject) enabled.push("cookieReject");
+    if (settings.tools.emailBlocker) enabled.push("emailBlocker");
+    if (settings.tools.customCss) enabled.push("customCss");
+    return enabled;
   },
   deleteHistoryForHost: async (host) => {
     const items = await browser.history.search({ text: "", startTime: 0, maxResults: 100_000 });
@@ -385,6 +397,7 @@ void (async () => {
   createUtilitiesController(caps);
   createMemoryToolsController(caps);
   createSessionToolsController(caps);
+  createPowerToolsController(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);

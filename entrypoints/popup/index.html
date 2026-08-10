@@ -11,19 +11,19 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>101 tools · 100% local · free forever</span>
+          <span>113 tools · 100% local · free forever</span>
         </div>
       </header>
 
       <nav class="tab-nav" aria-label="OneKit tools">
-        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">16</span></button>
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">19</span></button>
         <button type="button" class="tab-btn" data-tab="vault">💬 Vault <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">9</span></button>
-        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">10</span></button>
+        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">10</span></button>
+        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">11</span></button>
         <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">9</span></button>
         <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">9</span></button>
-        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">22</span></button>
-        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">4</span></button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">24</span></button>
+        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">8</span></button>
         <button type="button" class="tab-btn" data-tab="convert">🔄 Convert <span class="tab-count">4</span></button>
         <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">2</span></button>
         <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">7</span></button>
@@ -240,6 +240,38 @@
             <button id="al-clear" type="button" class="mini-btn danger">Clear log</button>
           </div>
           <p id="al-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎙 Meeting link launcher</span>
+          </div>
+          <p class="hint">When you open a Zoom / Meet / Teams / Webex / Jitsi join link, OneKit remembers it here — no more digging through chat for the link.</p>
+          <div id="ml-list" class="results"></div>
+          <div class="btn-row">
+            <button id="ml-clear" type="button" class="mini-btn danger">Clear all</button>
+          </div>
+          <p id="ml-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🏷 Auto-tag saved content</span>
+          </div>
+          <p class="hint">Your saved pages and highlights get tagged automatically by domain + keywords — so "saved 500 articles but can't find anything" stops happening.</p>
+          <div id="at-list" class="results"></div>
+          <p id="at-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧹 Highlight exporter</span>
+          </div>
+          <p class="hint">Your page highlights as one readable Markdown document, grouped by page — a research session you can keep anywhere.</p>
+          <div class="btn-row">
+            <button id="he-export" type="button" class="mini-btn">⬇ Export highlights as Markdown</button>
+          </div>
+          <p id="he-status" class="status"></p>
         </div>
       </section>
 
@@ -484,6 +516,19 @@
           <p class="hint">Newsletter and signup forms get intercepted and OneKit asks before anything is submitted — the dark-pattern fight, done honestly. It never fabricates an email and never auto-submits.</p>
           <p class="status">Turn it on in Settings → Tools → “Confirm before newsletter/signup forms submit”.</p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔐 Privacy score</span>
+          </div>
+          <p class="hint">One honest A–F score of your browser footprint — cookies, history trail, and the protective tools you have on — with concrete next steps.</p>
+          <div class="btn-row">
+            <span id="ps-score" class="privacy-grade">—</span>
+            <button id="ps-refresh" type="button" class="mini-btn">Re-check</button>
+          </div>
+          <p id="ps-summary" class="status"></p>
+          <ul id="ps-tips" class="privacy-tips"></ul>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -625,6 +670,25 @@
             <button id="cl-csv" type="button" class="mini-btn">Copy as CSV file</button>
           </div>
           <p id="cl-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔄 Tab auto-refresh</span>
+          </div>
+          <p class="hint">Reload the active tab on an interval — track dashboards, auctions, order boards. A plain local timer; it can never hijack or redirect (unlike the infamous "Auto Refresh Plus"). Enable in Settings → Tools.</p>
+          <div class="btn-row">
+            <select id="ar-interval" aria-label="Interval">
+              <option value="10">every 10s</option>
+              <option value="30" selected>every 30s</option>
+              <option value="60">every 1 min</option>
+              <option value="300">every 5 min</option>
+            </select>
+            <button id="ar-start" type="button" class="mini-btn primary">Start on this tab</button>
+            <button id="ar-stop" type="button" class="mini-btn danger">Stop all</button>
+          </div>
+          <div id="ar-list" class="results"></div>
+          <p id="ar-status" class="status"></p>
         </div>
       </section>
 
@@ -772,13 +836,26 @@
                   <p id="sounds-status" class="status"></p>
                 </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏱ Video timestamp notes</span>
+          </div>
+          <p class="hint">Notes for the video on the active tab, each saved with its timestamp so you can jump straight back. Course-takers' #1 ask.</p>
+          <div class="btn-row">
+            <input id="vn-time" type="number" min="0" step="0.1" placeholder="Seconds (leave 0 for now)" />
+            <input id="vn-text" type="text" placeholder="Note text…" />
+            <button id="vn-add" type="button" class="mini-btn primary">Add note</button>
+            <button id="vn-clear" type="button" class="mini-btn danger">Clear for this video</button>
+          </div>
+          <div id="vn-list" class="results"></div>
+          <p id="vn-status" class="status"></p>
+        </div>
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Typing                                                        -->
       <!-- ============================================================ -->
-        <div class="tool-block">
-
       <section class="tab-panel" id="panel-typing" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1224,6 +1301,36 @@
                   </div>
                 </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧾 Price-with-fees calculator</span>
+          </div>
+          <p class="hint">The real total is never what's on the tag. Add tax, shipping, marketplace fees and discounts — and see what a seller actually keeps.</p>
+          <div class="btn-row">
+            <input id="pf-price" type="text" placeholder="Price (e.g. 1299)" />
+            <input id="pf-tax" type="number" min="0" placeholder="Tax %" />
+            <input id="pf-ship" type="number" min="0" placeholder="Shipping" />
+          </div>
+          <div class="btn-row">
+            <input id="pf-fee-pct" type="number" min="0" placeholder="Fee %" />
+            <input id="pf-disc" type="number" min="0" placeholder="Discount %" />
+            <button id="pf-calc" type="button" class="mini-btn primary">Calculate</button>
+          </div>
+          <div id="pf-result" class="results"></div>
+          <p id="pf-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📊 Table → CSV extractor</span>
+          </div>
+          <p class="hint">Copy the active page's table as clean CSV — researchers' tables without the mangling.</p>
+          <div class="btn-row">
+            <button id="tc-copy" type="button" class="mini-btn">Copy table on this page as CSV</button>
+          </div>
+          <p id="tc-status" class="status"></p>
+        </div>
+
       </section>
 
       <!-- ============================================================ -->
@@ -1369,6 +1476,56 @@
             <button id="ls-check" type="button" class="mini-btn primary">Inspect</button>
           </div>
           <div id="ls-result" class="results"></div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📐 Window resizer</span>
+          </div>
+          <p class="hint">Resize the window to common device viewports for responsive checks — desktop, tablet, phone.</p>
+          <div class="btn-row">
+            <select id="wr-preset" aria-label="Preset"></select>
+            <button id="wr-apply" type="button" class="mini-btn primary">Apply</button>
+          </div>
+          <p id="wr-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📏 Page ruler</span>
+          </div>
+          <p class="hint">Measure any element on the page in pixels — drag a box to read its size, double-click to exit.</p>
+          <div class="btn-row">
+            <button id="pr-toggle" type="button" class="mini-btn primary">Toggle ruler on page</button>
+          </div>
+          <p id="pr-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎭 Fake form filler</span>
+          </div>
+          <p class="hint">Fill the page's form with random-but-valid test data — names, emails, cards — generated locally, never real.</p>
+          <div class="btn-row">
+            <button id="ff-fill" type="button" class="mini-btn">Fill form with test data</button>
+          </div>
+          <p id="ff-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔌 Custom CSS per site</span>
+          </div>
+          <p class="hint">Per-site CSS tweaks — hide clutter, fix contrast, restyle anything. Fully local, nothing leaves the device. Enable in Settings → Tools.</p>
+          <div class="btn-row">
+            <input id="cc-host" type="text" placeholder="example.com" spellcheck="false" />
+          </div>
+          <textarea id="cc-css" rows="4" placeholder="body { max-width: 720px; }" spellcheck="false"></textarea>
+          <div class="btn-row">
+            <button id="cc-save" type="button" class="mini-btn primary">Save rule</button>
+          </div>
+          <div id="cc-list" class="results"></div>
+          <p id="cc-status" class="status"></p>
         </div>
       </section>
 
