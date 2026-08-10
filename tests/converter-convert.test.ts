@@ -141,4 +141,44 @@ describe("converter convertFile", () => {
       convertFile({ bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x00, 0x00]), name: "img.png" }, "image-jpeg")
     ).rejects.toThrow(/Could not decode this image/);
   });
+
+  it("threads image quality and max-dimension settings through", async () => {
+    let canvasW = 0;
+    let canvasH = 0;
+    let blobQuality: number | undefined;
+    const ctx = { drawImage(): void {} };
+    const deps = {
+      canvasFactory: () =>
+        ({
+          get width() {
+            return canvasW;
+          },
+          set width(v: number) {
+            canvasW = v;
+          },
+          get height() {
+            return canvasH;
+          },
+          set height(v: number) {
+            canvasH = v;
+          },
+          getContext: (kind: string) => (kind === "2d" ? ctx : null),
+          toBlob(cb: (b: Blob | null) => void, _mime?: string, quality?: number): void {
+            blobQuality = quality;
+            cb(new Blob([new Uint8Array([5, 5, 5])]));
+          }
+        }) as unknown as HTMLCanvasElement,
+      decode: async () => ({ width: 32, height: 16, close(): void {} }) as unknown as ImageBitmap
+    };
+    const result = await convertFile(
+      { bytes: pngHeader, name: "big.png" },
+      "image-jpeg",
+      { canvas: deps, image: { quality: 0.4, maxDimension: 8 } }
+    );
+    expect(result.name).toBe("big.jpg");
+    expect(canvasW).toBe(8); // 32 → 8 (longest side)
+    expect(canvasH).toBe(4); // 16 → 4, proportional
+    expect(blobQuality).toBe(0.4);
+    expect(Array.from(result.bytes)).toEqual([5, 5, 5]);
+  });
 });

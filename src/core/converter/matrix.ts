@@ -8,7 +8,7 @@ import type { FileType } from "./detect";
  */
 
 export type TargetFormat =
-  | "image-png" | "image-jpeg" | "image-webp" | "image-avif"
+  | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif"
   | "pdf" | "html" | "markdown" | "text"
   | "csv" | "json" | "yaml" | "xml" | "xlsx"
   | "zip" | "tar" | "gzip"
@@ -17,7 +17,7 @@ export type TargetFormat =
   | "txt-base64" | "txt-hex" | "txt-url";
 
 export const TARGET_LABELS: Record<TargetFormat, string> = {
-  "image-png": "PNG", "image-jpeg": "JPEG", "image-webp": "WebP", "image-avif": "AVIF",
+  "image-png": "PNG", "image-jpeg": "JPEG", "image-webp": "WebP", "image-avif": "AVIF", "image-gif": "GIF",
   pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text",
   csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
   zip: "ZIP", tar: "TAR", gzip: "GZIP",
@@ -31,7 +31,7 @@ const IMAGE_SOURCES: FileType[] = [
   "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif"
 ];
 
-const IMAGE_TARGETS: TargetFormat[] = ["image-png", "image-jpeg", "image-webp", "image-avif"];
+const IMAGE_TARGETS: TargetFormat[] = ["image-png", "image-jpeg", "image-webp", "image-avif", "image-gif"];
 
 export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-png": IMAGE_TARGETS,
@@ -40,7 +40,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-gif": IMAGE_TARGETS,
   "image-bmp": IMAGE_TARGETS,
   "image-avif": IMAGE_TARGETS,
-  "image-svg": ["image-png", "image-jpeg", "image-webp", "text"],
+  "image-svg": ["image-png", "image-jpeg", "image-webp", "image-gif", "text"],
   pdf: ["text", "markdown", "html"],
   docx: ["html", "markdown", "text"],
   xlsx: ["csv", "json"],
@@ -77,6 +77,7 @@ export function targetExtension(target: TargetFormat): string {
     case "image-jpeg": return "jpg";
     case "image-webp": return "webp";
     case "image-avif": return "avif";
+    case "image-gif": return "gif";
     case "pdf": return "pdf";
     case "html": return "html";
     case "markdown": return "md";

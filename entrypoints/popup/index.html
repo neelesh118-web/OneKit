@@ -750,8 +750,11 @@
           <div class="tool-heading">
             <span class="tool-label">🔄 File converter</span>
           </div>
-          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick a file, choose a target, convert.</p>
-          <input id="convert-file" type="file" />
+          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick or drop one or several files of the same type, choose a target, convert. Files that don't match the batch are listed and skipped, never silently converted wrong.</p>
+          <div class="drop-zone" id="convert-dropzone">
+            <input id="convert-file" type="file" multiple />
+            <p class="drop-hint">…or drop files anywhere in this box</p>
+          </div>
           <p id="convert-source" class="status"></p>
           <div class="btn-row">
             <label>to
@@ -761,6 +764,14 @@
             </label>
             <button id="convert-btn" type="button" class="mini-btn" disabled>Convert</button>
           </div>
+          <div class="btn-row" id="convert-image-controls" hidden>
+            <label class="quality-row">Quality
+              <input id="convert-quality" type="range" min="10" max="100" value="90" />
+              <span id="convert-quality-label" class="quality-value">90%</span>
+            </label>
+            <label>Max px <input id="convert-maxdim" type="number" min="0" value="0" style="width:64px" /> (0 = keep)</label>
+          </div>
+          <div id="convert-results" class="results"></div>
           <p id="convert-status" class="status"></p>
         </div>
 
@@ -768,7 +779,7 @@
           <div class="tool-heading">
             <span class="tool-label">ℹ️ What can convert to what</span>
           </div>
-          <p class="hint">Images ↔ PNG/JPEG/WebP/AVIF · PDF, DOCX, EPUB → text/Markdown/HTML · XLSX ↔ CSV/JSON · JSON ↔ YAML/XML/CSV · ZIP/TAR/GZIP · fonts TTF/WOFF/WOFF2 · MP3/OGG/M4A → WAV and WAV → MP3. Proprietary formats (DWG, PAGES, RAW photos) can't be decoded locally, so they're honestly not offered.</p>
+          <p class="hint">Images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF keeps 256 colors — screenshots and simple graphics convert well, photos lose depth) · PDF, DOCX, EPUB → text/Markdown/HTML · XLSX ↔ CSV/JSON · JSON ↔ YAML/XML/CSV · ZIP/TAR/GZIP · fonts TTF/WOFF/WOFF2 · MP3/OGG/M4A → WAV and WAV → MP3. Proprietary formats (DWG, PAGES, RAW photos) can't be decoded locally, so they're honestly not offered.</p>
         </div>
       </section>
 

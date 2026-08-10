@@ -5,8 +5,9 @@
  * and honest error paths (the same split the screenshot tools use).
  */
 import { detectFromBytes, type FileType } from "./detect";
+import { encodeGif } from "./gif";
 
-export type ImageTarget = "image-png" | "image-jpeg" | "image-webp" | "image-avif";
+export type ImageTarget = "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif";
 
 const IMAGE_SOURCES = new Set<FileType>([
   "image-png",
@@ -24,12 +25,36 @@ export function imageTargetMime(target: ImageTarget): string {
     case "image-jpeg": return "image/jpeg";
     case "image-webp": return "image/webp";
     case "image-avif": return "image/avif";
+    case "image-gif": return "image/gif";
   }
 }
 
 /** JPEG/WebP benefit from a quality hint; PNG/AVIF are lossless. */
 export function imageTargetQuality(target: ImageTarget): number | undefined {
   return target === "image-jpeg" || target === "image-webp" ? 0.92 : undefined;
+}
+
+export interface ImageConvertSettings {
+  /** 0–1 quality for lossy encoders (JPEG/WebP). Defaults per target. */
+  quality?: number;
+  /** Downscale so the longest side is ≤ this many pixels. 0/undefined = keep. */
+  maxDimension?: number;
+}
+
+/** Proportional downscale math — never upscales, never shrinks below 1px. */
+export function fitMaxDimension(
+  width: number,
+  height: number,
+  maxDimension?: number
+): { width: number; height: number } {
+  if (!maxDimension || maxDimension <= 0) return { width, height };
+  const longest = Math.max(width, height);
+  if (longest <= maxDimension) return { width, height };
+  const scale = maxDimension / longest;
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale))
+  };
 }
 
 /** True when the bytes look like a decodable raster image or SVG. */
@@ -66,7 +91,8 @@ export interface ImageConvertDeps {
 export async function convertImage(
   bytes: Uint8Array,
   target: ImageTarget,
-  deps?: ImageConvertDeps
+  deps?: ImageConvertDeps,
+  settings?: ImageConvertSettings
 ): Promise<Uint8Array> {
   const source = detectFromBytes(bytes, "unknown");
   if (!IMAGE_SOURCES.has(source)) {
@@ -91,15 +117,22 @@ export async function convertImage(
     throw new Error("Could not decode this image — the file may be corrupt.");
   }
   try {
+    const fitted = fitMaxDimension(bitmap.width, bitmap.height, settings?.maxDimension);
     const canvas = canvasFactory();
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
+    canvas.width = fitted.width;
+    canvas.height = fitted.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas drawing isn't available in this browser.");
-    ctx.drawImage(bitmap, 0, 0);
+    ctx.drawImage(bitmap, 0, 0, fitted.width, fitted.height);
+    if (target === "image-gif") {
+      // Browsers can't toBlob a GIF — encode from pixels via gifenc.
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      return encodeGif(imageData);
+    }
     const outMime = imageTargetMime(target);
+    const quality = settings?.quality ?? imageTargetQuality(target);
     const outBlob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob(resolve, outMime, imageTargetQuality(target));
+      canvas.toBlob(resolve, outMime, quality);
     });
     if (!outBlob) {
       throw new Error(`This browser couldn't encode ${outMime} — try a different target format.`);

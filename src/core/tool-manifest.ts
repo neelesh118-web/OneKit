@@ -447,7 +447,7 @@ export const TOOLS: ToolDef[] = [
     name: "File converter",
     icon: "🔄",
     tab: "convert",
-    description: "Convert files locally: images ↔ PNG/JPEG/WebP/AVIF, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, audio → WAV, WAV → MP3. Nothing is uploaded."
+    description: "Convert files locally (one or a whole batch): images ↔ PNG/JPEG/WebP/AVIF/GIF with quality and max-size controls, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, audio → WAV, WAV → MP3. Nothing is uploaded."
   }
 ];
 

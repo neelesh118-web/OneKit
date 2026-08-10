@@ -5,7 +5,7 @@
  */
 import { detectFile, TYPE_LABELS, type FileType } from "./detect";
 import { TARGET_LABELS, targetExtension, targetsFor, type TargetFormat } from "./matrix";
-import { convertImage, type ImageTarget } from "./images";
+import { convertImage, type ImageConvertSettings, type ImageTarget } from "./images";
 import { convertFont, type FontTarget } from "./fonts";
 import { anyToWav, decodeAudioInBrowser, normalizeWav, wavToMp3, type AudioDecoder } from "./audio";
 import * as docs from "./documents";
@@ -27,6 +27,8 @@ export interface ConvertResult {
 export interface ConvertOptions {
   /** Injectable canvas for image conversion (defaults to the DOM canvas). */
   canvas?: Parameters<typeof convertImage>[2];
+  /** Quality / max-size settings for image targets. */
+  image?: ImageConvertSettings;
   /** Injectable audio decoder (defaults to the Web Audio API). */
   audioDecoder?: AudioDecoder;
 }
@@ -36,6 +38,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-jpeg": "image/jpeg",
   "image-webp": "image/webp",
   "image-avif": "image/avif",
+  "image-gif": "image/gif",
   pdf: "application/pdf",
   html: "text/html",
   markdown: "text/markdown",
@@ -110,10 +113,10 @@ async function runConversion(
     case "image-gif":
     case "image-bmp":
     case "image-avif":
-      return convertImage(bytes, target as ImageTarget, opts.canvas);
+      return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
-      return convertImage(bytes, target as ImageTarget, opts.canvas);
+      return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
     case "pdf":
       if (target === "text") return toBytes(await docs.pdfToText(bytes));
       if (target === "markdown") return toBytes(await docs.pdfToMarkdown(bytes));

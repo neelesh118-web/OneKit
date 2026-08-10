@@ -135,6 +135,65 @@ body {
   min-height: 16px;
 }
 
+.status.error {
+  color: var(--danger, #c0392b);
+}
+
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.drop-zone input[type="file"] {
+  display: block;
+  margin: 0 auto;
+}
+
+.drop-zone.dragover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.drop-hint {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+
+.quality-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.quality-row input[type="range"] {
+  width: 110px;
+}
+
+.quality-value {
+  min-width: 34px;
+}
+
+.quality-value.muted {
+  color: var(--muted);
+}
+
+.batch-ok {
+  color: var(--text);
+  font-size: 11.5px;
+  word-break: break-word;
+}
+
+.batch-skip {
+  color: var(--muted);
+  font-size: 11.5px;
+  word-break: break-word;
+}
+
 .footer-note {
   color: var(--muted);
   font-size: 11px;
