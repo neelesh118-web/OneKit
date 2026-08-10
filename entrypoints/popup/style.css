@@ -851,3 +851,20 @@ a.result-title:hover {
   color: var(--accent, #2563eb);
   word-break: break-word;
 }
+
+/* Tool group headers (organisation round) ------------------------------ */
+.tool-group {
+  margin: 16px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border, rgba(128, 128, 128, 0.2));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted, #6b7280);
+}
+.tool-group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
