@@ -15,13 +15,15 @@ import {
   urlDecode,
   urlEncode
 } from "../core/dev-tools";
+import { buildApiRequest, formatApiResponse, type ApiMethod } from "../core/api-tester";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
  * Dev tab — the text & dev toolbox: JSON, Base64, URL, case, hash,
- * timestamps, regex and diff. Every tool is a pure local computation.
+ * timestamps, regex and diff, plus the localStorage inspector and the
+ * API tester. Every tool is a pure local computation.
  */
-export function createDevController(_caps: OneKitCapabilities): () => void {
+export function createDevController(caps: OneKitCapabilities): () => void {
   const $ = (id: string): HTMLElement => {
     const el = document.getElementById(id);
     if (!el) throw new Error(`Missing element #${id}`);
@@ -123,6 +125,100 @@ export function createDevController(_caps: OneKitCapabilities): () => void {
       more.textContent = `… ${lines.length - 400} more lines truncated`;
       diffOutput.appendChild(more);
     }
+  });
+
+  /* Local Storage inspector ---------------------------------------------- */
+  const lsListBtn = $("ls-list") as HTMLButtonElement;
+  const lsItems = $("ls-items");
+  const lsStatus = $("ls-status");
+  const sizeLabel = (bytes: number): string =>
+    bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} B`;
+  lsListBtn.addEventListener("click", () => {
+    void (async () => {
+      const tab = await caps.getActiveTab();
+      if (!tab.id) {
+        lsStatus.textContent = "No active tab.";
+        return;
+      }
+      lsStatus.textContent = "Reading the page…";
+      const reply = (await caps.sendMessage(tab.id, { type: "ok:localstorage:list" })) as
+        | { items?: { key: string; value: string; bytes: number }[] }
+        | undefined;
+      const items = reply?.items ?? [];
+      lsItems.innerHTML = "";
+      if (items.length === 0) {
+        lsStatus.textContent = "This page has no localStorage entries.";
+        return;
+      }
+      for (const item of items) {
+        const row = document.createElement("div");
+        row.className = "batch-ok";
+        const label = document.createElement("span");
+        label.textContent = `${item.key} (${sizeLabel(item.bytes)})`;
+        label.title = item.value;
+        const remove = document.createElement("button");
+        remove.className = "mini-btn danger";
+        remove.textContent = "Remove";
+        remove.style.marginLeft = "6px";
+        remove.addEventListener("click", () => {
+          void (async () => {
+            await caps.sendMessage(tab.id!, { type: "ok:localstorage:remove", key: item.key });
+            row.remove();
+            lsStatus.textContent = `Removed ${item.key}.`;
+          })().catch((err) => {
+            lsStatus.textContent = err instanceof Error ? err.message : String(err);
+          });
+        });
+        row.appendChild(label);
+        row.appendChild(remove);
+        lsItems.appendChild(row);
+      }
+      lsStatus.textContent =
+        `${items.length} key${items.length === 1 ? "" : "s"} on this page — values are read-only previews (120 chars).`;
+    })().catch((err) => {
+      lsStatus.textContent = err instanceof Error ? err.message : String(err);
+    });
+  });
+
+  /* API tester ------------------------------------------------------------- */
+  const apiMethod = $("api-method") as HTMLSelectElement;
+  const apiUrl = $("api-url") as HTMLInputElement;
+  const apiHeaders = $("api-headers") as HTMLTextAreaElement;
+  const apiBody = $("api-body") as HTMLTextAreaElement;
+  const apiSend = $("api-send") as HTMLButtonElement;
+  const apiStatus = $("api-status");
+  const apiOutput = $("api-output") as HTMLPreElement;
+  apiSend.addEventListener("click", () => {
+    void (async () => {
+      const built = buildApiRequest({
+        method: apiMethod.value as ApiMethod,
+        url: apiUrl.value,
+        headersText: apiHeaders.value,
+        bodyText: apiBody.value
+      });
+      if (!built.ok) {
+        apiStatus.textContent = built.error;
+        apiOutput.hidden = true;
+        return;
+      }
+      apiStatus.textContent = "Sending…";
+      apiSend.disabled = true;
+      const start = performance.now();
+      try {
+        const res = await fetch(built.url, built.init);
+        const duration = Math.round(performance.now() - start);
+        const body = await res.text();
+        apiOutput.textContent = formatApiResponse(res.status, res.statusText, duration, body);
+        apiOutput.hidden = false;
+        apiStatus.textContent = "";
+      } catch (err) {
+        apiStatus.textContent = `Request failed: ${err instanceof Error ? err.message : String(err)}`;
+      } finally {
+        apiSend.disabled = false;
+      }
+    })().catch((err) => {
+      apiStatus.textContent = err instanceof Error ? err.message : String(err);
+    });
   });
 
   return () => {};

@@ -20,6 +20,12 @@ import {
   type BookmarkAnalysis
 } from "../core/bookmark-cleaner";
 import { hexToRgb, rgbCssString, rgbToHex, rgbToHsl } from "../core/color-utils";
+import { formatCitation, siteNameFromUrl, type CitationStyle } from "../core/citation";
+import {
+  addPaletteColor,
+  clearPalette,
+  listPalette
+} from "../core/palette";
 import type { OneKitCapabilities } from "./capabilities";
 
 function readFileBytes(file: File): Promise<Uint8Array> {
@@ -518,6 +524,8 @@ function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: nu
       }
       pickedColor = result.color;
       colorCopy.disabled = false;
+      // Every pick is remembered in the palette history.
+      void addPaletteColor(result.color, caps.storage).then(() => void renderPalette());
       const rgb = hexToRgb(result.color);
       colorStatus.textContent = rgb
         ? `Picked ${result.color} · ${rgbCssString(rgb)} · HSL ${(() => {
@@ -534,6 +542,69 @@ function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: nu
     if (!pickedColor) return;
     void caps.copyText(pickedColor).then(() => {
       colorStatus.textContent = `${pickedColor} copied ✓`;
+    });
+  });
+
+  /* Palette history ------------------------------------------------------- */
+  const paletteSwatches = $("palette-swatches");
+  const paletteClear = $("palette-clear") as HTMLButtonElement;
+  const renderPalette = async (): Promise<void> => {
+    const colors = await listPalette(caps.storage);
+    paletteSwatches.innerHTML = "";
+    paletteClear.hidden = colors.length === 0;
+    for (const hex of colors) {
+      const swatch = document.createElement("button");
+      swatch.className = "palette-swatch";
+      swatch.style.background = hex;
+      swatch.title = `${hex} — click to copy`;
+      swatch.addEventListener("click", () => {
+        void caps.copyText(hex).then(() => {
+          colorStatus.textContent = `${hex} copied ✓`;
+        });
+      });
+      paletteSwatches.appendChild(swatch);
+    }
+  };
+  paletteClear.addEventListener("click", () => {
+    void clearPalette(caps.storage).then(() => void renderPalette());
+  });
+  void renderPalette();
+
+  /* Citation generator ---------------------------------------------------- */
+  const citeStatus = $("cite-status");
+  const runCitation = async (style: CitationStyle): Promise<void> => {
+    const tab = await caps.getActiveTab();
+    const url = tab.url ?? "";
+    if (!url.startsWith("http")) {
+      citeStatus.textContent = "Open a normal web page first, then copy a citation.";
+      return;
+    }
+    const site = siteNameFromUrl(url);
+    const citation = formatCitation(
+      {
+        title: (tab.title ?? "").trim() || site,
+        url,
+        siteName: site,
+        accessedDate: new Date().toISOString().slice(0, 10)
+      },
+      style
+    );
+    await caps.copyText(citation);
+    citeStatus.textContent = `Copied ${style.toUpperCase()} citation for this page.`;
+  };
+  $("cite-apa").addEventListener("click", () => {
+    void runCitation("apa").catch((err) => {
+      citeStatus.textContent = err instanceof Error ? err.message : String(err);
+    });
+  });
+  $("cite-mla").addEventListener("click", () => {
+    void runCitation("mla").catch((err) => {
+      citeStatus.textContent = err instanceof Error ? err.message : String(err);
+    });
+  });
+  $("cite-chicago").addEventListener("click", () => {
+    void runCitation("chicago").catch((err) => {
+      citeStatus.textContent = err instanceof Error ? err.message : String(err);
     });
   });
 

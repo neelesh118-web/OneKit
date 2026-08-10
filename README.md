@@ -113,6 +113,17 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 |---|---|---|
 | 🔄 File converter | Convert files 100% locally — one file or a whole batch, saved individually or bundled into one ZIP (optionally into one Downloads subfolder): images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF is a 256-color format, honest about the depth loss) with quality, max-size, rotate and flip controls; several images → one PDF or one animated GIF (GIF maker, per-frame delay); PDF → text/Markdown/HTML or PNG/JPG pages (multi-page zips); images/TXT/CSV/Markdown/DOCX/EPUB → PDF; XLSX ↔ CSV/JSON; JSON ↔ YAML/XML/CSV; ZIP/TAR/GZIP; fonts TTF/WOFF/WOFF2; MP3/OGG/M4A/FLAC → WAV or MP3; videos (MP4/WebM/MOV) → GIF. Detection uses magic bytes, not just the file extension (JFIF is recognized as JPEG); unsupported pairs (HEIC, RAW, Pages, DWG, OCR, e-signing) are honestly refused rather than faked, and batch picks that don't match are listed and skipped. Files never leave the device | Popup → Convert |
 
+### Phase 10 (5 features — 60 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 📚 Citation generator | APA / MLA / Chicago citations from the current page title, URL, site, author (typed) and access date — copyable, per-style examples shown | Popup → Tools |
+| ⏱ Reading time & grade level | Word count, estimated reading minutes and Flesch reading-ease grade for the current page (or pasted text) | Popup → Memory |
+| 🎨 Color palette history | Every color you pick with the eyedropper/color picker is saved to a history swatch grid; click to copy any hex | Popup → Tools |
+| 🔌 API tester | Send GET/POST/PUT/DELETE requests with headers and a JSON body, see status, latency, size and pretty-printed response — runs from the popup against any URL | Popup → Dev |
+| 🔍 Local-storage inspector | List, view and delete `localStorage` keys for the active tab (read-only by default, delete asks first) | Popup → Dev |
+| 🏠 New-tab dashboard | A local new-tab page replacing Chrome's default: today's date, editable goals list, and quick-link tiles — no account, no cloud | New tab |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

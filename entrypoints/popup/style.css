@@ -600,6 +600,39 @@ a.result-title:hover {
   background: var(--accent-soft, rgba(99, 102, 241, 0.08));
 }
 
+.palette-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.palette-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 0;
+}
+
+.palette-swatch:hover {
+  transform: scale(1.12);
+}
+
+.api-output {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  max-height: 180px;
+  overflow: auto;
+}
+
 /* Split rows with labels (budgets, suspender) ----------------------------- */
 .split label {
   display: flex;

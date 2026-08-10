@@ -448,6 +448,41 @@ export const TOOLS: ToolDef[] = [
     icon: "🔄",
     tab: "convert",
     description: "Convert files locally (one or a whole batch, save individually or bundled into one ZIP): images ↔ PNG/JPEG/WebP/AVIF/GIF with quality, max-size, rotate and flip controls; several images → one PDF or one animated GIF; PDF → text/Markdown/HTML or PNG/JPG pages; images/TXT/CSV/Markdown/DOCX/EPUB → PDF; XLSX ↔ CSV/JSON; JSON ↔ YAML/XML/CSV; ZIP/TAR/GZIP; fonts TTF/WOFF/WOFF2; MP3/OGG/M4A/FLAC → WAV or MP3; videos (MP4/WebM/MOV) → GIF. Nothing is uploaded."
+  },
+  {
+    id: "readingTime",
+    name: "Reading time & grade level",
+    icon: "⏱️",
+    tab: "memory",
+    description: "Minutes to read the current page (200 wpm) plus its Flesch–Kincaid grade level — computed locally from the visible text."
+  },
+  {
+    id: "citation",
+    name: "Citation generator",
+    icon: "📚",
+    tab: "tools",
+    description: "Copy an APA, MLA or Chicago citation for the current page, formatted locally from its title, URL and access date."
+  },
+  {
+    id: "localStorageInspector",
+    name: "Local Storage inspector",
+    icon: "💾",
+    tab: "dev",
+    description: "Browse and delete the current page's localStorage entries — read-only previews, nothing leaves the device."
+  },
+  {
+    id: "apiTester",
+    name: "API tester",
+    icon: "🧪",
+    tab: "dev",
+    description: "Send GET/POST/PUT/PATCH/DELETE/HEAD requests to any http(s) endpoint from the popup and read the status, timing and body."
+  },
+  {
+    id: "homeDashboard",
+    name: "Home dashboard (new tab)",
+    icon: "🏠",
+    tab: "settings",
+    description: "A local new-tab page with today's goals and editable quick links — no account, no cloud."
   }
 ];
 

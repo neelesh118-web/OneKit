@@ -19,6 +19,7 @@ import {
 } from "../src/core/snippets";
 import { loadSettings, type OneKitSettings } from "../src/core/settings";
 import { countWords, countChars, countCharsNoSpaces } from "../src/core/text-utils";
+import { readingMetrics } from "../src/core/readability";
 import { cleanLink } from "../src/core/clean-links";
 import {
   draftIdentityForKey,
@@ -1084,7 +1085,7 @@ function onPaletteShortcut(event: KeyboardEvent): void {
 
 browser.runtime.onMessage.addListener(
   (message: unknown, _sender, sendResponse) => {
-    const msg = message as { type?: string; url?: string; text?: string };
+    const msg = message as { type?: string; url?: string; text?: string; key?: string };
     if (msg.type === "ok:copy-clean-link" && typeof msg.url === "string") {
     const cleaned = cleanLink(msg.url);
     void copyToClipboard(cleaned).then(() => {
@@ -1113,6 +1114,25 @@ browser.runtime.onMessage.addListener(
   if (msg.type === "ok:page-risk-meta") {
     // Synchronous reply — works on both the polyfill and native API.
     sendResponse(computePageRiskMetaFromDocument(document));
+    return;
+  }
+  if (msg.type === "ok:reading-time") {
+    // Reading time + grade level for the visible page text.
+    sendResponse(readingMetrics(pageReadableText()));
+    return;
+  }
+  if (msg.type === "ok:localstorage:list") {
+    // Read-only preview of the page's localStorage — values truncated.
+    const items = Object.keys(localStorage).slice(0, 200).map((key) => {
+      const raw = localStorage.getItem(key) ?? "";
+      return { key, value: raw.slice(0, 120), bytes: raw.length };
+    });
+    sendResponse({ items });
+    return;
+  }
+  if (msg.type === "ok:localstorage:remove" && typeof msg.key === "string") {
+    localStorage.removeItem(msg.key);
+    sendResponse({ removed: true });
     return;
   }
   if (msg.type === "ok:read-selection") {

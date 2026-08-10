@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>55 tools · 100% local · free forever</span>
+          <span>60 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -131,6 +131,16 @@
             <button id="notes-clear" type="button" class="mini-btn danger">Clear all notes</button>
           </div>
           <p id="notes-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏱️ Reading time &amp; grade level</span>
+          </div>
+          <p class="hint">How long the current page takes to read (200 wpm) and its Flesch–Kincaid grade level — computed locally from the visible text.</p>
+          <div class="btn-row">
+            <button id="reading-time-btn" type="button" class="mini-btn">Analyze this page</button>
+          </div>
+          <p id="reading-time-status" class="status"></p>
         </div>
       </section>
 
@@ -596,6 +606,24 @@
             <button id="color-copy" type="button" class="mini-btn" disabled>Copy</button>
           </div>
           <p id="color-status" class="status"></p>
+          <div class="btn-row">
+            <span class="hint">Palette history:</span>
+            <div id="palette-swatches" class="palette-swatches"></div>
+            <button id="palette-clear" type="button" class="mini-btn" hidden>Clear</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📚 Citation generator</span>
+          </div>
+          <p class="hint">Cite the current page in APA, MLA or Chicago — formatted locally from its title, URL and access date. Nothing is sent anywhere.</p>
+          <div class="btn-row">
+            <button id="cite-apa" type="button" class="mini-btn">Copy APA</button>
+            <button id="cite-mla" type="button" class="mini-btn">Copy MLA</button>
+            <button id="cite-chicago" type="button" class="mini-btn">Copy Chicago</button>
+          </div>
+          <p id="cite-status" class="status"></p>
         </div>
 
         <div class="tool-block">
@@ -702,6 +730,45 @@
             </div>
             <pre id="dev-diff-output" class="diff-output"></pre>
           </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">💾 Local Storage inspector</span>
+          </div>
+          <p class="hint">Browse the current page's localStorage — keys, sizes, and delete individual entries. Read-only preview, nothing leaves the device.</p>
+          <div class="btn-row">
+            <button id="ls-list" type="button" class="mini-btn">Load keys</button>
+          </div>
+          <div id="ls-items" class="results"></div>
+          <p id="ls-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧪 API tester</span>
+          </div>
+          <p class="hint">Send a request to any http(s) endpoint straight from the popup — handy for APIs you're building or webhooks you're debugging.</p>
+          <div class="btn-row">
+            <select id="api-method">
+              <option>GET</option>
+              <option>POST</option>
+              <option>PUT</option>
+              <option>PATCH</option>
+              <option>DELETE</option>
+              <option>HEAD</option>
+            </select>
+            <input id="api-url" type="text" placeholder="https://api.example.com/…" spellcheck="false" style="flex:2" />
+          </div>
+          <label>Headers (Name: value per line)</label>
+          <textarea id="api-headers" rows="2" spellcheck="false"></textarea>
+          <label>Body (optional)</label>
+          <textarea id="api-body" rows="3" spellcheck="false"></textarea>
+          <div class="btn-row">
+            <button id="api-send" type="button" class="mini-btn">Send</button>
+          </div>
+          <p id="api-status" class="status"></p>
+          <pre id="api-output" class="api-output" hidden></pre>
         </div>
       </section>
 

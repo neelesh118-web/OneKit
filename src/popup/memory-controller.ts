@@ -37,6 +37,7 @@ import {
   listAllNotes,
   removeWebNote
 } from "../core/web-notes";
+import { gradeLevelLabel, type ReadabilityMetrics } from "../core/readability";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -444,6 +445,33 @@ export function createMemoryController(caps: OneKitCapabilities): () => void {
     void clearReadLater(caps.storage).then(() => void renderReadLater());
   });
   refreshMemory.addEventListener("click", () => void refreshAll());
+
+  /* Reading time & grade level ----------------------------------------- */
+  const readingBtn = $("reading-time-btn") as HTMLButtonElement;
+  const readingStatus = $("reading-time-status");
+  readingBtn.addEventListener("click", () => {
+    void (async () => {
+      readingStatus.textContent = "Reading the page…";
+      const tab = await caps.getActiveTab();
+      if (!tab.id) {
+        readingStatus.textContent = "No active tab to analyze.";
+        return;
+      }
+      const reply = (await caps.sendMessage(tab.id, { type: "ok:reading-time" })) as
+        | ReadabilityMetrics
+        | undefined;
+      if (!reply || typeof reply.words !== "number") {
+        readingStatus.textContent = "Nothing readable found on this page.";
+        return;
+      }
+      readingStatus.textContent =
+        `${reply.words.toLocaleString()} words · ${reply.minutes} min read · ` +
+        `${reply.sentences} sentence${reply.sentences === 1 ? "" : "s"} · ` +
+        `grade ${gradeLevelLabel(reply.gradeLevel)}`;
+    })().catch((err) => {
+      readingStatus.textContent = err instanceof Error ? err.message : String(err);
+    });
+  });
 
   void refreshAll();
   return () => {
