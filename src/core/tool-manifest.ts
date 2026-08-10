@@ -392,6 +392,55 @@ export const TOOLS: ToolDef[] = [
     description: "A thin bar at the top of article-like pages shows how far you are — resume where you left off.",
     toggleKey: "readingProgress",
     settingLabel: "Reading progress bar on long pages"
+  },
+  {
+    id: "devToolbox",
+    name: "Text & dev toolbox",
+    icon: "🛠️",
+    tab: "dev",
+    description: "JSON format/validate, Base64, URL encode, case converter, SHA-256 hash, timestamp converter, regex tester, line diff — all local."
+  },
+  {
+    id: "cookieManager",
+    name: "Cookie manager",
+    icon: "🍪",
+    tab: "safety",
+    description: "View, edit, delete, add and export cookies for the current site, plus one-click 'Forget this site'."
+  },
+  {
+    id: "printFriendly",
+    name: "Print-friendly version",
+    icon: "🖨️",
+    tab: "memory",
+    description: "Strip a page to its clean article, then print or save as PDF."
+  },
+  {
+    id: "colorPicker",
+    name: "Color picker",
+    icon: "🎨",
+    tab: "tools",
+    description: "Pick any pixel on the page with Chrome's EyeDropper and copy it as hex, RGB or HSL."
+  },
+  {
+    id: "pomodoro",
+    name: "Pomodoro timer",
+    icon: "🍅",
+    tab: "focus",
+    description: "25-minute focus / 5-minute break cycles with a countdown overlay and long break every 4 sessions."
+  },
+  {
+    id: "imageDownloader",
+    name: "Download all images",
+    icon: "🖼️",
+    tab: "tools",
+    description: "Collect every image on the current page and save them to your downloads folder."
+  },
+  {
+    id: "searchSelection",
+    name: "Search selected text",
+    icon: "🔍",
+    tab: "typing",
+    description: "Right-click any selection to search it on Google, YouTube, Wikipedia or Perplexity."
   }
 ];
 

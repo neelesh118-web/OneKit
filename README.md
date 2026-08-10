@@ -95,6 +95,18 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | ✏️ Screenshot annotate | Capture the visible tab, then draw pens, arrows, boxes and text on it before saving at full resolution | Popup → Tools |
 | 📏 Reading progress bar | A thin bar at the top of article-like pages shows how far you are; returning to the page jumps you back to where you left off (per-URL, local) | On-page (toggle in Settings) |
 
+### Phase 8 (7 features — 54 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🛠️ Text & dev toolbox | JSON format/validate/minify, Base64 (unicode-safe), URL encode/decode, case converter, SHA-256 hash, timestamp ↔ date, regex tester, line diff — eight tools, all local, nothing leaves the browser | Popup → Dev |
+| 🍪 Cookie manager | View/edit/delete/add cookies for the current site with live stats, plus one-click “Forget this site…” that clears its cookies, storage and cache (with a confirm — you'll be signed out) | Popup → Safety |
+| 🖨️ Print-friendly version | Right-click a page → opens the clean reader with the print dialog ready — print or Save as PDF with no ads or nav | Right-click + Reader |
+| 🎨 Color picker | Pick any pixel with Chrome's native EyeDropper (no permissions) — shows hex, RGB and HSL, one click copies | Popup → Tools |
+| 🍅 Pomodoro timer | 25/5/15-min focus & break cycles; a countdown chip appears on the active tab and survives the popup closing; long break every 4 sessions | Popup → Focus + On-page chip |
+| 🖼️ Download all images | Collect every image on the page (best srcset version each, deduped) and save them to Downloads | Popup → Tools |
+| 🔍 Search selected text | Right-click any selection → search it on Google, YouTube, Wikipedia or Perplexity in a new tab | Right-click |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard
@@ -144,7 +156,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (270 tests)
+npm test               # vitest (304 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```

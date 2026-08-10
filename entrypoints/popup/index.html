@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>47 tools · 100% local · free forever</span>
+          <span>54 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -23,6 +23,7 @@
         <button type="button" class="tab-btn" data-tab="focus">🧘 Focus</button>
         <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing</button>
         <button type="button" class="tab-btn" data-tab="tools">🧰 Tools</button>
+        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev</button>
         <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads</button>
         <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings</button>
       </nav>
@@ -228,6 +229,30 @@
           </div>
           <p id="pii-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🍪 Cookie manager</span>
+          </div>
+          <p class="hint">View, edit, delete and add cookies for the current site — or wipe all of its data with one click. Careful: clearing cookies signs you out.</p>
+          <div class="btn-row">
+            <button id="cookie-refresh" type="button" class="mini-btn">Load cookies for this site</button>
+            <button id="cookie-forget" type="button" class="mini-btn danger">Forget this site…</button>
+          </div>
+          <div class="cookie-edit">
+            <div class="btn-row">
+              <input id="cookie-name" type="text" placeholder="name" />
+              <input id="cookie-value" type="text" placeholder="value" />
+            </div>
+            <div class="btn-row">
+              <input id="cookie-domain" type="text" placeholder="domain" />
+              <input id="cookie-path" type="text" placeholder="path (/)" />
+              <button id="cookie-add" type="button" class="mini-btn">Add / update</button>
+            </div>
+          </div>
+          <div id="cookie-list" class="results"></div>
+          <p id="cookie-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -427,6 +452,20 @@
             <button id="st-clear" type="button" class="mini-btn danger">Reset screen time</button>
           </div>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🍅 Pomodoro timer</span>
+          </div>
+          <p class="hint">25 min focus → 5 min break, with a long break every 4 sessions. A countdown chip appears on the current tab; it survives the popup closing.</p>
+          <div class="btn-row">
+            <button id="pomodoro-focus" type="button" class="mini-btn">Start focus (25 min)</button>
+            <button id="pomodoro-break" type="button" class="mini-btn">Short break (5 min)</button>
+            <button id="pomodoro-longbreak" type="button" class="mini-btn">Long break (15 min)</button>
+            <button id="pomodoro-end" type="button" class="mini-btn danger">End</button>
+          </div>
+          <p id="pomodoro-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -581,6 +620,124 @@
             <button id="annotate-capture" type="button" class="mini-btn">Capture &amp; annotate</button>
           </div>
           <p id="annotate-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎨 Color picker</span>
+          </div>
+          <p class="hint">Pick any pixel on the current page with Chrome's built-in EyeDropper — copy it as hex, RGB or HSL.</p>
+          <div class="btn-row">
+            <button id="color-pick" type="button" class="mini-btn">Pick a color…</button>
+            <button id="color-copy" type="button" class="mini-btn" disabled>Copy</button>
+          </div>
+          <p id="color-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🖼️ Download all images</span>
+          </div>
+          <p class="hint">Collect every image on the current page (best srcset version each) and save them to your downloads.</p>
+          <div class="btn-row">
+            <button id="download-images" type="button" class="mini-btn">Download all images</button>
+          </div>
+          <p id="download-images-status" class="status"></p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Dev                                                           -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-dev" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🛠️ Text &amp; dev toolbox</span>
+          </div>
+          <p class="hint">Every tool runs right here on your device — nothing leaves the browser.</p>
+
+          <div class="dev-tool">
+            <strong>JSON</strong>
+            <textarea id="dev-json-input" rows="3" placeholder="{ \"a\": 1 }"></textarea>
+            <div class="btn-row">
+              <button id="dev-json-format" type="button" class="mini-btn">Format</button>
+              <button id="dev-json-minify" type="button" class="mini-btn">Minify</button>
+            </div>
+            <textarea id="dev-json-output" rows="3" readonly></textarea>
+          </div>
+
+          <div class="dev-tool">
+            <strong>Base64</strong>
+            <textarea id="dev-b64-input" rows="2" placeholder="Text to encode, or Base64 to decode"></textarea>
+            <div class="btn-row">
+              <button id="dev-b64-encode" type="button" class="mini-btn">Encode</button>
+              <button id="dev-b64-decode" type="button" class="mini-btn">Decode</button>
+            </div>
+            <textarea id="dev-b64-output" rows="2" readonly></textarea>
+          </div>
+
+          <div class="dev-tool">
+            <strong>URL encode / decode</strong>
+            <input id="dev-url-input" type="text" placeholder="a b&c=d" />
+            <div class="btn-row">
+              <button id="dev-url-encode" type="button" class="mini-btn">Encode</button>
+              <button id="dev-url-decode" type="button" class="mini-btn">Decode</button>
+            </div>
+            <input id="dev-url-output" type="text" readonly />
+          </div>
+
+          <div class="dev-tool">
+            <strong>Case converter</strong>
+            <input id="dev-case-input" type="text" placeholder="hello world" />
+            <div class="btn-row">
+              <button id="dev-case-title" type="button" class="mini-btn">Title</button>
+              <button id="dev-case-camel" type="button" class="mini-btn">camelCase</button>
+              <button id="dev-case-snake" type="button" class="mini-btn">snake_case</button>
+              <button id="dev-case-kebab" type="button" class="mini-btn">kebab-case</button>
+            </div>
+            <input id="dev-case-output" type="text" readonly />
+          </div>
+
+          <div class="dev-tool">
+            <strong>SHA-256 hash</strong>
+            <input id="dev-hash-input" type="text" placeholder="Text to hash" />
+            <div class="btn-row">
+              <button id="dev-hash-btn" type="button" class="mini-btn">Hash</button>
+            </div>
+            <input id="dev-hash-output" type="text" readonly />
+          </div>
+
+          <div class="dev-tool">
+            <strong>Timestamp ↔ date</strong>
+            <input id="dev-ts-input" type="text" placeholder="1700000000 (seconds or ms)" />
+            <div class="btn-row">
+              <button id="dev-ts-btn" type="button" class="mini-btn">Convert</button>
+            </div>
+            <input id="dev-ts-output" type="text" readonly />
+          </div>
+
+          <div class="dev-tool">
+            <strong>Regex tester</strong>
+            <div class="btn-row">
+              <input id="dev-regex-pattern" type="text" placeholder="\d+" />
+              <input id="dev-regex-flags" type="text" placeholder="g" style="width:48px" />
+            </div>
+            <textarea id="dev-regex-text" rows="2" placeholder="Text to test against"></textarea>
+            <div class="btn-row">
+              <button id="dev-regex-btn" type="button" class="mini-btn">Test</button>
+            </div>
+            <p id="dev-regex-output" class="status"></p>
+          </div>
+
+          <div class="dev-tool">
+            <strong>Line diff</strong>
+            <textarea id="dev-diff-a" rows="3" placeholder="Original text…"></textarea>
+            <textarea id="dev-diff-b" rows="3" placeholder="Changed text…"></textarea>
+            <div class="btn-row">
+              <button id="dev-diff-btn" type="button" class="mini-btn">Diff</button>
+            </div>
+            <pre id="dev-diff-output" class="diff-output"></pre>
+          </div>
         </div>
       </section>
 

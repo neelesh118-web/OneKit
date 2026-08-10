@@ -39,6 +39,26 @@ export interface OneKitCapabilities {
   removeBookmarks(ids: string[]): Promise<void>;
   /** Saves raw bytes as a file (PDF merge/split results). */
   downloadBytes(bytes: Uint8Array, filename: string): void;
+  /** All cookies for a URL (browser.cookies.getAll). */
+  getCookies(url: string): Promise<CookieLike[]>;
+  /** Sets a cookie (browser.cookies.set). Returns the cookie or null. */
+  setCookie(details: {
+    url: string;
+    name: string;
+    value: string;
+    domain: string;
+    path: string;
+  }): Promise<CookieLike | null>;
+  /** Removes a cookie (browser.cookies.remove). */
+  removeCookie(url: string, name: string): Promise<void>;
+  /** Clears all storage + cookies for an origin (browsingData). */
+  clearSiteData(origin: string): Promise<void>;
+  /** Asks the active tab to open the EyeDropper and pick a color. */
+  pickColor(): Promise<{ color?: string; error?: string }>;
+  /** Asks the active tab to collect + download its images. Returns saved count. */
+  downloadPageImages(): Promise<number>;
 }
+
+import type { CookieLike } from "../core/cookie-manager";
 
 import type { BookmarkNodeLike } from "../core/bookmark-cleaner";

@@ -19,6 +19,7 @@ import {
   removableCount,
   type BookmarkAnalysis
 } from "../core/bookmark-cleaner";
+import { hexToRgb, rgbCssString, rgbToHex, rgbToHsl } from "../core/color-utils";
 import type { OneKitCapabilities } from "./capabilities";
 
 function readFileBytes(file: File): Promise<Uint8Array> {
@@ -500,6 +501,59 @@ function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: nu
   ctx.fillStyle = "#ef4444";
   ctx.fill();
 }
+  /* Color picker --------------------------------------------------------- */
+  const colorPick = $("color-pick") as HTMLButtonElement;
+  const colorCopy = $("color-copy") as HTMLButtonElement;
+  const colorStatus = $("color-status");
+  let pickedColor: string | null = null;
+
+  colorPick.addEventListener("click", () => {
+    void (async () => {
+      colorStatus.textContent = "Pick a pixel on the page…";
+      const result = await caps.pickColor();
+      if (!result.color) {
+        colorStatus.textContent =
+          result.error === "cancelled" ? "Pick cancelled." : result.error ?? "Could not pick a color.";
+        return;
+      }
+      pickedColor = result.color;
+      colorCopy.disabled = false;
+      const rgb = hexToRgb(result.color);
+      colorStatus.textContent = rgb
+        ? `Picked ${result.color} · ${rgbCssString(rgb)} · HSL ${(() => {
+            const h = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            return `${h.h}°, ${h.s}%, ${h.l}%`;
+          })()}`
+        : `Picked ${result.color}.`;
+    })().catch(() => {
+      colorStatus.textContent = "Could not open the picker — reload the page and try again.";
+    });
+  });
+
+  colorCopy.addEventListener("click", () => {
+    if (!pickedColor) return;
+    void caps.copyText(pickedColor).then(() => {
+      colorStatus.textContent = `${pickedColor} copied ✓`;
+    });
+  });
+
+  /* Download all images --------------------------------------------------- */
+  const downloadImagesBtn = $("download-images") as HTMLButtonElement;
+  const downloadImagesStatus = $("download-images-status");
+
+  downloadImagesBtn.addEventListener("click", () => {
+    void (async () => {
+      downloadImagesStatus.textContent = "Collecting images…";
+      const saved = await caps.downloadPageImages();
+      downloadImagesStatus.textContent =
+        saved > 0
+          ? `Saved ${saved} image${saved === 1 ? "" : "s"} to your downloads.`
+          : "No downloadable images found on this page (or the tab isn't a normal page).";
+    })().catch(() => {
+      downloadImagesStatus.textContent = "Could not collect images — open a normal page first.";
+    });
+  });
+
   const bookmarksScan = $("bookmarks-scan") as HTMLButtonElement;
   const bookmarksRemove = $("bookmarks-remove") as HTMLButtonElement;
   const bookmarksResults = $("bookmarks-results");

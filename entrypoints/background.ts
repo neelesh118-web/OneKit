@@ -42,6 +42,11 @@ const COPY_SELECTION_MD_MENU_ID = "onekit-copy-selection-md";
 const COPY_LINK_MD_MENU_ID = "onekit-copy-link-md";
 const COPY_PAGE_MD_MENU_ID = "onekit-copy-page-md";
 const COPY_LINKS_MENU_ID = "onekit-copy-all-links";
+const PRINT_FRIENDLY_MENU_ID = "onekit-print-friendly";
+const SEARCH_GOOGLE_MENU_ID = "onekit-search-google";
+const SEARCH_YOUTUBE_MENU_ID = "onekit-search-youtube";
+const SEARCH_WIKIPEDIA_MENU_ID = "onekit-search-wikipedia";
+const SEARCH_PERPLEXITY_MENU_ID = "onekit-search-perplexity";
 
 export default defineBackground(() => {
   /* Install / update -------------------------------------------------- */
@@ -120,6 +125,31 @@ export default defineBackground(() => {
         id: COPY_LINKS_MENU_ID,
         title: "OneKit — Copy all links on page as Markdown",
         contexts: ["page"]
+      });
+      browser.contextMenus.create({
+        id: PRINT_FRIENDLY_MENU_ID,
+        title: "OneKit — Print-friendly version",
+        contexts: ["page"]
+      });
+      browser.contextMenus.create({
+        id: SEARCH_GOOGLE_MENU_ID,
+        title: "OneKit — Search Google for \"%s\"",
+        contexts: ["selection"]
+      });
+      browser.contextMenus.create({
+        id: SEARCH_YOUTUBE_MENU_ID,
+        title: "OneKit — Search YouTube for \"%s\"",
+        contexts: ["selection"]
+      });
+      browser.contextMenus.create({
+        id: SEARCH_WIKIPEDIA_MENU_ID,
+        title: "OneKit — Search Wikipedia for \"%s\"",
+        contexts: ["selection"]
+      });
+      browser.contextMenus.create({
+        id: SEARCH_PERPLEXITY_MENU_ID,
+        title: "OneKit — Search Perplexity for \"%s\"",
+        contexts: ["selection"]
       });
     } catch {
       // Menus unavailable — the popup tools still cover everything.
@@ -210,6 +240,7 @@ export default defineBackground(() => {
         url?: string;
         dataUrl?: string;
         filename?: string;
+        urls?: unknown;
       };
       if (msg.type === "ok:search-tabs") {
         return (async () => {
@@ -278,6 +309,21 @@ export default defineBackground(() => {
           } catch {
             // Best-effort.
           }
+        })();
+      }
+      if (msg.type === "ok:collect-images") {
+        return (async () => {
+          const urls = Array.isArray(msg.urls) ? (msg.urls as string[]) : [];
+          let saved = 0;
+          for (const url of urls.slice(0, 50)) {
+            try {
+              await browser.downloads.download({ url, conflictAction: "uniquify" });
+              saved++;
+            } catch {
+              // Some images are hotlinked and fail to download — skip them.
+            }
+          }
+          return { saved };
         })();
       }
       if (msg.type === "ok:gesture-new-tab") {
@@ -401,6 +447,29 @@ export default defineBackground(() => {
       } else if (info.menuItemId === COPY_LINKS_MENU_ID) {
         if (tabId !== undefined) {
           await sendToTab(tabId, { type: "ok:copy-all-links" });
+        }
+      } else if (info.menuItemId === PRINT_FRIENDLY_MENU_ID) {
+        const url = info.pageUrl;
+        if (url) {
+          await browser.tabs.create({
+            url: `${browser.runtime.getURL("/reader.html")}?url=${encodeURIComponent(url)}&print=1`
+          });
+        }
+      } else if (info.menuItemId === SEARCH_GOOGLE_MENU_ID) {
+        if (info.selectionText) {
+          await browser.tabs.create({ url: `https://www.google.com/search?q=${encodeURIComponent(info.selectionText)}` });
+        }
+      } else if (info.menuItemId === SEARCH_YOUTUBE_MENU_ID) {
+        if (info.selectionText) {
+          await browser.tabs.create({ url: `https://www.youtube.com/results?search_query=${encodeURIComponent(info.selectionText)}` });
+        }
+      } else if (info.menuItemId === SEARCH_WIKIPEDIA_MENU_ID) {
+        if (info.selectionText) {
+          await browser.tabs.create({ url: `https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(info.selectionText)}` });
+        }
+      } else if (info.menuItemId === SEARCH_PERPLEXITY_MENU_ID) {
+        if (info.selectionText) {
+          await browser.tabs.create({ url: `https://www.perplexity.ai/search?q=${encodeURIComponent(info.selectionText)}` });
         }
       }
     });

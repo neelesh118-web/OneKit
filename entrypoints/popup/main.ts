@@ -3,6 +3,7 @@ import { qrDataUrl } from "../../src/core/qr";
 import { localStorageArea } from "../../src/core/storage-utils";
 import type { TabLike } from "../../src/core/tab-tools";
 import type { BookmarkNodeLike } from "../../src/core/bookmark-cleaner";
+import type { CookieLike } from "../../src/core/cookie-manager";
 import type { OneKitCapabilities } from "../../src/popup/capabilities";
 import { createMemoryController } from "../../src/popup/memory-controller";
 import { createVaultController } from "../../src/popup/vault-controller";
@@ -12,6 +13,7 @@ import { createFocusController } from "../../src/popup/focus-controller";
 import { createTypingController } from "../../src/popup/typing-controller";
 import { createToolsController } from "../../src/popup/tools-controller";
 import { createDownloadsController } from "../../src/popup/downloads-controller";
+import { createDevController } from "../../src/popup/dev-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -110,12 +112,50 @@ const caps: OneKitCapabilities = {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
+  },
+  getCookies: async (url) => {
+    const cookies = await browser.cookies.getAll({ url });
+    return cookies as unknown as CookieLike[];
+  },
+  setCookie: async (details) => {
+    const cookie = await browser.cookies.set({
+      url: details.url,
+      name: details.name,
+      value: details.value,
+      domain: details.domain,
+      path: details.path
+    });
+    return (cookie as unknown as CookieLike) ?? null;
+  },
+  removeCookie: async (url, name) => {
+    await browser.cookies.remove({ url, name });
+  },
+  clearSiteData: async (origin) => {
+    const url = new URL(origin);
+    const since = 0;
+    await browser.browsingData.remove(
+      { origins: [origin], since },
+      { cookies: true, localStorage: true, indexedDB: true, cacheStorage: true, serviceWorkers: true }
+    );
+    void url;
+  },
+  pickColor: async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return { error: "No tab open." };
+    const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:pick-color" })) as { color?: string; error?: string } | undefined;
+    return result ?? { error: "No response — reload the page." };
+  },
+  downloadPageImages: async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return 0;
+    const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:collect-images" })) as { saved?: number } | undefined;
+    return result?.saved ?? 0;
   }
 };
 
 /* Tab navigation ------------------------------------------------------ */
 
-const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "downloads", "settings"];
+const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "dev", "downloads", "settings"];
 
 function switchTab(name: string): void {
   for (const tabName of TAB_ORDER) {
@@ -201,6 +241,7 @@ void (async () => {
   createTypingController(caps);
   createToolsController(caps);
   createDownloadsController(caps);
+  createDevController(caps);
   createSettingsController(caps);
 
   wireOnboarding();

@@ -105,6 +105,12 @@ import {
   linksToMarkdown,
   selectionToMarkdown
 } from "../src/core/markdown";
+import { collectImageUrls, type ImageRef } from "../src/core/image-collector";
+import {
+  localStoragePomodoro,
+  readPomodoro,
+  POMODORO_STORAGE_KEY
+} from "../src/core/pomodoro";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -1196,6 +1202,19 @@ browser.runtime.onMessage.addListener(
     void renderNotes();
     return;
   }
+  if (msg.type === "ok:pick-color") {
+    return pickColorFromPage();
+  }
+  if (msg.type === "ok:collect-images") {
+    return collectAndDownloadImages().then(
+      (saved) => ({ saved }),
+      () => ({ saved: 0 })
+    );
+  }
+  if (msg.type === "ok:pomodoro-start" || msg.type === "ok:pomodoro-end") {
+    void renderPomodoroChip();
+    return;
+  }
   }
 );
 
@@ -1492,6 +1511,122 @@ async function resumeSavedProgress(): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Pomodoro — countdown chip on the active tab                        */
+/* ------------------------------------------------------------------ */
+
+let pomodoroChip: HTMLElement | null = null;
+let pomodoroTimer: number | undefined;
+
+async function renderPomodoroChip(): Promise<void> {
+  const state = await readPomodoro(localStoragePomodoro(), Date.now());
+  const existing = document.getElementById("onekit-pomodoro-chip");
+  if (!state) {
+    existing?.remove();
+    pomodoroChip = null;
+    if (pomodoroTimer !== undefined) {
+      window.clearInterval(pomodoroTimer);
+      pomodoroTimer = undefined;
+    }
+    return;
+  }
+  if (!existing) {
+    const chip = document.createElement("div");
+    chip.id = "onekit-pomodoro-chip";
+    chip.style.cssText = [
+      "position:fixed",
+      "right:14px",
+      "bottom:14px",
+      "z-index:2147483646",
+      "background:#1e293b",
+      "color:#e2e8f0",
+      "font:600 13px/1 system-ui,sans-serif",
+      "padding:10px 14px",
+      "border-radius:999px",
+      "box-shadow:0 6px 20px rgba(0,0,0,.4)",
+      "display:flex",
+      "align-items:center",
+      "gap:8px"
+    ].join(";");
+    const label = document.createElement("span");
+    label.id = "onekit-pomodoro-label";
+    const end = document.createElement("button");
+    end.type = "button";
+    end.textContent = "✕";
+    end.title = "End the timer";
+    end.style.cssText = "border:none;background:none;color:#94a3b8;cursor:pointer;font-size:12px;padding:0 2px;";
+    end.addEventListener("click", () => {
+      void browser.runtime.sendMessage({ type: "ok:pomodoro-end" });
+    });
+    chip.append(label, end);
+    document.documentElement.appendChild(chip);
+    pomodoroChip = chip;
+  }
+  const label = document.getElementById("onekit-pomodoro-label");
+  if (label) {
+    const remaining = Math.max(0, state.until - Date.now());
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    const phase = state.phase === "focus" ? "🍅 Focus" : state.phase === "break" ? "☕ Break" : "🌴 Long break";
+    label.textContent = `${phase} · ${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+  if (pomodoroTimer === undefined) {
+    pomodoroTimer = window.setInterval(() => {
+      void (async () => {
+        const current = await readPomodoro(localStoragePomodoro(), Date.now());
+        if (!current) {
+          if (pomodoroTimer !== undefined) {
+            window.clearInterval(pomodoroTimer);
+            pomodoroTimer = undefined;
+          }
+          document.getElementById("onekit-pomodoro-chip")?.remove();
+          return;
+        }
+        await renderPomodoroChip();
+      })();
+    }, 1000);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Color picker — Chrome's native EyeDropper                          */
+/* ------------------------------------------------------------------ */
+
+async function pickColorFromPage(): Promise<{ color?: string; error?: string }> {
+  const EyeDropperCtor = (window as unknown as { EyeDropper?: new () => { open(): Promise<{ sRGBHex: string }> } }).EyeDropper;
+  if (!EyeDropperCtor) {
+    return { error: "EyeDropper isn't available in this browser." };
+  }
+  try {
+    const result = await new EyeDropperCtor().open();
+    return { color: result.sRGBHex };
+  } catch {
+    // User cancelled the picker (Esc) — that's fine.
+    return { error: "cancelled" };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Download all images                                                */
+/* ------------------------------------------------------------------ */
+
+async function collectAndDownloadImages(): Promise<number> {
+  const images: ImageRef[] = collectImageUrls(
+    [...document.querySelectorAll<HTMLImageElement>("img")].map((img) => ({
+      src: img.currentSrc || img.src,
+      srcset: img.srcset,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      alt: img.alt
+    })),
+    window.location.href
+  );
+  const urls = images.map((i) => i.url);
+  if (urls.length === 0) return 0;
+  const result = (await browser.runtime.sendMessage({ type: "ok:collect-images", urls })) as { saved?: number } | undefined;
+  return result?.saved ?? 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* Boot                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -1593,6 +1728,11 @@ function boot(): void {
         // Best-effort.
       });
     }
+    if (changes["ok.pomodoro"]) {
+      void renderPomodoroChip().catch(() => {
+        // Best-effort.
+      });
+    }
   });
 
   // Screen-time tracking (local per-site active time).
@@ -1619,6 +1759,11 @@ function boot(): void {
     // Best-effort.
   });
   void resumeSavedProgress().catch(() => {
+    // Best-effort.
+  });
+
+  // Pomodoro countdown chip (driven by the popup/side panel).
+  void renderPomodoroChip().catch(() => {
     // Best-effort.
   });
 }

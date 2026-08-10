@@ -68,6 +68,11 @@ async function main(): Promise<void> {
     article.append(heading, urlLine, body);
     meta.textContent = `${result.title} — ${result.wordCount.toLocaleString()} words · ~${result.readingMinutes} min read`;
 
+    // &print=1 (right-click "Print-friendly version") opens the print dialog.
+    if (new URLSearchParams(window.location.search).get("print") === "1") {
+      window.setTimeout(() => window.print(), 300);
+    }
+
     // Mark saved read-later items as read when opened here.
     void (async () => {
       try {
@@ -89,6 +94,10 @@ async function main(): Promise<void> {
 $("back").addEventListener("click", () => {
   if (window.history.length > 1) window.history.back();
   else window.close();
+});
+
+$("print").addEventListener("click", () => {
+  window.print();
 });
 
 $("download").addEventListener("click", () => {

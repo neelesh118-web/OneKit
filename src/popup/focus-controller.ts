@@ -27,6 +27,12 @@ import {
   readFocusSession,
   startFocusSession
 } from "../core/focus-session";
+import {
+  endPomodoro,
+  phaseLabel,
+  readPomodoro,
+  startPomodoro
+} from "../core/pomodoro";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -363,6 +369,52 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
     })();
   }, 60_000);
 
+  /* Pomodoro --------------------------------------------------------------- */
+  const pomodoroFocus = $("pomodoro-focus") as HTMLButtonElement;
+  const pomodoroBreak = $("pomodoro-break") as HTMLButtonElement;
+  const pomodoroLongBreak = $("pomodoro-longbreak") as HTMLButtonElement;
+  const pomodoroEnd = $("pomodoro-end") as HTMLButtonElement;
+  const pomodoroStatus = $("pomodoro-status");
+  let pomodoroTimer: number | undefined;
+
+  async function renderPomodoro(): Promise<void> {
+    const state = await readPomodoro(caps.storage, caps.now());
+    if (!state) {
+      pomodoroStatus.textContent =
+        "No timer running. Start a focus session — the chip appears on the active tab and keeps counting even when this popup closes.";
+      return;
+    }
+    const remaining = Math.max(0, state.until - caps.now());
+    pomodoroStatus.textContent =
+      `${phaseLabel(state.phase)} running — ${formatRemaining(remaining)} left. Next: ${phaseLabel(state.phase === "focus" ? "break" : "focus")}.`;
+  }
+
+  const startPomodoroPhase = (phase: "focus" | "break" | "longBreak"): void => {
+    void (async () => {
+      await startPomodoro(caps.storage, phase, caps.now());
+      await renderPomodoro();
+      const tab = await caps.getActiveTab();
+      if (tab.id !== undefined) {
+        await caps.sendMessage(tab.id, { type: "ok:pomodoro-start" }).catch(() => {
+          // No content script on that page — the timer still runs.
+        });
+      }
+    })();
+  };
+
+  pomodoroFocus.addEventListener("click", () => startPomodoroPhase("focus"));
+  pomodoroBreak.addEventListener("click", () => startPomodoroPhase("break"));
+  pomodoroLongBreak.addEventListener("click", () => startPomodoroPhase("longBreak"));
+  pomodoroEnd.addEventListener("click", () => {
+    void endPomodoro(caps.storage).then(() => void renderPomodoro());
+  });
+
+  void renderPomodoro();
+  if (pomodoroTimer !== undefined) window.clearInterval(pomodoroTimer);
+  pomodoroTimer = window.setInterval(() => {
+    void renderPomodoro();
+  }, 30_000);
+
   renderDayPicker();
   void renderMasterToggle();
   void renderRules();
@@ -370,5 +422,6 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
   void renderScreenTime();
   return () => {
     if (sessionTimer !== undefined) window.clearInterval(sessionTimer);
+    if (pomodoroTimer !== undefined) window.clearInterval(pomodoroTimer);
   };
 }

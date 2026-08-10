@@ -32,7 +32,8 @@ export const BACKUP_KEYS = [
   "ok.darkMode",
   "ok.snoozedTabs",
   "ok.webNotes",
-  "ok.readingProgress"
+  "ok.readingProgress",
+  "ok.pomodoro"
 ] as const;
 
 export interface OneKitBackup {
@@ -69,7 +70,8 @@ const KEY_VALIDATORS: Record<(typeof BACKUP_KEYS)[number], (value: unknown) => b
   "ok.darkMode": (v) => !!v && typeof v === "object",
   "ok.snoozedTabs": (v) => Array.isArray(v),
   "ok.webNotes": (v) => Array.isArray(v),
-  "ok.readingProgress": (v) => Array.isArray(v)
+  "ok.readingProgress": (v) => Array.isArray(v),
+  "ok.pomodoro": (v) => !!v && typeof v === "object"
 };
 
 export async function createBackup(storage: KvStorage, now: number = Date.now()): Promise<OneKitBackup> {

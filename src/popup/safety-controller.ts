@@ -7,6 +7,12 @@ import {
   type RiskLevel
 } from "../core/scam-radar";
 import { redactText } from "../core/pii-redact";
+import {
+  buildCookieEdit,
+  classifyCookies,
+  cookieSize,
+  isSameSiteCookie
+} from "../core/cookie-manager";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -171,6 +177,126 @@ export function createSafetyController(caps: OneKitCapabilities): () => void {
       piiStatus.textContent = "Redacted text copied ✓";
       window.setTimeout(() => (piiStatus.textContent = ""), 1500);
     });
+  });
+
+  /* Cookie manager ------------------------------------------------------ */
+  const cookieRefresh = $("cookie-refresh") as HTMLButtonElement;
+  const cookieForget = $("cookie-forget") as HTMLButtonElement;
+  const cookieName = $("cookie-name") as HTMLInputElement;
+  const cookieValue = $("cookie-value") as HTMLInputElement;
+  const cookieDomain = $("cookie-domain") as HTMLInputElement;
+  const cookiePath = $("cookie-path") as HTMLInputElement;
+  const cookieAdd = $("cookie-add") as HTMLButtonElement;
+  const cookieList = $("cookie-list");
+  const cookieStatus = $("cookie-status");
+
+  async function currentOrigin(): Promise<string | null> {
+    const tab = await caps.getActiveTab();
+    if (!tab.url) return null;
+    try {
+      return new URL(tab.url).origin;
+    } catch {
+      return null;
+    }
+  }
+
+  async function renderCookies(): Promise<void> {
+    const origin = await currentOrigin();
+    if (!origin) {
+      cookieStatus.textContent = "Open a normal page first — cookies belong to a site.";
+      cookieList.innerHTML = "";
+      return;
+    }
+    const hostname = new URL(origin).hostname;
+    const cookies = await caps.getCookies(origin);
+    const stats = classifyCookies(cookies);
+    cookieList.innerHTML = "";
+    if (cookies.length === 0) {
+      cookieStatus.textContent = `No cookies for ${hostname}. Add one below.`;
+      return;
+    }
+    cookieStatus.textContent =
+      `${stats.total} cookie${stats.total === 1 ? "" : "s"} for ${hostname} — ${stats.session} session, ${stats.secure} secure, ${stats.httpOnly} httpOnly · ${(cookies.reduce((n, c) => n + cookieSize(c), 0) / 1024).toFixed(1)} KB.`;
+    for (const cookie of cookies.slice(0, 40)) {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const title = document.createElement("strong");
+      title.className = "result-title";
+      title.textContent = cookie.name;
+      title.title = cookie.domain + cookie.path;
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `${cookie.domain} · ${cookie.value.slice(0, 40)}${cookie.value.length > 40 ? "…" : ""}${cookie.secure ? " · secure" : ""}${cookie.httpOnly ? " · httpOnly" : ""}${isSameSiteCookie(cookie, hostname) ? "" : " · third-party"}`;
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "mini-btn";
+      edit.textContent = "Edit value";
+      edit.addEventListener("click", () => {
+        cookieName.value = cookie.name;
+        cookieValue.value = cookie.value;
+        cookieDomain.value = cookie.domain;
+        cookiePath.value = cookie.path;
+        cookieStatus.textContent = "Editing — set the new value, then Add / update.";
+      });
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", () => {
+        void (async () => {
+          await caps.removeCookie(origin, cookie.name);
+          await renderCookies();
+        })();
+      });
+      row.append(title, meta, edit, remove);
+      cookieList.appendChild(row);
+    }
+  }
+
+  cookieRefresh.addEventListener("click", () => void renderCookies());
+
+  cookieAdd.addEventListener("click", () => {
+    void (async () => {
+      const origin = await currentOrigin();
+      if (!origin) {
+        cookieStatus.textContent = "Open a normal page first.";
+        return;
+      }
+      const edit = buildCookieEdit({
+        name: cookieName.value,
+        value: cookieValue.value,
+        domain: cookieDomain.value,
+        path: cookiePath.value
+      });
+      if (!edit.ok) {
+        cookieStatus.textContent = edit.error ?? "Could not build the cookie.";
+        return;
+      }
+      const saved = await caps.setCookie({ url: origin, ...edit.value! });
+      cookieStatus.textContent = saved
+        ? `Cookie “${saved.name}” saved.`
+        : "Could not save that cookie — check the domain.";
+      cookieName.value = "";
+      cookieValue.value = "";
+      await renderCookies();
+    })();
+  });
+
+  cookieForget.addEventListener("click", () => {
+    void (async () => {
+      const origin = await currentOrigin();
+      if (!origin) {
+        cookieStatus.textContent = "Open a normal page first.";
+        return;
+      }
+      const hostname = new URL(origin).hostname;
+      if (!window.confirm(`Forget ${hostname}? This clears its cookies, storage and cache — you'll be signed out of that site.`)) {
+        return;
+      }
+      await caps.clearSiteData(origin);
+      cookieStatus.textContent = `Forgot ${hostname} — its local data is cleared.`;
+      cookieList.innerHTML = "";
+    })();
   });
 
   return () => {};

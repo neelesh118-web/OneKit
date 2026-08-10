@@ -547,3 +547,52 @@ a.result-title:hover {
 .split input[type="number"] {
   width: 76px;
 }
+
+/* Dev toolbox + cookie manager + pomodoro */
+.dev-tool {
+  margin: 10px 0 14px;
+  padding: 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+}
+.dev-tool > strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #64748b);
+}
+.dev-tool textarea,
+.dev-tool input {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 4px 0;
+}
+.dev-tool .btn-row {
+  margin: 4px 0;
+}
+.diff-output {
+  max-height: 180px;
+  overflow: auto;
+  font: 11px/1.5 ui-monospace, "Cascadia Code", monospace;
+  white-space: pre-wrap;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 6px;
+  padding: 8px;
+  margin: 6px 0 0;
+}
+.diff-output .add { color: #4ade80; }
+.diff-output .remove { color: #f87171; }
+.diff-output .same { color: #94a3b8; }
+.cookie-edit {
+  margin: 10px 0;
+  padding: 8px;
+  border: 1px dashed var(--border, #cbd5e1);
+  border-radius: 8px;
+}
+.cookie-edit input {
+  flex: 1;
+  min-width: 80px;
+}
