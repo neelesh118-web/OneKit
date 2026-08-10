@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>25 tools · 100% local · free forever</span>
+          <span>30 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -23,6 +23,7 @@
         <button type="button" class="tab-btn" data-tab="focus">🧘 Focus</button>
         <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing</button>
         <button type="button" class="tab-btn" data-tab="tools">🧰 Tools</button>
+        <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads</button>
         <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings</button>
       </nav>
 
@@ -100,13 +101,33 @@
             <span class="tool-count" id="vault-count">—</span>
           </div>
           <p class="hint">Local archive of your ChatGPT / Claude / Gemini conversations. Turn it on in Settings → Tools; capture is best-effort. Search, export, or delete — everything stays on this device.</p>
-          <input id="vault-search" type="search" placeholder="Search your saved chats…" autocomplete="off" />
-          <div class="btn-row">
-            <button id="vault-refresh" type="button" class="mini-btn">Refresh</button>
-            <button id="vault-clear" type="button" class="mini-btn danger">Clear vault</button>
+          <div id="vault-crypto-block">
+            <p id="vault-crypto-state" class="status"></p>
+            <div id="vault-encrypt-form">
+              <input id="vault-encrypt-password" type="password" placeholder="Choose a password" autocomplete="off" />
+              <input id="vault-encrypt-password2" type="password" placeholder="Repeat password" autocomplete="off" />
+              <div class="btn-row">
+                <button id="vault-encrypt-btn" type="button" class="mini-btn">Encrypt vault</button>
+              </div>
+            </div>
+            <div id="vault-unlock-form" hidden>
+              <input id="vault-unlock-password" type="password" placeholder="Vault password" autocomplete="off" />
+              <div class="btn-row">
+                <button id="vault-unlock-btn" type="button" class="mini-btn">Unlock</button>
+                <button id="vault-decrypt-btn" type="button" class="mini-btn danger">Remove encryption…</button>
+              </div>
+            </div>
+            <p id="vault-crypto-status" class="status"></p>
           </div>
-          <div id="vault-results" class="results"></div>
-          <p id="vault-status" class="status"></p>
+          <div id="vault-controls">
+            <input id="vault-search" type="search" placeholder="Search your saved chats…" autocomplete="off" />
+            <div class="btn-row">
+              <button id="vault-refresh" type="button" class="mini-btn">Refresh</button>
+              <button id="vault-clear" type="button" class="mini-btn danger">Clear vault</button>
+            </div>
+            <div id="vault-results" class="results"></div>
+            <p id="vault-status" class="status"></p>
+          </div>
         </div>
       </section>
 
@@ -214,6 +235,42 @@
           <div id="workspace-list" class="results"></div>
           <p id="workspace-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🛟 Automatic session backup</span>
+          </div>
+          <p class="hint">Open tabs are auto-snapshotted every 15 minutes and after tab changes, so a crash or update never loses your session. Restoring opens the saved tabs without touching your current ones.</p>
+          <p id="backup-status" class="status"></p>
+          <div class="btn-row">
+            <button id="backup-restore-btn" type="button" class="mini-btn">Restore last backup</button>
+            <button id="backup-now" type="button" class="mini-btn">Back up now</button>
+            <button id="backup-clear" type="button" class="mini-btn danger">Clear backup</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">💾 Tab memory saver</span>
+          </div>
+          <p class="hint">Suspend tabs that have been inactive for a while so Chrome uses less memory. Suspended tabs keep their title and reload the instant you click them.</p>
+          <label class="toggle-row">
+            <input id="suspender-toggle" type="checkbox" />
+            <span>Suspend inactive tabs</span>
+          </label>
+          <div class="btn-row">
+            <label>After
+              <select id="suspender-threshold">
+                <option value="10">10 min</option>
+                <option value="30" selected>30 min</option>
+                <option value="60">1 hour</option>
+                <option value="180">3 hours</option>
+              </select>
+            </label>
+            <button id="suspender-now" type="button" class="mini-btn">Suspend inactive now</button>
+          </div>
+          <p id="suspender-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -245,6 +302,23 @@
           <p id="focus-rules-status" class="status"></p>
           <div class="btn-row">
             <button id="focus-rules-clear" type="button" class="mini-btn danger">Clear all schedules</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏳ Daily site budgets</span>
+          </div>
+          <p class="hint">Cap how many minutes per day you spend on a site. When today's screen time hits the budget, the blocker covers the site (only while the blocker is on).</p>
+          <div class="split">
+            <input id="budget-host" type="text" placeholder="Site, e.g. facebook.com" autocomplete="off" spellcheck="false" />
+            <label>minutes/day <input id="budget-minutes" type="number" min="1" max="1440" value="30" /></label>
+            <button id="budget-add" type="button" class="mini-btn">Add budget</button>
+          </div>
+          <div id="budget-list" class="results"></div>
+          <p id="budget-status" class="status"></p>
+          <div class="btn-row">
+            <button id="budget-clear" type="button" class="mini-btn danger">Clear all budgets</button>
           </div>
         </div>
 
@@ -343,6 +417,35 @@
       </section>
 
       <!-- ============================================================ -->
+      <!-- Downloads                                                     -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-downloads" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⬇️ Download organizer</span>
+          </div>
+          <p class="hint">Route downloads into folders by type (Images, Documents, Audio, Video, Archives, Code, Fonts) and dedupe names. Turn it on below — it only takes effect once enabled.</p>
+          <label class="toggle-row">
+            <input id="downloads-toggle" type="checkbox" />
+            <span>Organize downloads into folders</span>
+          </label>
+          <p class="status">Example: <code>photo.png</code> → <code>Images/photo.png</code>; <code>report.pdf</code> → <code>Documents/report.pdf</code></p>
+          <p id="downloads-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗂 Download history</span>
+          </div>
+          <p class="hint">A local log of recent downloads (last 200). Everything stays on this device.</p>
+          <div id="downloads-list" class="results"></div>
+          <div class="btn-row">
+            <button id="downloads-clear" type="button" class="mini-btn danger">Clear history</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
       <!-- Settings                                                      -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-settings" hidden>
@@ -397,6 +500,22 @@
         <p class="footer-note">OneKit keeps everything on this device. No account, no cloud, no tracking. Uninstalling removes all OneKit data.</p>
       </section>
     </main>
+
+    <!-- First-run onboarding picker -------------------------------------- -->
+    <div id="onboarding" class="onboarding" hidden>
+      <div class="onboarding-card">
+        <h2>Welcome to OneKit 👋</h2>
+        <p>Everything runs on this device — no account, no cloud. What should OneKit help you with?</p>
+        <div class="onboarding-options">
+          <button type="button" data-focus="focus">🧘 Focus &amp; screen time — block distracting sites, track time, set daily budgets</button>
+          <button type="button" data-focus="privacy">🛡️ Privacy &amp; safety — clean links, cookie reject, scam radar, PII redactor</button>
+          <button type="button" data-focus="speed">⚡ Speed &amp; tabs — session backup, memory saver, workspaces, duplicate killer</button>
+          <button type="button" data-focus="all">🎉 Everything — turn on all the safe defaults</button>
+        </div>
+        <button id="onboarding-skip" type="button" class="mini-btn">Skip for now</button>
+      </div>
+    </div>
+
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

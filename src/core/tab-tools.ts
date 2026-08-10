@@ -12,6 +12,8 @@ export interface TabLike {
   pinned?: boolean;
   windowId?: number;
   index?: number;
+  audible?: boolean;
+  lastAccessed?: number;
 }
 
 /** Normalizes a URL for duplicate grouping: strips fragment + trailing slash. */

@@ -4,13 +4,24 @@ import {
   exportConversationMarkdown,
   listConversations,
   searchConversations,
-  vaultStats
+  upsertConversation,
+  vaultStats,
+  type ChatConversation
 } from "../core/chat-vault";
+import {
+  decryptVaultJson,
+  encryptVaultJson,
+  readVaultCrypto,
+  writeVaultCrypto
+} from "../core/vault-crypto";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
- * Vault tab — the AI Chat Vault: search, open, export, delete saved
- * conversations. All local.
+ * Vault tab — the AI Chat Vault: search, open, export, delete, and
+ * optional password encryption. While encrypted, the plaintext vault is
+ * removed from storage; the popup decrypts it into memory after the user
+ * enters the password, and any change re-encrypts. No recovery: a lost
+ * password means a lost vault (stated honestly in the UI).
  */
 export function createVaultController(caps: OneKitCapabilities): () => void {
   const $ = (id: string): HTMLElement => {
@@ -25,6 +36,23 @@ export function createVaultController(caps: OneKitCapabilities): () => void {
   const count = $("vault-count");
   const refreshBtn = $("vault-refresh") as HTMLButtonElement;
   const clearBtn = $("vault-clear") as HTMLButtonElement;
+  const controls = $("vault-controls");
+
+  const cryptoState = $("vault-crypto-state");
+  const cryptoStatus = $("vault-crypto-status");
+  const encryptForm = $("vault-encrypt-form");
+  const encryptPassword = $("vault-encrypt-password") as HTMLInputElement;
+  const encryptPassword2 = $("vault-encrypt-password2") as HTMLInputElement;
+  const encryptBtn = $("vault-encrypt-btn") as HTMLButtonElement;
+  const unlockForm = $("vault-unlock-form");
+  const unlockPassword = $("vault-unlock-password") as HTMLInputElement;
+  const unlockBtn = $("vault-unlock-btn") as HTMLButtonElement;
+  const decryptBtn = $("vault-decrypt-btn") as HTMLButtonElement;
+
+  /** While unlocked, the decrypted conversations live here. */
+  let memoryConversations: ChatConversation[] | null = null;
+  /** Popup-session copy of the password, used only to re-encrypt. */
+  let sessionPassword: string | null = null;
 
   const SITE_LABELS: Record<string, string> = {
     chatgpt: "ChatGPT",
@@ -32,9 +60,37 @@ export function createVaultController(caps: OneKitCapabilities): () => void {
     gemini: "Gemini"
   };
 
+  async function isEncrypted(): Promise<boolean> {
+    return (await readVaultCrypto(caps.storage)) !== null;
+  }
+
+  async function persistEncrypted(): Promise<void> {
+    if (!sessionPassword) throw new Error("Vault password missing from this session.");
+    const blob = await encryptVaultJson(JSON.stringify(memoryConversations ?? []), sessionPassword);
+    await writeVaultCrypto(caps.storage, blob);
+  }
+
+  function sourceConversations(): ChatConversation[] {
+    return memoryConversations ?? [];
+  }
+
   async function render(): Promise<void> {
-    const q = search.value;
-    const conversations = q.trim() ? await searchConversations(caps.storage, q) : await listConversations(caps.storage);
+    const q = search.value.trim();
+    let conversations: ChatConversation[];
+    if (memoryConversations !== null) {
+      const needle = q.toLowerCase();
+      conversations = needle
+        ? memoryConversations.filter(
+            (c) =>
+              c.title.toLowerCase().includes(needle) ||
+              c.messages.some((m) => m.text.toLowerCase().includes(needle))
+          )
+        : memoryConversations;
+      conversations = [...conversations].sort((a, b) => b.updated - a.updated);
+    } else {
+      conversations = q ? await searchConversations(caps.storage, q) : await listConversations(caps.storage);
+    }
+
     results.innerHTML = "";
     if (conversations.length === 0) {
       status.textContent = q.trim()
@@ -83,7 +139,15 @@ export function createVaultController(caps: OneKitCapabilities): () => void {
       deleteBtn.className = "mini-btn danger";
       deleteBtn.textContent = "Delete";
       deleteBtn.addEventListener("click", () => {
-        void deleteConversation(caps.storage, conversation.id).then(() => void render());
+        void (async () => {
+          if (memoryConversations !== null) {
+            memoryConversations = memoryConversations!.filter((c) => c.id !== conversation.id);
+            await persistEncrypted();
+          } else {
+            await deleteConversation(caps.storage, conversation.id);
+          }
+          await Promise.all([render(), refreshCount()]);
+        })();
       });
 
       actions.append(open, exportBtn, deleteBtn);
@@ -93,6 +157,11 @@ export function createVaultController(caps: OneKitCapabilities): () => void {
   }
 
   async function refreshCount(): Promise<void> {
+    if (memoryConversations !== null) {
+      const messages = memoryConversations.reduce((n, c) => n + c.messages.length, 0);
+      count.textContent = `${memoryConversations.length} chats · ${messages} msgs`;
+      return;
+    }
     const stats = await vaultStats(caps.storage);
     count.textContent = `${stats.conversations} chats · ${stats.messages} msgs`;
   }
@@ -101,6 +170,119 @@ export function createVaultController(caps: OneKitCapabilities): () => void {
     await Promise.all([render(), refreshCount()]);
   }
 
+  /* Encryption UI ------------------------------------------------------- */
+  function setEncryptFormVisible(visible: boolean): void {
+    encryptForm.hidden = !visible;
+  }
+
+  function setUnlockFormVisible(visible: boolean): void {
+    unlockForm.hidden = !visible;
+  }
+
+  async function renderCryptoState(): Promise<void> {
+    const encrypted = await isEncrypted();
+    const unlocked = memoryConversations !== null;
+    if (!encrypted) {
+      cryptoState.textContent = "Not encrypted — your vault is stored locally without a password.";
+      setEncryptFormVisible(true);
+      setUnlockFormVisible(false);
+      controls.hidden = false;
+      return;
+    }
+    if (unlocked) {
+      cryptoState.textContent =
+        "Encrypted — unlocked for this session. Chat capture stays paused while encrypted. Use 'Remove encryption' below to go back to plain storage.";
+      setEncryptFormVisible(false);
+      setUnlockFormVisible(true);
+      unlockPassword.hidden = true;
+      unlockBtn.hidden = true;
+      decryptBtn.hidden = false;
+      controls.hidden = false;
+      return;
+    }
+    cryptoState.textContent = "Encrypted — locked. Enter your password to view your chats.";
+    setEncryptFormVisible(false);
+    setUnlockFormVisible(true);
+    unlockPassword.hidden = false;
+    unlockBtn.hidden = false;
+    decryptBtn.hidden = true;
+    controls.hidden = true;
+  }
+
+  encryptBtn.addEventListener("click", () => {
+    void (async () => {
+      const password = encryptPassword.value;
+      if (password.length < 6) {
+        cryptoStatus.textContent = "Password must be at least 6 characters.";
+        return;
+      }
+      if (password !== encryptPassword2.value) {
+        cryptoStatus.textContent = "The two passwords don't match.";
+        return;
+      }
+      const conversations = await listConversations(caps.storage);
+      const blob = await encryptVaultJson(JSON.stringify(conversations), password);
+      await writeVaultCrypto(caps.storage, blob);
+      await clearVault(caps.storage);
+      sessionPassword = password;
+      memoryConversations = conversations;
+      encryptPassword.value = "";
+      encryptPassword2.value = "";
+      cryptoStatus.textContent = "Vault encrypted. From now on it needs your password to open.";
+      await renderCryptoState();
+      await refreshAll();
+    })().catch(() => {
+      cryptoStatus.textContent = "Could not encrypt the vault.";
+    });
+  });
+
+  unlockBtn.addEventListener("click", () => {
+    void (async () => {
+      const password = unlockPassword.value;
+      const blob = await readVaultCrypto(caps.storage);
+      if (!blob) {
+        cryptoStatus.textContent = "The vault isn't encrypted anymore.";
+        await renderCryptoState();
+        return;
+      }
+      try {
+        const json = await decryptVaultJson(blob, password);
+        const conversations = JSON.parse(json) as ChatConversation[];
+        if (!Array.isArray(conversations)) throw new Error("Bad vault contents");
+        memoryConversations = conversations.filter((c) => c && typeof c === "object");
+        sessionPassword = password;
+        unlockPassword.value = "";
+        cryptoStatus.textContent = "Unlocked. Changes are re-encrypted automatically.";
+      } catch {
+        cryptoStatus.textContent = "Wrong password — could not unlock the vault.";
+        return;
+      }
+      await renderCryptoState();
+      await refreshAll();
+    })().catch(() => {
+      cryptoStatus.textContent = "Could not unlock the vault.";
+    });
+  });
+
+  decryptBtn.addEventListener("click", () => {
+    void (async () => {
+      if (memoryConversations === null) return;
+      await clearVault(caps.storage);
+      await writeVaultCrypto(caps.storage, null);
+      // Write the plaintext back so the vault works without a password again.
+      for (const conversation of memoryConversations) {
+        await upsertConversation(caps.storage, conversation);
+      }
+      sessionPassword = null;
+      memoryConversations = null;
+      cryptoStatus.textContent = "Encryption removed — the vault is stored plainly again.";
+      await renderCryptoState();
+      await refreshAll();
+    })().catch(() => {
+      cryptoStatus.textContent = "Could not remove encryption.";
+    });
+  });
+
   let debounce: number | undefined;
   search.addEventListener("input", () => {
     if (debounce !== undefined) window.clearTimeout(debounce);
@@ -108,9 +290,18 @@ export function createVaultController(caps: OneKitCapabilities): () => void {
   });
   refreshBtn.addEventListener("click", () => void refreshAll());
   clearBtn.addEventListener("click", () => {
-    void clearVault(caps.storage).then(() => void refreshAll());
+    void (async () => {
+      if (memoryConversations !== null) {
+        memoryConversations = [];
+        await persistEncrypted();
+      } else {
+        await clearVault(caps.storage);
+      }
+      await refreshAll();
+    })();
   });
 
   void refreshAll();
+  void renderCryptoState();
   return () => {};
 }

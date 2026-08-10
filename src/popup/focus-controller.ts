@@ -14,6 +14,12 @@ import {
   screenTimeStats,
   type ScreenTimeStats
 } from "../core/screen-time";
+import {
+  clearBudgets,
+  listBudgets,
+  removeBudget,
+  saveBudget
+} from "../core/budgets";
 import { loadSettings, saveSettings } from "../core/settings";
 import type { OneKitCapabilities } from "./capabilities";
 
@@ -231,6 +237,66 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
     void clearFocusRules(caps.storage).then(() => void renderRules());
   });
 
+  /* Daily site budgets -------------------------------------------------- */
+  const budgetHost = $("budget-host") as HTMLInputElement;
+  const budgetMinutes = $("budget-minutes") as HTMLInputElement;
+  const budgetAdd = $("budget-add") as HTMLButtonElement;
+  const budgetList = $("budget-list");
+  const budgetStatus = $("budget-status");
+  const budgetClear = $("budget-clear") as HTMLButtonElement;
+
+  async function renderBudgets(): Promise<void> {
+    const budgets = await listBudgets(caps.storage);
+    budgetList.innerHTML = "";
+    if (budgets.length === 0) {
+      budgetStatus.textContent =
+        "No budgets yet. Add one below — it only applies while the distraction blocker is on.";
+      return;
+    }
+    budgetStatus.textContent = `${budgets.length} budget${budgets.length === 1 ? "" : "s"} — subdomains count too.`;
+    for (const budget of budgets) {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const left = document.createElement("div");
+      left.className = "focus-rule-left";
+      const title = document.createElement("span");
+      title.className = "result-title";
+      title.textContent = budget.hostname;
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `${budget.minutesPerDay} min/day`;
+      left.append(title, meta);
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", () => {
+        void removeBudget(caps.storage, budget.id).then(() => void renderBudgets());
+      });
+      row.append(left, remove);
+      budgetList.appendChild(row);
+    }
+  }
+
+  budgetAdd.addEventListener("click", () => {
+    void (async () => {
+      const minutes = Number(budgetMinutes.value) || 30;
+      const rule = await saveBudget(caps.storage, budgetHost.value, minutes, caps.now());
+      if (!rule) {
+        budgetStatus.textContent =
+          "That hostname looks invalid, or the budget limit was reached. Example: facebook.com";
+        return;
+      }
+      budgetHost.value = "";
+      budgetStatus.textContent = `Added ${rule.hostname} at ${rule.minutesPerDay} min/day.`;
+      await renderBudgets();
+    })();
+  });
+
+  budgetClear.addEventListener("click", () => {
+    void clearBudgets(caps.storage).then(() => void renderBudgets());
+  });
+
   stClear.addEventListener("click", () => {
     void clearScreenTime(caps.storage).then(() => void renderScreenTime());
   });
@@ -238,6 +304,7 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
   renderDayPicker();
   void renderMasterToggle();
   void renderRules();
+  void renderBudgets();
   void renderScreenTime();
   return () => {};
 }

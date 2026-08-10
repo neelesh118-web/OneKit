@@ -44,10 +44,16 @@ button {
 .hint { margin-top: 14px; font-size: 12px; color: #94a3b8; }
 `;
 
+export interface FocusOverlayOptions {
+  /** Why the site is covered — schedule window or daily budget. */
+  reason?: "schedule" | "budget";
+}
+
 /** Creates and mounts the blocking overlay. Returns a handle to dismiss it. */
 export function createFocusOverlay(
   hostname: string,
-  actions: FocusOverlayActions
+  actions: FocusOverlayActions,
+  options: FocusOverlayOptions = {}
 ): FocusOverlayHandle {
   let host = document.getElementById("onekit-focus-overlay");
   if (!host) {
@@ -72,7 +78,9 @@ export function createFocusOverlay(
 
   const body = document.createElement("p");
   body.textContent =
-    "OneKit's distraction blocker is covering this site right now. Everything is local — no one is watching; this is just your schedule.";
+    options.reason === "budget"
+      ? "You've hit your daily time budget for this site — OneKit is covering it until tomorrow. Everything is local; this is just the limit you set."
+      : "OneKit's distraction blocker is covering this site right now. Everything is local — no one is watching; this is just your schedule.";
 
   const buttons = document.createElement("div");
   buttons.className = "buttons";

@@ -1,14 +1,17 @@
 /**
  * Unified search — ONE query across every OneKit store: page history,
- * AI chats, open tabs, form drafts, clipboard. Pure orchestration over
- * injected providers, so the Ctrl+Shift+K palette (content script), the
- * popup, and tests all share the same logic.
+ * AI chats, open tabs, form drafts, clipboard, read-later, highlights,
+ * workspaces, focus rules, screen time, and the tool launcher. Pure
+ * orchestration over injected providers, so the Ctrl+Shift+K palette
+ * (content script), the popup, and tests all share the same logic.
  */
 
 export type SearchAction =
   | { kind: "open-url"; url: string }
   | { kind: "activate-tab"; tabId: number }
-  | { kind: "copy"; text: string };
+  | { kind: "copy"; text: string }
+  /** Opens the OneKit popup (falls back to a hint where unsupported). */
+  | { kind: "open-popup"; toolId: string };
 
 export interface SearchResult {
   id: string;
@@ -29,22 +32,42 @@ export interface UnifiedSearchProviders {
   tabs(query: string): Promise<SearchResult[]>;
   drafts(query: string): Promise<SearchResult[]>;
   clipboard(query: string): Promise<SearchResult[]>;
+  saved(query: string): Promise<SearchResult[]>;
+  screenTime(query: string): Promise<SearchResult[]>;
+  tools(query: string): Promise<SearchResult[]>;
 }
 
+export const GROUP_ORDER = [
+  "history",
+  "saved",
+  "chats",
+  "tabs",
+  "drafts",
+  "clipboard",
+  "screenTime",
+  "tools"
+] as const;
+
 export const GROUP_LIMITS: Record<string, number> = {
-  history: 8,
+  history: 6,
+  saved: 6,
   chats: 6,
   tabs: 8,
-  drafts: 6,
-  clipboard: 6
+  drafts: 5,
+  clipboard: 5,
+  screenTime: 5,
+  tools: 8
 };
 
 export const GROUP_LABELS: Record<string, string> = {
   history: "Pages you've visited",
+  saved: "Saved items",
   chats: "AI chats",
   tabs: "Open tabs",
   drafts: "Form drafts",
-  clipboard: "Clipboard history"
+  clipboard: "Clipboard history",
+  screenTime: "Screen time",
+  tools: "Tools"
 };
 
 /** Runs every provider in parallel, filters empty groups, caps each. */
@@ -54,25 +77,21 @@ export async function unifiedSearch(
 ): Promise<SearchGroup[]> {
   const q = query.trim();
   if (!q) return [];
-  const [history, chats, tabs, drafts, clipboard] = await Promise.all([
+  const results = await Promise.all([
     providers.history(q),
+    providers.saved(q),
     providers.chats(q),
     providers.tabs(q),
     providers.drafts(q),
-    providers.clipboard(q)
+    providers.clipboard(q),
+    providers.screenTime(q),
+    providers.tools(q)
   ]);
   const groups: SearchGroup[] = [];
-  const entries: Array<[string, SearchResult[]]> = [
-    ["history", history],
-    ["chats", chats],
-    ["tabs", tabs],
-    ["drafts", drafts],
-    ["clipboard", clipboard]
-  ];
-  for (const [id, results] of entries) {
-    const capped = results.slice(0, GROUP_LIMITS[id] ?? 8);
-    if (capped.length === 0) continue;
+  GROUP_ORDER.forEach((id, index) => {
+    const capped = results[index]!.slice(0, GROUP_LIMITS[id] ?? 8);
+    if (capped.length === 0) return;
     groups.push({ id, label: GROUP_LABELS[id] ?? id, results: capped });
-  }
+  });
   return groups;
 }

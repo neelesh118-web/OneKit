@@ -7,9 +7,9 @@ export default defineConfig({
   manifest: {
     // Chrome Web Store title limit is 75 chars; the first ~30 survive grid
     // truncation, so the brand + the core promise sit up front.
-    name: "OneKit — Local Browser Toolbox (15 tools, no cloud)",
+    name: "OneKit — Local Browser Toolbox (30 tools, no cloud)",
     description:
-      "History search, clipboard history, form drafts, clean links, cookie auto-reject, tab tools, text expander, QR codes, passwords — 100% on-device, free forever.",
+      "30 local tools: history search, AI chat vault, session backup, distraction blocker with daily budgets, tab memory saver, download organizer, clean links, PII redactor, text expander, QR codes — 100% on-device, free forever.",
     // storage (settings + all local data), unlimitedStorage (large local
     // history/clipboard vault), tabs (tab finder + duplicate killer),
     // contextMenus (right-click quick actions), clipboardWrite (copy from
@@ -21,7 +21,9 @@ export default defineConfig({
       "unlimitedStorage",
       "tabs",
       "contextMenus",
-      "clipboardWrite"
+      "clipboardWrite",
+      "alarms",
+      "downloads"
     ],
     host_permissions: ["<all_urls>"],
     icons: {

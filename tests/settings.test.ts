@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
+  TOOL_LABELS,
   loadSettings,
   normalizeSettings,
   saveSettings,
@@ -22,6 +23,18 @@ describe("settings", () => {
     expect(DEFAULT_SETTINGS.tools.commandPalette).toBe(true);
     expect(DEFAULT_SETTINGS.tools.focusBlocker).toBe(false);
     expect(DEFAULT_SETTINGS.tools.screenTime).toBe(true);
+    expect(DEFAULT_SETTINGS.tools.sessionBackup).toBe(true);
+    expect(DEFAULT_SETTINGS.tools.tabSuspender).toBe(false);
+    expect(DEFAULT_SETTINGS.tools.downloadOrganizer).toBe(false);
+    expect(DEFAULT_SETTINGS.tools.wordLookup).toBe(false);
+    expect(DEFAULT_SETTINGS.onboarded).toBe(false);
+  });
+
+  it("every manifest toggle has a label (single source of truth)", () => {
+    const toggleKeys = Object.keys(DEFAULT_SETTINGS.tools);
+    for (const key of toggleKeys) {
+      expect(typeof TOOL_LABELS[key as keyof typeof DEFAULT_SETTINGS.tools]).toBe("string");
+    }
   });
 
   it("normalizes garbage storage into valid settings", () => {

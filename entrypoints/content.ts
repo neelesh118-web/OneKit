@@ -54,7 +54,10 @@ import {
   localStorageFocus
 } from "../src/core/focus";
 import { createFocusOverlay, type FocusOverlayHandle } from "../src/core/focus-overlay";
-import { recordActiveTime, localStorageScreenTime } from "../src/core/screen-time";
+import { recordActiveTime, secondsForOriginToday, localStorageScreenTime } from "../src/core/screen-time";
+import { budgetForHostname, listBudgets, localStorageBudgets } from "../src/core/budgets";
+import { lookupWord, singleWordFromSelection } from "../src/core/dictionary";
+import { isSpeaking, speakText, stopSpeaking } from "../src/core/read-aloud";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -507,6 +510,23 @@ function startScreenTimeTracking(): void {
 
 let focusOverlay: FocusOverlayHandle | null = null;
 
+/**
+ * Decides whether the current page should be covered right now: either a
+ * scheduled window or a daily budget that today's screen time has reached
+ * (budgets only apply while the blocker is on).
+ */
+async function focusBlockReason(): Promise<"schedule" | "budget" | null> {
+  if (!/^https?:$/.test(window.location.protocol)) return null;
+  const hostname = window.location.hostname;
+  const now = new Date();
+  if (await shouldBlockNow(localStorageFocus(), hostname, now)) return "schedule";
+  const budgets = await listBudgets(localStorageBudgets());
+  const rule = budgetForHostname(budgets, hostname);
+  if (!rule) return null;
+  const seconds = await secondsForOriginToday(localStorageScreenTime(), window.location.origin, now);
+  return seconds >= rule.minutesPerDay * 60 ? "budget" : null;
+}
+
 async function updateFocusBlocker(): Promise<void> {
   const s = await currentSettings();
   if (!s.tools.focusBlocker) {
@@ -514,20 +534,21 @@ async function updateFocusBlocker(): Promise<void> {
     focusOverlay = null;
     return;
   }
-  if (!/^https?:$/.test(window.location.protocol)) return;
-  const hostname = window.location.hostname;
-  const now = new Date();
-  const blocked = await shouldBlockNow(localStorageFocus(), hostname, now);
-  if (blocked && !focusOverlay?.isVisible()) {
-    focusOverlay = createFocusOverlay(hostname, {
-      onPause: () => {
-        void pauseFocusUntil(localStorageFocus(), Date.now() + 10 * 60 * 1000);
+  const reason = await focusBlockReason();
+  if (reason && !focusOverlay?.isVisible()) {
+    focusOverlay = createFocusOverlay(
+      window.location.hostname,
+      {
+        onPause: () => {
+          void pauseFocusUntil(localStorageFocus(), Date.now() + 10 * 60 * 1000);
+        },
+        onAllowToday: () => {
+          void allowHostnameToday(localStorageFocus(), window.location.hostname, new Date());
+        }
       },
-      onAllowToday: () => {
-        void allowHostnameToday(localStorageFocus(), hostname, new Date());
-      }
-    });
-  } else if (!blocked && focusOverlay?.isVisible()) {
+      { reason }
+    );
+  } else if (!reason && focusOverlay?.isVisible()) {
     focusOverlay.dismiss();
     focusOverlay = null;
   }
@@ -678,6 +699,110 @@ async function reapplyHighlights(): Promise<void> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Word lookup — double-click a word to see its offline meaning       */
+/* ------------------------------------------------------------------ */
+
+let lookupTooltip: HTMLElement | null = null;
+
+function dismissLookupTooltip(): void {
+  lookupTooltip?.remove();
+  lookupTooltip = null;
+}
+
+function showLookupTooltip(entry: { word: string; partOfSpeech: string; definition: string }, x: number, y: number): void {
+  dismissLookupTooltip();
+  const tooltip = document.createElement("div");
+  tooltip.id = "onekit-lookup-tooltip";
+  tooltip.style.cssText = [
+    "position:fixed",
+    `left:${Math.max(8, Math.min(x, window.innerWidth - 280))}px`,
+    `top:${Math.max(8, y - 8)}px`,
+    "z-index:2147483646",
+    "background:#1e293b",
+    "color:#f1f5f9",
+    "padding:10px 12px",
+    "border-radius:8px",
+    "font:13px/1.5 system-ui,sans-serif",
+    "box-shadow:0 4px 16px rgba(0,0,0,.35)",
+    "max-width:280px"
+  ].join(";");
+  const word = document.createElement("strong");
+  word.textContent = entry.word;
+  const pos = document.createElement("em");
+  pos.textContent = ` (${entry.partOfSpeech})`;
+  pos.style.color = "#94a3b8";
+  const def = document.createElement("div");
+  def.textContent = entry.definition;
+  def.style.marginTop = "4px";
+  tooltip.append(word, pos, def);
+  document.documentElement.appendChild(tooltip);
+  lookupTooltip = tooltip;
+}
+
+function onLookupDoubleClick(event: MouseEvent): void {
+  void (async () => {
+    const s = await currentSettings();
+    if (!s.tools.wordLookup) return;
+    const selection = window.getSelection()?.toString() ?? "";
+    const word = singleWordFromSelection(selection);
+    if (!word) return;
+    const entry = lookupWord(word);
+    if (!entry) return;
+    event.preventDefault();
+    showLookupTooltip(entry, event.clientX, event.clientY);
+  })().catch(() => {
+    // Best-effort.
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Read aloud — right-click a selection or page                       */
+/* ------------------------------------------------------------------ */
+
+let readAloudChip: HTMLElement | null = null;
+
+function updateReadAloudChip(): void {
+  if (isSpeaking() && !readAloudChip) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.id = "onekit-read-aloud-chip";
+    chip.textContent = "⏹ Stop reading";
+    chip.title = "Stop OneKit read-aloud";
+    chip.style.cssText = [
+      "position:fixed",
+      "right:16px",
+      "bottom:16px",
+      "z-index:2147483646",
+      "background:#dc2626",
+      "color:#fff",
+      "border:none",
+      "padding:8px 14px",
+      "border-radius:8px",
+      "font:600 13px/1 system-ui,sans-serif",
+      "cursor:pointer",
+      "box-shadow:0 4px 16px rgba(0,0,0,.35)"
+    ].join(";");
+    chip.addEventListener("click", () => {
+      stopSpeaking();
+      chip.remove();
+      readAloudChip = null;
+    });
+    document.documentElement.appendChild(chip);
+    readAloudChip = chip;
+  } else if (!isSpeaking() && readAloudChip) {
+    readAloudChip.remove();
+    readAloudChip = null;
+  }
+}
+
+function pageReadableText(): string {
+  const text = document.body?.innerText ?? document.body?.textContent ?? "";
+  // Prefer the main article-ish block when it exists.
+  const main = document.querySelector<HTMLElement>("article, main, [role='main']");
+  return (main?.innerText ?? text).replace(/\s+/g, " ").trim();
+}
+
+/* ------------------------------------------------------------------ */
 /* Ctrl+Shift+K unified search palette                               */
 /* ------------------------------------------------------------------ */
 
@@ -754,6 +879,34 @@ browser.runtime.onMessage.addListener(
     sendResponse(computePageRiskMetaFromDocument(document));
     return;
   }
+  if (msg.type === "ok:read-selection") {
+    const text = msg.text ?? "";
+    if (!text.trim()) {
+      showToast("Select some text first, then right-click → Read selection aloud.", "info");
+      return;
+    }
+    if (!speakText(text)) {
+      showToast("Speech is not available in this browser.", "info");
+      return;
+    }
+    showToast("Reading aloud — click the red chip to stop.", "info");
+    window.setTimeout(updateReadAloudChip, 300);
+    return;
+  }
+  if (msg.type === "ok:read-page") {
+    const text = pageReadableText();
+    if (!text) {
+      showToast("Nothing readable found on this page.", "info");
+      return;
+    }
+    if (!speakText(text)) {
+      showToast("Speech is not available in this browser.", "info");
+      return;
+    }
+    showToast("Reading page aloud — click the red chip to stop.", "info");
+    window.setTimeout(updateReadAloudChip, 300);
+    return;
+  }
   }
 );
 
@@ -791,6 +944,14 @@ function boot(): void {
 
   // Ctrl+Shift+K unified search palette.
   document.addEventListener("keydown", onPaletteShortcut, true);
+
+  // Word lookup (double-click a word → offline definition).
+  document.addEventListener("dblclick", onLookupDoubleClick, true);
+  document.addEventListener("click", dismissLookupTooltip, true);
+  document.addEventListener("scroll", dismissLookupTooltip, true);
+
+  // Read-aloud chip watcher while speech is running.
+  window.setInterval(updateReadAloudChip, 2000);
 
   // Clipboard capture.
   document.addEventListener("copy", captureCopy, true);

@@ -54,15 +54,28 @@ Built as a fresh project that borrows the *plumbing pattern* from SkillMesh
 | 🧘 Distraction blocker | Per-site schedules that hide a distracting site behind a local overlay during your chosen windows. Subdomains count; overnight windows supported. Never a trap — “Pause for 10 minutes” and “Allow for today” are one click from the overlay. OFF by default | On-page (toggle in Settings) + Popup → Focus |
 | ⏱ Screen time | Local per-site active-time stats (counts while a tab is visible), today + last 7 days with bars. 90-day retention, pruned automatically. ON by default | Popup → Focus |
 
+### Phase 5 (7 features — 30 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🛟 Automatic session backup | Auto-snapshots open tabs every 15 minutes and after tab changes (alarm-driven, MV3-safe), so a crash or update never loses your session. One-click restore opens the saved tabs without touching your current ones. ON by default | Background + Popup → Speed |
+| 💾 Tab memory saver | Suspends tabs idle for 10–180 min (Chrome's discard API) so Chrome uses less memory; suspended tabs reload when clicked. Never touches the active, pinned, or audible tab. OFF by default | Background + Popup → Speed |
+| ⏳ Daily site budgets | Caps minutes/day per site; when today's screen time reaches the budget, the distraction blocker covers the site (only while the blocker is on). One-click pause/allow-today from the overlay | On-page + Popup → Focus |
+| 🔊 Read aloud | Right-click a selection or a page and have it read to you via the browser's built-in speech — fully offline, with a red stop chip while speaking | Right-click |
+| 📖 Word lookup | Double-click a word on any page to see its meaning from the bundled offline dictionary (starter coverage, no network). OFF by default | On-page (toggle in Settings) |
+| ⬇️ Download organizer | Routes downloads into folders by type (Images, Documents, Audio, Video, Archives, Code, Fonts) with name dedupe, plus a local download history (last 200). OFF by default — only takes effect once enabled | Background + Popup → Downloads |
+| 🔐 Vault password | Password-protects the AI Chat Vault with PBKDF2 + AES-GCM, all on-device. While encrypted, chat capture pauses and the vault needs the password to open; removing encryption writes it back to plain storage. No recovery — a lost password means a lost vault | Popup → Vault |
+
+Plus: **first-run onboarding** (a 4-choice picker that switches on only the tools you want) and the **Ctrl+Shift+K palette now searches everything** — history, saved items (read-later / highlights / workspaces), chats, tabs, drafts, clipboard, screen time, focus rules — and doubles as a **tool launcher**.
+
 ## Defaults & privacy posture
 
-- **On by default (memory only):** history indexing, clipboard history —
-  both local, capped, deletable.
-- **On by default (passive local stats):** history indexing, clipboard
-  history, screen-time tracking.
+- **On by default (passive memory + stats):** history indexing, clipboard
+  history, screen-time tracking, session backup.
 - **Off by default (page-acting tools):** cookie reject, autoplay killer,
   text expander, paste cleaner, dictation, draft vault, AI Chat Vault,
-  distraction blocker — every one is a plain toggle in Settings → Tools.
+  distraction blocker, tab memory saver, download organizer, word lookup —
+  every one is a plain toggle in Settings → Tools.
 - The text expander only fires on `;alias` + space — a plain word like
   `mail` in normal prose never expands.
 - The cookie rejector only clicks buttons inside banner-like containers and
@@ -104,7 +117,7 @@ Built as a fresh project that borrows the *plumbing pattern* from SkillMesh
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (141 tests)
+npm test               # vitest (183 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```
@@ -129,5 +142,6 @@ scripts/            gen-icons.mjs (pure-PNG icon generator)
 
 ## Roadmap (later phases)
 
-- Optional encryption of the vault, cross-device sync (needs a server — later decision)
+- Cross-device sync (needs a server — later decision)
 - Workspace rename/merge controls in the Speed tab
+- Bigger offline dictionary bundle

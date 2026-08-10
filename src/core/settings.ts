@@ -1,4 +1,5 @@
 import { localStorageArea, type KvStorage } from "./storage-utils";
+import { TOOLS } from "./tool-manifest";
 
 export type Theme = "light" | "dark" | "system";
 
@@ -28,6 +29,14 @@ export interface ToolToggles {
   focusBlocker: boolean;
   /** Track active time per site locally for screen-time stats (default ON). */
   screenTime: boolean;
+  /** Auto-snapshot open tabs so a crash never loses them (default ON — passive). */
+  sessionBackup: boolean;
+  /** Suspend inactive tabs to save memory (default OFF — changes behavior). */
+  tabSuspender: boolean;
+  /** Route downloads into folders by type (default OFF — changes file locations). */
+  downloadOrganizer: boolean;
+  /** Double-click a word to see its offline definition (default OFF). */
+  wordLookup: boolean;
 }
 
 export interface OneKitSettings {
@@ -35,6 +44,8 @@ export interface OneKitSettings {
   tools: ToolToggles;
   /** Per-alias snippet enablement is stored with snippets; this master switch gates the engine. */
   textExpanderEnabled: boolean;
+  /** False until the first-run onboarding picker is dismissed. */
+  onboarded: boolean;
 }
 
 export const SETTINGS_STORAGE_KEY = "ok.settings";
@@ -53,25 +64,29 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     chatVault: false,
     commandPalette: true,
     focusBlocker: false,
-    screenTime: true
+    screenTime: true,
+    sessionBackup: true,
+    tabSuspender: false,
+    downloadOrganizer: false,
+    wordLookup: false
   },
-  textExpanderEnabled: true
+  textExpanderEnabled: true,
+  onboarded: false
 };
 
-export const TOOL_LABELS: Record<keyof ToolToggles, string> = {
-  historyIndex: "Index pages for full-text history search",
-  clipboardHistory: "Remember copied text (clipboard history)",
-  draftVault: "Auto-save form drafts",
-  cookieReject: "Auto-reject cookie banners",
-  autoplayKiller: "Pause autoplaying video & audio",
-  textExpander: "Text expander (;alias snippets)",
-  pasteCleaner: "Paste as plain text",
-  dictation: "Voice dictation into any field",
-  chatVault: "Save AI chat conversations locally (ChatGPT/Claude/Gemini)",
-  commandPalette: "Ctrl+Shift+K unified search palette",
-  focusBlocker: "Distraction blocker (per-site schedules)",
-  screenTime: "Track screen time locally (per-site stats)"
-};
+/**
+ * Settings labels per toggle, derived from the tool manifest so the
+ * manifest is the single source of truth for every tool.
+ */
+export const TOOL_LABELS: Record<keyof ToolToggles, string> = (() => {
+  const labels = {} as Record<keyof ToolToggles, string>;
+  for (const tool of TOOLS) {
+    if (tool.toggleKey) {
+      labels[tool.toggleKey] = tool.settingLabel ?? tool.name;
+    }
+  }
+  return labels;
+})();
 
 export function isTheme(value: unknown): value is Theme {
   return value === "light" || value === "dark" || value === "system";
@@ -95,7 +110,9 @@ export function normalizeSettings(raw: unknown): OneKitSettings {
     textExpanderEnabled:
       typeof obj.textExpanderEnabled === "boolean"
         ? obj.textExpanderEnabled
-        : DEFAULT_SETTINGS.textExpanderEnabled
+        : DEFAULT_SETTINGS.textExpanderEnabled,
+    onboarded:
+      typeof obj.onboarded === "boolean" ? obj.onboarded : DEFAULT_SETTINGS.onboarded
   };
 }
 

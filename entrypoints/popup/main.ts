@@ -10,8 +10,9 @@ import { createSpeedController } from "../../src/popup/speed-controller";
 import { createFocusController } from "../../src/popup/focus-controller";
 import { createTypingController } from "../../src/popup/typing-controller";
 import { createToolsController } from "../../src/popup/tools-controller";
+import { createDownloadsController } from "../../src/popup/downloads-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
-import { loadSettings } from "../../src/core/settings";
+import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
 /**
  * OneKit popup — wires the six tab panels to their controllers. The
@@ -37,6 +38,13 @@ const caps: OneKitCapabilities = {
     await browser.tabs.update(id, { active: true });
     if (tab.windowId !== undefined) {
       await browser.windows.update(tab.windowId, { focused: true });
+    }
+  },
+  discardTabs: async (ids) => {
+    for (const id of ids) {
+      await browser.tabs.discard(id).catch(() => {
+        // A tab may close mid-loop; that's fine.
+      });
     }
   },
   captureVisibleTab: async () => {
@@ -77,7 +85,7 @@ const caps: OneKitCapabilities = {
 
 /* Tab navigation ------------------------------------------------------ */
 
-const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "settings"];
+const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "downloads", "settings"];
 
 function switchTab(name: string): void {
   for (const tabName of TAB_ORDER) {
@@ -99,6 +107,58 @@ document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
 
 /* Boot ---------------------------------------------------------------- */
 
+const ONBOARDING_PRESETS: Record<string, (settings: OneKitSettings) => void> = {
+  focus: (s) => {
+    s.tools.focusBlocker = true;
+    s.tools.screenTime = true;
+    s.tools.sessionBackup = true;
+  },
+  privacy: (s) => {
+    s.tools.cookieReject = true;
+  },
+  speed: (s) => {
+    s.tools.sessionBackup = true;
+    s.tools.tabSuspender = true;
+    s.tools.autoplayKiller = true;
+  },
+  all: (s) => {
+    s.tools.draftVault = true;
+    s.tools.cookieReject = true;
+    s.tools.autoplayKiller = true;
+    s.tools.textExpander = true;
+    s.tools.pasteCleaner = true;
+    s.tools.dictation = true;
+    s.tools.sessionBackup = true;
+    s.tools.tabSuspender = true;
+    s.tools.wordLookup = true;
+    s.tools.focusBlocker = true;
+    // chatVault stays off — capture is on by request only.
+  }
+};
+
+function wireOnboarding(): void {
+  const overlay = document.getElementById("onboarding");
+  if (!overlay) return;
+  const dismiss = (): void => {
+    overlay.hidden = true;
+    void updateSettings({ onboarded: true }, caps.storage);
+  };
+  overlay.querySelectorAll<HTMLButtonElement>("[data-focus]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const preset = btn.dataset.focus;
+      if (preset && ONBOARDING_PRESETS[preset]) {
+        void (async () => {
+          const settings = await loadSettings(caps.storage);
+          ONBOARDING_PRESETS[preset]!(settings);
+          await saveSettings(settings, caps.storage);
+        })();
+      }
+      dismiss();
+    });
+  });
+  document.getElementById("onboarding-skip")?.addEventListener("click", dismiss);
+}
+
 void (async () => {
   const settings = await loadSettings(caps.storage);
   applyTheme(settings.theme);
@@ -110,7 +170,13 @@ void (async () => {
   createFocusController(caps);
   createTypingController(caps);
   createToolsController(caps);
+  createDownloadsController(caps);
   createSettingsController(caps);
+
+  wireOnboarding();
+  if (!settings.onboarded) {
+    document.getElementById("onboarding")!.hidden = false;
+  }
 
   switchTab("memory");
 })();

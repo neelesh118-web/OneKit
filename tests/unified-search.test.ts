@@ -15,10 +15,13 @@ const result = (id: string, title: string, subtitle = ""): SearchResult => ({
 
 const emptyProviders: UnifiedSearchProviders = {
   history: async () => [],
+  saved: async () => [],
   chats: async () => [],
   tabs: async () => [],
   drafts: async () => [],
-  clipboard: async () => []
+  clipboard: async () => [],
+  screenTime: async () => [],
+  tools: async () => []
 };
 
 describe("unified-search", () => {
@@ -30,12 +33,15 @@ describe("unified-search", () => {
     const providers: UnifiedSearchProviders = {
       ...emptyProviders,
       history: async () => [result("h1", "Page about k8s", "https://a.com/")],
+      saved: async () => [result("s1", "Read later: k8s guide", "https://b.com/")],
       chats: async () => [result("c1", "K8s notes", "https://claude.ai/chat/1")],
-      clipboard: async () => [result("p1", "k8s cheat sheet")]
+      clipboard: async () => [result("p1", "k8s cheat sheet")],
+      tools: async () => [result("t1", "🔍 Tab finder")]
     };
     const groups = await unifiedSearch("k8s", providers);
-    expect(groups.map((g) => g.id)).toEqual(["history", "chats", "clipboard"]);
+    expect(groups.map((g) => g.id)).toEqual(["history", "saved", "chats", "clipboard", "tools"]);
     expect(groups[0]?.label).toBe("Pages you've visited");
+    expect(groups[1]?.label).toBe("Saved items");
   });
 
   it("drops empty groups and caps each group", async () => {
@@ -54,15 +60,19 @@ describe("unified-search", () => {
       history: async () => {
         throw new Error("storage error");
       },
+      saved: async () => [],
       chats: async () => [result("c1", "found it")],
       tabs: async () => [],
       drafts: async () => [],
-      clipboard: async () => []
+      clipboard: async () => [],
+      screenTime: async () => [],
+      tools: async () => []
     };
     // The palette calls unifiedSearch with catch-wrapped providers; here we
     // verify the orchestration still surfaces what succeeded when a provider
     // is wrapped to degrade to [].
     const safe: UnifiedSearchProviders = {
+      ...emptyProviders,
       history: async () => {
         try {
           return await providers.history("x");
@@ -70,10 +80,7 @@ describe("unified-search", () => {
           return [];
         }
       },
-      chats: providers.chats,
-      tabs: providers.tabs,
-      drafts: providers.drafts,
-      clipboard: providers.clipboard
+      chats: providers.chats
     };
     const groups = await unifiedSearch("x", safe);
     expect(groups.map((g) => g.id)).toEqual(["chats"]);

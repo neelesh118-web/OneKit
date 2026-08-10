@@ -23,6 +23,8 @@ export interface OneKitCapabilities {
   getActiveTab(): Promise<TabLike>;
   /** Sends a message to a tab's content script (scam check reads page meta). */
   sendMessage(tabId: number, message: unknown): Promise<unknown>;
+  /** Suspends (discards) the given tabs to free memory. */
+  discardTabs(ids: number[]): Promise<void>;
   /** Builds a data URL for a PNG (used by the QR tool). */
   makeQr(text: string): { dataUrl: string; sizePx: number; modules: number };
   /** Downloads a text file (chat export, etc.). */

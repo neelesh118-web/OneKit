@@ -124,6 +124,19 @@ export async function screenTimeStats(storage: KvStorage, now: Date = new Date()
   return { todaySeconds, todaySites, last7Days, last7Seconds };
 }
 
+/** Seconds recorded for one origin today (used by daily site budgets). */
+export async function secondsForOriginToday(
+  storage: KvStorage,
+  origin: string,
+  now: Date = new Date()
+): Promise<number> {
+  const map = await readMap(storage);
+  const days = map[origin];
+  if (!days) return 0;
+  const seconds = days[dayKey(now)];
+  return typeof seconds === "number" && Number.isFinite(seconds) ? seconds : 0;
+}
+
 export async function clearScreenTime(storage: KvStorage): Promise<void> {
   await storage.remove(SCREEN_TIME_STORAGE_KEY);
 }

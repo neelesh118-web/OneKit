@@ -10,6 +10,13 @@ import {
   removeWorkspace,
   saveWorkspace
 } from "../core/workspaces";
+import {
+  clearSessionBackup,
+  readSessionBackup,
+  saveSessionBackup
+} from "../core/session-backup";
+import { tabsToSuspend, thresholdLabel } from "../core/tab-suspender";
+import { loadSettings, saveSettings } from "../core/settings";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -168,8 +175,97 @@ export function createSpeedController(caps: OneKitCapabilities): () => void {
     })();
   });
 
+  /* Automatic session backup ------------------------------------------- */
+  const backupStatus = $("backup-status");
+  const backupRestoreBtn = $("backup-restore-btn") as HTMLButtonElement;
+  const backupNow = $("backup-now") as HTMLButtonElement;
+  const backupClear = $("backup-clear") as HTMLButtonElement;
+
+  async function renderBackup(): Promise<void> {
+    const backup = await readSessionBackup(caps.storage);
+    if (!backup) {
+      backupStatus.textContent =
+        "No backup yet — the first snapshot saves shortly after you open tabs (toggle it in Settings → Tools).";
+      return;
+    }
+    const ago = Math.max(0, Math.round((caps.now() - backup.savedAt) / 60000));
+    backupStatus.textContent = `Last backup ${ago} min ago · ${backup.tabs.length} tab${backup.tabs.length === 1 ? "" : "s"}.`;
+  }
+
+  backupNow.addEventListener("click", () => {
+    void (async () => {
+      const tabs = sortTabsByPosition(await caps.queryTabs());
+      const backup = await saveSessionBackup(caps.storage, tabs, caps.now());
+      backupStatus.textContent = backup
+        ? `Backed up ${backup.tabs.length} tab${backup.tabs.length === 1 ? "" : "s"} just now.`
+        : "Nothing to back up — open some pages first (only http/https tabs are captured).";
+    })();
+  });
+
+  backupRestoreBtn.addEventListener("click", () => {
+    void (async () => {
+      const backup = await readSessionBackup(caps.storage);
+      if (!backup) {
+        backupStatus.textContent = "No backup to restore yet.";
+        return;
+      }
+      for (const tab of backup.tabs) {
+        await caps.openUrl(tab.url);
+      }
+      backupStatus.textContent = `Restored ${backup.tabs.length} tab${backup.tabs.length === 1 ? "" : "s"} from the last backup.`;
+    })();
+  });
+
+  backupClear.addEventListener("click", () => {
+    void clearSessionBackup(caps.storage).then(() => void renderBackup());
+  });
+
+  /* Tab memory saver ---------------------------------------------------- */
+  const suspenderToggle = $("suspender-toggle") as HTMLInputElement;
+  const suspenderThreshold = $("suspender-threshold") as HTMLSelectElement;
+  const suspenderNow = $("suspender-now") as HTMLButtonElement;
+  const suspenderStatus = $("suspender-status");
+
+  async function renderSuspender(): Promise<void> {
+    const settings = await loadSettings(caps.storage);
+    suspenderToggle.checked = settings.tools.tabSuspender;
+    suspenderStatus.textContent = settings.tools.tabSuspender
+      ? `On — tabs idle for ${thresholdLabel(Number(suspenderThreshold.value) || 30)} min get suspended automatically.`
+      : "Off — nothing is suspended until you switch it on (or use the button below).";
+  }
+
+  suspenderToggle.addEventListener("change", () => {
+    void (async () => {
+      const settings = await loadSettings(caps.storage);
+      settings.tools.tabSuspender = suspenderToggle.checked;
+      await saveSettings(settings, caps.storage);
+      await renderSuspender();
+    })();
+  });
+
+  suspenderThreshold.addEventListener("change", () => void renderSuspender());
+
+  suspenderNow.addEventListener("click", () => {
+    void (async () => {
+      const tabs = sortTabsByPosition(await caps.queryTabs());
+      const activeTab = (await caps.getActiveTab()).id;
+      const ids = tabsToSuspend(tabs, {
+        thresholdMs: Number(suspenderThreshold.value) * 60 * 1000,
+        activeTabId: activeTab
+      });
+      if (ids.length === 0) {
+        suspenderStatus.textContent = "No tabs idle long enough to suspend right now.";
+        return;
+      }
+      await caps.discardTabs(ids);
+      suspenderStatus.textContent = `Suspended ${ids.length} tab${ids.length === 1 ? "" : "s"} — they reload when clicked.`;
+    })();
+  });
+
   void renderDupes();
   void runTabSearch();
   void renderWorkspaces();
+  void renderBackup();
+  void renderSuspender();
   return () => {};
 }

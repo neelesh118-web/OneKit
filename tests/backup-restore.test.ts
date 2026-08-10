@@ -18,6 +18,10 @@ import { CHAT_VAULT_STORAGE_KEY } from "../src/core/chat-vault";
 import { WORKSPACES_STORAGE_KEY } from "../src/core/workspaces";
 import { FOCUS_RULES_STORAGE_KEY } from "../src/core/focus";
 import { SCREEN_TIME_STORAGE_KEY } from "../src/core/screen-time";
+import { BUDGETS_STORAGE_KEY } from "../src/core/budgets";
+import { SESSION_BACKUP_STORAGE_KEY } from "../src/core/session-backup";
+import { DOWNLOAD_HISTORY_KEY } from "../src/core/downloads";
+import { VAULT_CRYPTO_STORAGE_KEY } from "../src/core/vault-crypto";
 import { SETTINGS_STORAGE_KEY } from "../src/core/settings";
 import { addHistoryEntry } from "../src/core/history-store";
 import { saveSnippet } from "../src/core/snippets";
@@ -102,7 +106,11 @@ describe("backup-restore", () => {
       CHAT_VAULT_STORAGE_KEY,
       WORKSPACES_STORAGE_KEY,
       FOCUS_RULES_STORAGE_KEY,
+      BUDGETS_STORAGE_KEY,
       SCREEN_TIME_STORAGE_KEY,
+      SESSION_BACKUP_STORAGE_KEY,
+      DOWNLOAD_HISTORY_KEY,
+      VAULT_CRYPTO_STORAGE_KEY,
       SETTINGS_STORAGE_KEY
     ];
     for (const key of allStoreKeys) {

@@ -5,6 +5,12 @@ import {
 import { searchHistory, type HistoryEntry } from "./history-store";
 import { listDrafts, type DraftEntry } from "./drafts-store";
 import { listClipboard, type ClipboardEntry } from "./clipboard-store";
+import { listReadLater } from "./read-later-store";
+import { listHighlights } from "./highlights-store";
+import { listWorkspaces } from "./workspaces";
+import { screenTimeStats } from "./screen-time";
+import { listFocusRules } from "./focus";
+import { TOOLS } from "./tool-manifest";
 import { unifiedSearch, type SearchGroup, type SearchResult } from "./unified-search";
 import type { KvStorage } from "./storage-utils";
 
@@ -72,6 +78,94 @@ function clipboardResults(entries: ClipboardEntry[], query: string): SearchResul
     }));
 }
 
+/** Saved items: read-later, highlights, workspaces — anything with a URL. */
+async function savedResults(storage: KvStorage, query: string): Promise<SearchResult[]> {
+  const q = query.toLowerCase();
+  const out: SearchResult[] = [];
+  for (const item of await listReadLater(storage)) {
+    if (!item.title.toLowerCase().includes(q) && !item.url.toLowerCase().includes(q)) continue;
+    out.push({
+      id: `readlater-${item.id}`,
+      title: `📚 ${item.title}`,
+      subtitle: item.url,
+      action: { kind: "open-url", url: item.url }
+    });
+  }
+  for (const highlight of await listHighlights(storage)) {
+    if (!highlight.text.toLowerCase().includes(q)) continue;
+    out.push({
+      id: `highlight-${highlight.id}`,
+      title: `⭐ “${highlight.text.slice(0, 60)}”`,
+      subtitle: highlight.url,
+      action: { kind: "open-url", url: highlight.url }
+    });
+  }
+  for (const workspace of await listWorkspaces(storage)) {
+    if (!workspace.name.toLowerCase().includes(q)) continue;
+    const first = workspace.tabs[0];
+    out.push({
+      id: `workspace-${workspace.id}`,
+      title: `🗂 ${workspace.name} (${workspace.tabs.length} tabs)`,
+      subtitle: first?.url ?? "",
+      action: first ? { kind: "open-url", url: first.url } : { kind: "copy", text: workspace.name }
+    });
+  }
+  return out;
+}
+
+/** Screen time + focus rules — sites you're tracking, with copy actions. */
+async function screenTimeResults(storage: KvStorage, query: string): Promise<SearchResult[]> {
+  const q = query.toLowerCase();
+  const out: SearchResult[] = [];
+  const stats = await screenTimeStats(storage);
+  for (const site of stats.todaySites) {
+    const host = site.origin.replace(/^https?:\/\//, "");
+    if (!host.toLowerCase().includes(q)) continue;
+    const minutes = Math.round(site.seconds / 60);
+    out.push({
+      id: `st-${site.origin}`,
+      title: `⏱ ${host}`,
+      subtitle: `${minutes} min on screen today`,
+      action: { kind: "copy", text: host }
+    });
+  }
+  for (const rule of await listFocusRules(storage)) {
+    if (!rule.hostname.toLowerCase().includes(q)) continue;
+    out.push({
+      id: `focus-${rule.id}`,
+      title: `🧘 ${rule.hostname}`,
+      subtitle: rule.always ? "blocked at all times" : "blocked on a schedule",
+      action: { kind: "copy", text: rule.hostname }
+    });
+  }
+  return out;
+}
+
+/** Tool launcher — type a tool's name to jump straight to it. */
+function toolResults(query: string): SearchResult[] {
+  const q = query.toLowerCase();
+  return TOOLS.filter((t) => t.tab !== "settings")
+    .filter((t) => t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q))
+    .map((t) => ({
+      id: `tool-${t.id}`,
+      title: `${t.icon} ${t.name}`,
+      subtitle: t.description,
+      action: { kind: "open-popup", toolId: t.id }
+    }));
+}
+
+const TAB_NAMES: Record<string, string> = {
+  memory: "Memory",
+  vault: "Vault",
+  safety: "Safety",
+  speed: "Speed",
+  focus: "Focus",
+  typing: "Typing",
+  tools: "Tools",
+  downloads: "Downloads",
+  settings: "Settings"
+};
+
 const STYLE = `
 :host { all: initial; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -122,7 +216,7 @@ export function createCommandPalette(caps: PaletteCapabilities): PaletteHandle {
     const palette = document.createElement("div");
     palette.className = "palette";
     inputEl = document.createElement("input");
-    inputEl.placeholder = "Search pages, chats, tabs, drafts, clipboard…";
+    inputEl.placeholder = "Search pages, chats, tabs, drafts, saved items, tools…";
     inputEl.autocomplete = "off";
     inputEl.spellcheck = false;
     resultsEl = document.createElement("div");
@@ -174,13 +268,16 @@ export function createCommandPalette(caps: PaletteCapabilities): PaletteHandle {
     const q = inputEl?.value ?? "";
     groups = await unifiedSearch(q, {
       history: async (query) => historyResults(await searchHistory(caps.storage, query)),
+      saved: async (query) => savedResults(caps.storage, query),
       chats: async (query) => chatResults(await searchConversations(caps.storage, query)),
       tabs: async (query) => {
         const raw = await caps.sendMessage({ type: "ok:search-tabs", query });
         return Array.isArray(raw) ? (raw as SearchResult[]) : [];
       },
       drafts: async (query) => draftResults(await listDrafts(caps.storage), query),
-      clipboard: async (query) => clipboardResults(await listClipboard(caps.storage), query)
+      clipboard: async (query) => clipboardResults(await listClipboard(caps.storage), query),
+      screenTime: async (query) => screenTimeResults(caps.storage, query),
+      tools: async (query) => toolResults(query)
     });
     selectedIndex = 0;
     render();
@@ -231,16 +328,27 @@ export function createCommandPalette(caps: PaletteCapabilities): PaletteHandle {
   async function activate(index: number): Promise<void> {
     const result = flatResults()[index];
     if (!result) return;
-    if (result.action.kind === "open-url") {
-      await caps.openUrl(result.action.url);
+    const action = result.action;
+    if (action.kind === "open-url") {
+      await caps.openUrl(action.url);
       close();
-    } else if (result.action.kind === "activate-tab") {
-      await caps.activateTab(result.action.tabId);
+    } else if (action.kind === "activate-tab") {
+      await caps.activateTab(action.tabId);
       close();
-    } else if (result.action.kind === "copy") {
-      await caps.copyText(result.action.text);
+    } else if (action.kind === "copy") {
+      await caps.copyText(action.text);
       close();
       caps.toast("Copied to clipboard ✓");
+    } else if (action.kind === "open-popup") {
+      close();
+      const tool = TOOLS.find((t) => t.id === action.toolId);
+      const tabName = TAB_NAMES[tool?.tab ?? ""] ?? "";
+      try {
+        await caps.sendMessage({ type: "ok:open-popup" });
+        caps.toast(tabName ? `OneKit opened — check the ${tabName} tab.` : "OneKit opened.");
+      } catch {
+        caps.toast(tabName ? `Open OneKit → ${tabName} tab.` : "OneKit from the toolbar.");
+      }
     }
   }
 
