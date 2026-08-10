@@ -39,6 +39,8 @@ export interface OneKitCapabilities {
   removeBookmarks(ids: string[]): Promise<void>;
   /** Saves raw bytes as a file (PDF merge/split results). */
   downloadBytes(bytes: Uint8Array, filename: string): void;
+  /** Saves raw bytes as a file with an explicit MIME type (converter output). */
+  saveFile(bytes: Uint8Array, filename: string, mime: string): void;
   /** All cookies for a URL (browser.cookies.getAll). */
   getCookies(url: string): Promise<CookieLike[]>;
   /** Sets a cookie (browser.cookies.set). Returns the cookie or null. */

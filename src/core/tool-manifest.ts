@@ -441,6 +441,13 @@ export const TOOLS: ToolDef[] = [
     icon: "🔍",
     tab: "typing",
     description: "Right-click any selection to search it on Google, YouTube, Wikipedia or Perplexity."
+  },
+  {
+    id: "converter",
+    name: "File converter",
+    icon: "🔄",
+    tab: "convert",
+    description: "Convert files locally: images ↔ PNG/JPEG/WebP/AVIF, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, audio → WAV, WAV → MP3. Nothing is uploaded."
   }
 ];
 

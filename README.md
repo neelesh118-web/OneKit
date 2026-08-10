@@ -107,6 +107,12 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | 🖼️ Download all images | Collect every image on the page (best srcset version each, deduped) and save them to Downloads | Popup → Tools |
 | 🔍 Search selected text | Right-click any selection → search it on Google, YouTube, Wikipedia or Perplexity in a new tab | Right-click |
 
+### Phase 9 (1 feature — 55 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🔄 File converter | Convert files 100% locally: images ↔ PNG/JPEG/WebP/AVIF, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, MP3/OGG/M4A → WAV and WAV → MP3. Detection uses magic bytes, not just the file extension; unsupported pairs are honestly refused. Files never leave the device | Popup → Convert |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard
@@ -156,7 +162,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (304 tests)
+npm test               # vitest (360 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```
@@ -172,7 +178,7 @@ Load unpacked from `.output/chrome-mv3/` in `chrome://extensions`.
 entrypoints/
   background.ts     context menus + install-time defaults
   content.ts        all on-page tools (history, cookie, autoplay, expander, screen time, focus…)
-  popup/            tabbed popup (Memory/Vault/Safety/Speed/Focus/Typing/Tools/Settings)
+  popup/            tabbed popup (Memory/Vault/Safety/Speed/Focus/Typing/Tools/Dev/Convert/Downloads/Settings)
 src/core/           pure logic modules (all unit-tested, no browser.* calls)
 src/popup/          controllers (browser capabilities injected, testable)
 tests/              vitest suite for every core module

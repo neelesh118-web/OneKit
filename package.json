@@ -15,14 +15,26 @@
     "icons": "node scripts/gen-icons.mjs"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "@types/qrcode-generator": "^1.0.6",
+    "@types/turndown": "^5.0.6",
     "jsdom": "^29.1.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4",
     "wxt": "^0.21.3"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "fast-xml-parser": "^5.10.1",
+    "fflate": "^0.7.5",
+    "fonteditor-core": "^2.6.3",
+    "js-yaml": "^5.2.3",
+    "mammoth": "^1.12.1",
+    "marked": "^18.0.9",
     "pdf-lib": "^1.17.1",
-    "qrcode-generator": "^1.4.4"
+    "pdfjs-dist": "^6.2.108",
+    "qrcode-generator": "^1.4.4",
+    "turndown": "^7.2.4",
+    "xlsx": "^0.18.5"
   }
 }

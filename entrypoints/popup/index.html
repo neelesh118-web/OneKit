@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>54 tools · 100% local · free forever</span>
+          <span>55 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -24,6 +24,7 @@
         <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing</button>
         <button type="button" class="tab-btn" data-tab="tools">🧰 Tools</button>
         <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev</button>
+        <button type="button" class="tab-btn" data-tab="convert">🔄 Convert</button>
         <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads</button>
         <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings</button>
       </nav>
@@ -738,6 +739,36 @@
             </div>
             <pre id="dev-diff-output" class="diff-output"></pre>
           </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Convert                                                       -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-convert" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔄 File converter</span>
+          </div>
+          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick a file, choose a target, convert.</p>
+          <input id="convert-file" type="file" />
+          <p id="convert-source" class="status"></p>
+          <div class="btn-row">
+            <label>to
+              <select id="convert-target">
+                <option value="">—</option>
+              </select>
+            </label>
+            <button id="convert-btn" type="button" class="mini-btn" disabled>Convert</button>
+          </div>
+          <p id="convert-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">ℹ️ What can convert to what</span>
+          </div>
+          <p class="hint">Images ↔ PNG/JPEG/WebP/AVIF · PDF, DOCX, EPUB → text/Markdown/HTML · XLSX ↔ CSV/JSON · JSON ↔ YAML/XML/CSV · ZIP/TAR/GZIP · fonts TTF/WOFF/WOFF2 · MP3/OGG/M4A → WAV and WAV → MP3. Proprietary formats (DWG, PAGES, RAW photos) can't be decoded locally, so they're honestly not offered.</p>
         </div>
       </section>
 

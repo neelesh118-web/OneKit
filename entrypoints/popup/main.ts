@@ -14,6 +14,7 @@ import { createTypingController } from "../../src/popup/typing-controller";
 import { createToolsController } from "../../src/popup/tools-controller";
 import { createDownloadsController } from "../../src/popup/downloads-controller";
 import { createDevController } from "../../src/popup/dev-controller";
+import { createConvertController } from "../../src/popup/convert-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -107,6 +108,14 @@ const caps: OneKitCapabilities = {
   },
   downloadBytes: (bytes, filename) => {
     const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  saveFile: (bytes, filename, mime) => {
+    const blob = new Blob([bytes as unknown as BlobPart], { type: mime });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = filename;
@@ -242,6 +251,7 @@ void (async () => {
   createToolsController(caps);
   createDownloadsController(caps);
   createDevController(caps);
+  createConvertController(caps);
   createSettingsController(caps);
 
   wireOnboarding();
