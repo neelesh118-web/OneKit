@@ -20,7 +20,19 @@ import {
 import { loadSettings, type OneKitSettings } from "../src/core/settings";
 import { countWords, countChars, countCharsNoSpaces } from "../src/core/text-utils";
 import { cleanLink } from "../src/core/clean-links";
-import { draftKeyFor, fieldLabelFor, saveDraft, localStorageDrafts } from "../src/core/drafts-store";
+import {
+  draftIdentityForKey,
+  draftKeyFor,
+  fieldLabelFor,
+  listDraftsForOrigin,
+  saveDraft,
+  localStorageDrafts
+} from "../src/core/drafts-store";
+import {
+  findFieldForDraft,
+  rangeForCharOffsets,
+  textBeforeCaretIn
+} from "../src/core/dom-text";
 import {
   isMediaElement,
   pauseMedia,
@@ -261,6 +273,24 @@ function onExpanderKeydown(event: KeyboardEvent): void {
       el.value = text;
       el.selectionStart = el.selectionEnd = caret;
       el.dispatchEvent(new Event("input", { bubbles: true }));
+    } else if (el instanceof HTMLElement && el.isContentEditable) {
+      // Rich editors (Claude, Gmail, WordPress…) keep the text in the DOM.
+      const beforeCaret = textBeforeCaretIn(el);
+      if (beforeCaret === null) return;
+      const snippets = await snippetsForExpansion();
+      const match = findExpansionAt(beforeCaret, snippets);
+      if (!match) return;
+      event.preventDefault();
+      const trigger =
+        key === "Enter" ? "\n" : key === "Tab" ? "\t" : key;
+      const range = rangeForCharOffsets(el, match.start, beforeCaret.length);
+      if (!range) return;
+      const selection = window.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      // Replaces the selected ";alias" and leaves the caret after the
+      // inserted text — same behavior as the input/textarea path.
+      document.execCommand("insertText", false, match.replacement + trigger);
     }
   })().catch(() => {
     // Best-effort.
@@ -524,6 +554,10 @@ function onDraftInput(event: Event): void {
     const el = event.target;
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)) return;
     if (el instanceof HTMLInputElement && el.type === "password") return;
+    // Fields with no name AND no id can't be identified or restored — and
+    // two unnamed fields on one page would silently overwrite each other's
+    // draft under the same "unnamed" key. Skip them entirely.
+    if (!el.name?.trim() && !el.id?.trim()) return;
     const key = draftKeyFor(window.location.origin, el.name, el.id);
     const timer = draftTimers.get(key);
     if (timer !== undefined) window.clearTimeout(timer);
@@ -548,6 +582,36 @@ function onDraftInput(event: Event): void {
   })().catch(() => {
     // Best-effort.
   });
+}
+
+/* ------------------------------------------------------------------ */
+/* Draft restore — fill empty saved fields after a refresh.           */
+/* ------------------------------------------------------------------ */
+
+async function restoreDrafts(): Promise<void> {
+  const s = await currentSettings();
+  if (!s.tools.draftVault) return;
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  const drafts = await listDraftsForOrigin(localStorageDrafts(), window.location.origin);
+  if (drafts.length === 0) return;
+  let restored = 0;
+  for (const draft of drafts) {
+    const identity = draftIdentityForKey(draft.key, draft.origin);
+    if (!identity) continue;
+    const field = findFieldForDraft(identity);
+    if (!field) continue;
+    if (
+      !(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement)
+    ) continue;
+    if (field instanceof HTMLInputElement && field.type === "password") continue;
+    if (field.value !== "") continue; // never overwrite what the user typed
+    field.value = draft.value;
+    field.dispatchEvent(new Event("input", { bubbles: true }));
+    restored++;
+  }
+  if (restored > 0) {
+    showToast(`OneKit restored ${restored} saved field${restored === 1 ? "" : "s"} from your drafts.`, "ok");
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -750,8 +814,13 @@ function boot(): void {
   // Paste cleaner.
   document.addEventListener("paste", onPaste, true);
 
-  // Draft vault.
+  // Draft vault: save while typing, and restore empty saved fields a few
+  // times (SPA forms render late). Only empty fields are ever filled, so
+  // the retries are safe and never clobber user input.
   document.addEventListener("input", onDraftInput, true);
+  void restoreDrafts().catch(() => {});
+  window.setTimeout(() => void restoreDrafts().catch(() => {}), 1500);
+  window.setTimeout(() => void restoreDrafts().catch(() => {}), 4000);
 
   // Dictation button + distraction blocker — one listener for settings and
   // focus-state changes, so a toggle from the popup applies without reload.

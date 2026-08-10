@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clearDrafts,
+  draftIdentityForKey,
   draftKeyFor,
   listDrafts,
   listDraftsForOrigin,
@@ -17,6 +18,21 @@ describe("drafts-store", () => {
     const b = draftKeyFor("https://other.com", "email", "");
     expect(a).not.toBe(b);
     expect(a).toContain("shop.com");
+  });
+
+  it("parses the stored field identity back from a key", () => {
+    const key = draftKeyFor("https://a.com", "email");
+    expect(draftIdentityForKey(key, "https://a.com")).toBe("email");
+    // Wrong origin → no identity (site-scoped).
+    expect(draftIdentityForKey(key, "https://b.com")).toBeNull();
+  });
+
+  it("treats unnamed-field drafts as unidentifiable (no restore target)", () => {
+    const key = draftKeyFor("https://a.com", "", "");
+    expect(key).toContain("|unnamed");
+    expect(draftIdentityForKey(key, "https://a.com")).toBeNull();
+    expect(draftIdentityForKey("https://a.com|", "https://a.com")).toBeNull();
+    expect(draftIdentityForKey("garbage", "https://a.com")).toBeNull();
   });
 
   it("saves, updates, and lists drafts", async () => {

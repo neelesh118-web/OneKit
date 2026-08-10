@@ -26,6 +26,18 @@ export function draftKeyFor(origin: string, fieldName?: string, fieldId?: string
   return `${origin}|${identity}`.slice(0, 500);
 }
 
+/**
+ * Extracts the field identity from a stored draft key. Returns null when
+ * the draft has no usable identity (saved from an unnamed field) — such
+ * drafts cannot be mapped back to a field on restore, so they are skipped.
+ */
+export function draftIdentityForKey(key: string, origin: string): string | null {
+  if (!origin || !key.startsWith(`${origin}|`)) return null;
+  const identity = key.slice(origin.length + 1);
+  if (!identity || identity === "unnamed") return null;
+  return identity;
+}
+
 /** Field label for humans: id > name > placeholder-derived name. */
 export function fieldLabelFor(fieldName?: string, fieldId?: string): string {
   return fieldName?.trim() || fieldId?.trim() || "Field";
