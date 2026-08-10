@@ -31,6 +31,18 @@ export interface OneKitCapabilities {
   downloadText(text: string, filename: string): void;
   /** Groups open tabs by site (background applies chrome.tabs.group). */
   groupTabs(): Promise<{ grouped: number }>;
+  /** Moves tabs to an index, optionally into another window (tab utilities). */
+  moveTabs(ids: number[], index: number, windowId?: number): Promise<void>;
+  /** Recently closed tabs from browser.sessions (normalized, capped at 15). */
+  getRecentlyClosed(): Promise<RecentlyClosedTabLike[]>;
+  /** Restores a closed tab/window by session id. */
+  restoreSession(sessionId: string): Promise<void>;
+  /** Opens several URLs in new background tabs (background caps the batch). */
+  openTabs(urls: string[]): Promise<number>;
+  /** HEAD/GET checks a list of URLs (background, 10s timeout each). */
+  checkLinks(
+    urls: string[]
+  ): Promise<Array<{ url: string; status: number; ok: boolean; error?: string }>>;
   /** Asks the active tab's content script to scroll-capture the full page. */
   captureFullPage(): Promise<void>;
   /** The full bookmarks tree (browser.bookmarks.getTree). */
@@ -98,3 +110,5 @@ export interface OneKitCapabilities {
 import type { CookieLike } from "../core/cookie-manager";
 
 import type { BookmarkNodeLike } from "../core/bookmark-cleaner";
+
+import type { RecentlyClosedTabLike } from "../core/recent-closed";

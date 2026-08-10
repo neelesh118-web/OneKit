@@ -950,6 +950,90 @@ export const TOOLS: ToolDef[] = [
     icon: "🎲",
     tab: "memory",
     description: "Resurface a random unread saved page or highlight so your library works for you again."
+  },
+  {
+    id: "tabUtilities",
+    name: "Tab utilities",
+    icon: "🗂",
+    tab: "speed",
+    description: "Close tabs left/right/others, sort tabs by domain, and merge all windows — the tab hygiene pack."
+  },
+  {
+    id: "recentClosed",
+    name: "Recently closed tabs",
+    icon: "🕘",
+    tab: "speed",
+    description: "A list of your recently closed tabs, reopened with one click — no more digging through Ctrl+Shift+T."
+  },
+  {
+    id: "readAloudReader",
+    name: "Read aloud + Reader view",
+    icon: "🔊",
+    tab: "focus",
+    description: "Read the page aloud with the browser's own voices, or open it in OneKit's clean Reader view."
+  },
+  {
+    id: "readingLine",
+    name: "Reading line",
+    icon: "📏",
+    tab: "focus",
+    description: "A line that follows your cursor while you read — an accessibility staple, one click away."
+  },
+  {
+    id: "copyPageLink",
+    name: "Copy page link",
+    icon: "🔗",
+    tab: "typing",
+    description: "Copy this page's title + URL as Markdown, HTML, or plain text."
+  },
+  {
+    id: "dictionaryLookup",
+    name: "Dictionary lookup",
+    icon: "📖",
+    tab: "typing",
+    description: "Look up any word in the offline dictionary — part of speech + plain-English definition."
+  },
+  {
+    id: "utmBuilder",
+    name: "UTM link builder",
+    icon: "🧪",
+    tab: "tools",
+    description: "Append campaign tracking params to any URL — source, medium, campaign, term, content."
+  },
+  {
+    id: "generatorPack",
+    name: "Generator pack",
+    icon: "🎰",
+    tab: "tools",
+    description: "UUIDs, lorem ipsum, usernames, and a HEX/RGB/HSL color converter — four micro-generators in one."
+  },
+  {
+    id: "faviconExtractor",
+    name: "Favicon extractor",
+    icon: "🖼",
+    tab: "tools",
+    description: "Save any page's icon — resolved from its <link> tags with a /favicon.ico fallback."
+  },
+  {
+    id: "openAllLinks",
+    name: "Open all links",
+    icon: "🌐",
+    tab: "tools",
+    description: "Open every link on the page in background tabs (capped at 25) — research sessions in one click."
+  },
+  {
+    id: "pageMeta",
+    name: "Page meta inspector",
+    icon: "🔎",
+    tab: "dev",
+    description: "Title, meta description, Open Graph tags, canonical, and H1s — the SEO quick-check."
+  },
+  {
+    id: "bulkLinkChecker",
+    name: "Bulk link checker",
+    icon: "🧪",
+    tab: "dev",
+    description: "Paste a list of URLs and check each one — broken links flagged in seconds."
   }
 ];
 

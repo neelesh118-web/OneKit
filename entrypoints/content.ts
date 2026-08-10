@@ -133,6 +133,9 @@ import { addVideoNote, listVideoNotes, removeVideoNote, localStorageVideoNotes }
 import { normalizeWpm, planReading, readerTextFromDocument } from "../src/core/speed-reader";
 import { summarizeText, summaryStats } from "../src/core/summarizer";
 import { extractToc, tocIndent, tocStats, tocToMarkdown } from "../src/core/page-toc";
+import { pageMetaFromDocument } from "../src/core/page-meta";
+import { faviconUrlFromDocument } from "../src/core/favicon";
+import { normalizeThickness, readingLineCss } from "../src/core/reading-line";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -1259,6 +1262,30 @@ function togglePageToc(): { entries: number; open: boolean } {
 }
 
 /* ------------------------------------------------------------------ */
+/* Reading line overlay                                              */
+/* ------------------------------------------------------------------ */
+
+let readingLineEl: HTMLElement | null = null;
+let readingLineThickness = 2;
+
+function toggleReadingLine(): { on: boolean } {
+  if (readingLineEl) {
+    readingLineEl.remove();
+    readingLineEl = null;
+    return { on: false };
+  }
+  const el = document.createElement("div");
+  el.style.cssText = readingLineCss({ thickness: readingLineThickness });
+  const move = (ev: MouseEvent) => {
+    el.style.transform = `translateY(${ev.clientY}px)`;
+  };
+  el.addEventListener("mousemove", move);
+  document.documentElement.appendChild(el);
+  readingLineEl = el;
+  return { on: true };
+}
+
+/* ------------------------------------------------------------------ */
 /* Ctrl+Shift+K unified search palette                               */
 /* ------------------------------------------------------------------ */
 
@@ -1511,7 +1538,7 @@ async function renderVideoNoteChip(): Promise<void> {
 
 browser.runtime.onMessage.addListener(
   (message: unknown, _sender, sendResponse) => {
-    const msg = message as { type?: string; url?: string; text?: string; key?: string; wpm?: number };
+    const msg = message as { type?: string; url?: string; text?: string; key?: string; wpm?: number; thickness?: number };
     if (msg.type === "ok:speed-reader-start") {
     const wpm = typeof msg.wpm === "number" ? msg.wpm : 300;
     startSpeedReader(wpm);
@@ -1543,6 +1570,50 @@ browser.runtime.onMessage.addListener(
   if (msg.type === "ok:page-text") {
     sendResponse({ text: document.body?.innerText ?? document.body?.textContent ?? "" });
     return;
+  }
+  if (msg.type === "ok:read-stop") {
+    stopSpeaking();
+    return;
+  }
+  if (msg.type === "ok:reading-line-toggle") {
+    if (typeof msg.thickness === "number") readingLineThickness = normalizeThickness(msg.thickness);
+    sendResponse(toggleReadingLine());
+    return;
+  }
+  if (msg.type === "ok:page-meta") {
+    sendResponse(pageMetaFromDocument(document, window.location.href));
+    return;
+  }
+  if (msg.type === "ok:page-links") {
+    const hrefs = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"))
+      .map((a) => a.href)
+      .filter((h) => /^https?:\/\//.test(h));
+    sendResponse({ hrefs, pageUrl: window.location.href });
+    return;
+  }
+  if (msg.type === "ok:page-favicon") {
+    void (async () => {
+      const url = faviconUrlFromDocument(document, window.location.href);
+      if (!url) {
+        sendResponse({ error: "No icon found on this page." });
+        return;
+      }
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(new Error("read failed"));
+          reader.readAsDataURL(blob);
+        });
+        sendResponse({ dataUrl, href: url, size: blob.size });
+      } catch {
+        sendResponse({ error: "Could not fetch the page icon (site may block it)." });
+      }
+    })();
+    return true; // async response
   }
   if (msg.type === "ok:copy-clean-link" && typeof msg.url === "string") {
     const cleaned = cleanLink(msg.url);

@@ -21,8 +21,10 @@ import { createMemoryToolsController } from "../../src/popup/memory-tools-contro
 import { createSessionToolsController } from "../../src/popup/session-tools-controller";
 import { createPowerToolsController } from "../../src/popup/power-tools-controller";
 import { createReadingToolsController } from "../../src/popup/reading-tools-controller";
+import { createToolsUtilitiesController } from "../../src/popup/tools-utilities-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
+import { recentClosedTabs, type SessionLike } from "../../src/core/recent-closed";
 
 /**
  * OneKit popup — wires the six tab panels to their controllers. The
@@ -94,6 +96,31 @@ const caps: OneKitCapabilities = {
   groupTabs: async () => {
     const result = (await browser.runtime.sendMessage({ type: "ok:group-tabs" })) as { grouped?: number } | undefined;
     return { grouped: result?.grouped ?? 0 };
+  },
+  moveTabs: async (ids, index, windowId) => {
+    if (ids.length === 0) return;
+    if (windowId !== undefined) {
+      await browser.tabs.move(ids, { index, windowId });
+    } else {
+      await browser.tabs.move(ids, { index });
+    }
+  },
+  getRecentlyClosed: async () => {
+    const result = (await browser.runtime.sendMessage({ type: "ok:recent-closed" })) as { sessions?: unknown[] } | undefined;
+    return recentClosedTabs((result?.sessions ?? []) as SessionLike[]);
+  },
+  restoreSession: async (sessionId) => {
+    await browser.runtime.sendMessage({ type: "ok:restore-session", sessionId });
+  },
+  openTabs: async (urls) => {
+    const result = (await browser.runtime.sendMessage({ type: "ok:open-tabs", urls })) as { opened?: number } | undefined;
+    return result?.opened ?? 0;
+  },
+  checkLinks: async (urls) => {
+    const result = (await browser.runtime.sendMessage({ type: "ok:check-links", urls })) as
+      | Array<{ url: string; status: number; ok: boolean; error?: string }>
+      | undefined;
+    return result ?? [];
   },
   captureFullPage: async () => {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
@@ -400,6 +427,7 @@ void (async () => {
   createSessionToolsController(caps);
   createPowerToolsController(caps);
   createReadingToolsController(caps);
+  createToolsUtilitiesController(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);

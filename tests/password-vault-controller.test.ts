@@ -79,7 +79,12 @@ function fakeCaps(storage: ReturnType<typeof createMemoryStorage>): OneKitCapabi
     loadWordlist: async () => [],
     readerUrl: () => "chrome-extension://reader/reader.html",
     resizeWindow: async () => {},
-    getProtectedTools: async () => []
+    getProtectedTools: async () => [],
+    moveTabs: async () => {},
+    getRecentlyClosed: async () => [],
+    restoreSession: async () => {},
+    openTabs: async () => 0,
+    checkLinks: async () => []
   };
 }
 

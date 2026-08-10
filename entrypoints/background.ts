@@ -271,7 +271,35 @@ export default defineBackground(() => {
         dataUrl?: string;
         filename?: string;
         urls?: unknown;
+        sessionId?: string;
+        thickness?: unknown;
       };
+
+      /** HEAD (falling back to GET) with a hard timeout — one link. */
+      async function checkOneLink(url: string): Promise<{ url: string; status: number; ok: boolean; error?: string }> {
+        const attempt = async (method: "HEAD" | "GET"): Promise<number> => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 10_000);
+          try {
+            const resp = await fetch(url, { method, redirect: "follow", signal: controller.signal });
+            return resp.status;
+          } finally {
+            clearTimeout(timer);
+          }
+        };
+        try {
+          const status = await attempt("HEAD");
+          return { url, status, ok: status >= 200 && status < 400 };
+        } catch (headErr) {
+          try {
+            const status = await attempt("GET");
+            return { url, status, ok: status >= 200 && status < 400 };
+          } catch {
+            const error = headErr instanceof Error ? headErr.name : "error";
+            return { url, status: 0, ok: false, error };
+          }
+        }
+      }
       if (msg.type === "ok:search-tabs") {
         return (async () => {
           const tabs = (await browser.tabs.query({})) as TabLike[];
@@ -298,6 +326,45 @@ export default defineBackground(() => {
           if (typeof msg.url === "string" && msg.url) {
             await browser.tabs.create({ url: msg.url });
           }
+        })();
+      }
+      if (msg.type === "ok:open-tabs" && Array.isArray(msg.urls)) {
+        return (async () => {
+          const urls = (msg.urls as unknown[])
+            .filter((u): u is string => typeof u === "string" && /^https?:\/\//.test(u))
+            .slice(0, 25);
+          for (const url of urls) {
+            await browser.tabs.create({ url, active: false });
+          }
+          return { opened: urls.length };
+        })();
+      }
+      if (msg.type === "ok:check-links" && Array.isArray(msg.urls)) {
+        return (async () => {
+          const urls = (msg.urls as unknown[])
+            .filter((u): u is string => typeof u === "string")
+            .slice(0, 30);
+          const results = [];
+          for (const url of urls) {
+            results.push(await checkOneLink(url));
+          }
+          return results;
+        })();
+      }
+      if (msg.type === "ok:recent-closed") {
+        return (async () => {
+          try {
+            const sessions = await browser.sessions.getRecentlyClosed({ maxResults: 20 });
+            return { sessions: sessions as unknown[] };
+          } catch {
+            return { sessions: [] };
+          }
+        })();
+      }
+      if (msg.type === "ok:restore-session") {
+        return (async () => {
+          if (typeof msg.sessionId !== "string") return;
+          await browser.sessions.restore(msg.sessionId);
         })();
       }
       if (msg.type === "ok:resize-window") {

@@ -230,6 +230,25 @@ Built from the 5ly.co idea guide, Chrome Goldmine's "solve a small pain inside a
 | 📧 Contact extractor | Emails and phones on the current page, deduplicated, copied as a clean list or CSV | Popup → Tools |
 | 🎲 Random revisit | Picks a random unread saved page or highlight so your library works for you again | Popup → Memory |
 
+### Phase 18 (12 features — 137 tools total)
+
+Built from the "close tabs to the right" / "merge windows" / "recently closed tabs history" tab-clutter threads, the Edge "Read Aloud moved in right menu — where did it go?" hunt, and the reader-mode + SEO quick-check asks. Everything stays 100% local (the bulk link checker's HEAD/GET pings are the one network touch, same as the existing link status inspector).
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🗂 Tab utilities | Close tabs left/right/others, sort the window by domain, merge all windows — pinned tabs are never closed | Popup → Speed |
+| 🕘 Recently closed tabs | One-click reopen list from browser session history (sessions permission, local) | Popup → Speed |
+| 🔊 Read aloud + Reader view | Read the page with the browser's own voices, or open it in OneKit's clean reader | Popup → Focus |
+| 📏 Reading line | A line follows your cursor while you read — the accessibility staple | Popup → Focus + on-page |
+| 🔗 Copy page link | Title + URL as Markdown, HTML, or plain text | Popup → Typing |
+| 📖 Dictionary lookup | Offline word lookup — part of speech + plain-English definition | Popup → Typing |
+| 🧪 UTM link builder | Append source/medium/campaign/term/content to any URL, old utm_ replaced | Popup → Tools |
+| 🎰 Generator pack | UUID v4, lorem ipsum, usernames, HEX/RGB/HSL color converter | Popup → Tools |
+| 🖼 Favicon extractor | Save any page's icon — link-tag resolution with /favicon.ico fallback | Popup → Tools |
+| 🌐 Open all links | Open every page link in background tabs (capped at 25) | Popup → Tools |
+| 🔎 Page meta inspector | Title, meta description, OG tags, canonical, H1s — the SEO quick-check | Popup → Dev |
+| 🧪 Bulk link checker | Paste a URL list, get status per link — broken links flagged in seconds | Popup → Dev |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard
