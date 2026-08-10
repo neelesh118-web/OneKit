@@ -21,6 +21,17 @@ import {
   markReadLater,
   removeReadLater
 } from "../core/read-later-store";
+import {
+  clearContactCard,
+  readContactCard,
+  saveContactCard
+} from "../core/autofill";
+import {
+  clearArchive,
+  listArchive,
+  removeArchiveItem,
+  searchArchive
+} from "../core/web-archive";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -51,6 +62,94 @@ export function createMemoryController(caps: OneKitCapabilities): () => void {
 
   const readLaterList = $("readlater-list");
   const readLaterClear = $("readlater-clear") as HTMLButtonElement;
+
+  /* Contact card (autofill) ------------------------------------------- */
+  const cardName = $("card-name") as HTMLInputElement;
+  const cardEmail = $("card-email") as HTMLInputElement;
+  const cardPhone = $("card-phone") as HTMLInputElement;
+  const cardAddress = $("card-address") as HTMLTextAreaElement;
+  const cardCompany = $("card-company") as HTMLInputElement;
+  const cardSave = $("card-save") as HTMLButtonElement;
+  const cardClear = $("card-clear") as HTMLButtonElement;
+  const cardStatus = $("card-status");
+
+  async function renderContactCard(): Promise<void> {
+    const card = await readContactCard(caps.storage);
+    cardName.value = card.name;
+    cardEmail.value = card.email;
+    cardPhone.value = card.phone;
+    cardAddress.value = card.address;
+    cardCompany.value = card.company;
+    cardStatus.textContent = Object.values(card).some((v) => v.trim())
+      ? "Contact card saved — it powers the autofill chip on matching fields."
+      : "No contact card yet. Fill in what you want autofilled (turn it on in Settings → Tools).";
+  }
+
+  cardSave.addEventListener("click", () => {
+    void saveContactCard(caps.storage, {
+      name: cardName.value.trim(),
+      email: cardEmail.value.trim(),
+      phone: cardPhone.value.trim(),
+      address: cardAddress.value.trim(),
+      company: cardCompany.value.trim()
+    }).then(() => void renderContactCard());
+  });
+  cardClear.addEventListener("click", () => {
+    void clearContactCard(caps.storage).then(() => void renderContactCard());
+  });
+
+  /* Local web archive ------------------------------------------------- */
+  const archiveSearch = $("archive-search") as HTMLInputElement;
+  const archiveList = $("archive-list");
+  const archiveClear = $("archive-clear") as HTMLButtonElement;
+
+  async function renderArchive(): Promise<void> {
+    const q = archiveSearch.value.trim();
+    const items = q ? await searchArchive(caps.storage, q) : await listArchive(caps.storage);
+    archiveList.innerHTML = "";
+    if (items.length === 0) {
+      archiveList.textContent = q
+        ? "No saved pages match."
+        : "Nothing archived yet. Right-click any page → OneKit → Save page to local archive.";
+      return;
+    }
+    for (const item of items.slice(0, 40)) {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const title = document.createElement("strong");
+      title.className = "result-title";
+      title.textContent = item.title;
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `${item.url} · ${new Date(item.savedAt).toLocaleString()}`;
+      const actions = document.createElement("div");
+      actions.className = "btn-row";
+      const view = document.createElement("button");
+      view.type = "button";
+      view.className = "mini-btn";
+      view.textContent = "View";
+      view.addEventListener("click", () => void caps.openUrl(`/reader.html?url=${encodeURIComponent(item.url)}`));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", () => {
+        void removeArchiveItem(caps.storage, item.id).then(() => void renderArchive());
+      });
+      actions.append(view, remove);
+      row.append(title, meta, actions);
+      archiveList.appendChild(row);
+    }
+  }
+
+  let archiveDebounce: number | undefined;
+  archiveSearch.addEventListener("input", () => {
+    if (archiveDebounce !== undefined) window.clearTimeout(archiveDebounce);
+    archiveDebounce = window.setTimeout(() => void renderArchive(), 200);
+  });
+  archiveClear.addEventListener("click", () => {
+    void clearArchive(caps.storage).then(() => void renderArchive());
+  });
 
   const refreshMemory = $("memory-refresh") as HTMLButtonElement;
 
@@ -266,7 +365,9 @@ export function createMemoryController(caps: OneKitCapabilities): () => void {
       renderClipboard(),
       renderDrafts(),
       renderHighlights(),
-      renderReadLater()
+      renderReadLater(),
+      renderContactCard(),
+      renderArchive()
     ]);
     const stats = await historyStats(caps.storage);
     historyCount.textContent = String(stats.count);

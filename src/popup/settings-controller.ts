@@ -17,6 +17,7 @@ import {
 import { clearHistory as clearHistoryStore } from "../core/history-store";
 import { clearClipboard as clearClipboardStore } from "../core/clipboard-store";
 import { clearDrafts as clearDraftsStore } from "../core/drafts-store";
+import { readDarkMode, saveDarkMode } from "../core/dark-mode";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -162,7 +163,33 @@ export function createSettingsController(caps: OneKitCapabilities): () => void {
     backupFile.value = "";
   });
 
+  /* Dark mode off-list ------------------------------------------------- */
+  const darkOffList = $("darkmode-offlist") as HTMLTextAreaElement;
+  const darkSave = $("darkmode-save") as HTMLButtonElement;
+  const darkStatus = $("darkmode-status");
+
+  async function renderDarkMode(): Promise<void> {
+    const state = await readDarkMode(caps.storage);
+    darkOffList.value = state.offList.join("\n");
+    darkStatus.textContent = state.enabled
+      ? "Dark mode is on — the off-list below marks sites where it never applies."
+      : "Dark mode is off — turn it on in Tools above, then manage the off-list here.";
+  }
+
+  darkSave.addEventListener("click", () => {
+    void (async () => {
+      const state = await readDarkMode(caps.storage);
+      state.offList = darkOffList.value
+        .split(/[\n,]/)
+        .map((h) => h.trim().toLowerCase())
+        .filter((h) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h));
+      await saveDarkMode(caps.storage, state);
+      darkStatus.textContent = "Off-list saved — dark mode will skip those sites.";
+    })();
+  });
+
   void render();
+  void renderDarkMode();
   return () => {};
 }
 

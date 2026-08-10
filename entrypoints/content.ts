@@ -58,6 +58,27 @@ import { recordActiveTime, secondsForOriginToday, localStorageScreenTime } from 
 import { budgetForHostname, listBudgets, localStorageBudgets } from "../src/core/budgets";
 import { lookupWord, singleWordFromSelection } from "../src/core/dictionary";
 import { isSpeaking, speakText, stopSpeaking } from "../src/core/read-aloud";
+import {
+  hasCardData,
+  isFieldEmpty,
+  matchField,
+  readContactCard,
+  localStorageContactCard
+} from "../src/core/autofill";
+import {
+  endFocusSession,
+  focusSessionRemainingMs,
+  formatRemaining,
+  sessionBlocksHostname,
+  localStorageFocusSession
+} from "../src/core/focus-session";
+import {
+  DARK_MODE_CSS,
+  shouldApplyDarkMode,
+  localStorageDarkMode
+} from "../src/core/dark-mode";
+import { saveArchiveItem, localStorageArchive } from "../src/core/web-archive";
+import { planCaptureFrames } from "../src/core/fullpage-screenshot";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -515,9 +536,18 @@ let focusOverlay: FocusOverlayHandle | null = null;
  * scheduled window or a daily budget that today's screen time has reached
  * (budgets only apply while the blocker is on).
  */
-async function focusBlockReason(): Promise<"schedule" | "budget" | null> {
+/**
+ * Decides whether the current page should be covered right now. Priority:
+ * active focus session > scheduled window > daily budget. A focus session
+ * blocks even when the per-site blocker toggle is off (it's a deliberate,
+ * temporary, global block).
+ */
+async function focusBlockReason(): Promise<"session" | "schedule" | "budget" | null> {
   if (!/^https?:$/.test(window.location.protocol)) return null;
   const hostname = window.location.hostname;
+  if (await sessionBlocksHostname(localStorageFocusSession(), hostname, Date.now())) return "session";
+  const s = await currentSettings();
+  if (!s.tools.focusBlocker) return null;
   const now = new Date();
   if (await shouldBlockNow(localStorageFocus(), hostname, now)) return "schedule";
   const budgets = await listBudgets(localStorageBudgets());
@@ -527,27 +557,57 @@ async function focusBlockReason(): Promise<"schedule" | "budget" | null> {
   return seconds >= rule.minutesPerDay * 60 ? "budget" : null;
 }
 
+let sessionCountdownTimer: number | undefined;
+
 async function updateFocusBlocker(): Promise<void> {
   const s = await currentSettings();
-  if (!s.tools.focusBlocker) {
-    focusOverlay?.dismiss();
-    focusOverlay = null;
-    return;
-  }
   const reason = await focusBlockReason();
   if (reason && !focusOverlay?.isVisible()) {
-    focusOverlay = createFocusOverlay(
-      window.location.hostname,
-      {
-        onPause: () => {
-          void pauseFocusUntil(localStorageFocus(), Date.now() + 10 * 60 * 1000);
+    if (reason === "session") {
+      const remaining = await focusSessionRemainingMs(localStorageFocusSession());
+      focusOverlay = createFocusOverlay(
+        window.location.hostname,
+        {
+          onPause: () => undefined,
+          onAllowToday: () => undefined
         },
-        onAllowToday: () => {
-          void allowHostnameToday(localStorageFocus(), window.location.hostname, new Date());
+        {
+          reason: "session",
+          sessionNote: `Session ends in ${formatRemaining(remaining)}`,
+          onEndSession: () => {
+            void endFocusSession(localStorageFocusSession());
+          }
         }
-      },
-      { reason }
-    );
+      );
+      if (sessionCountdownTimer === undefined) {
+        sessionCountdownTimer = window.setInterval(() => {
+          void (async () => {
+            if (!focusOverlay?.isVisible()) {
+              if (sessionCountdownTimer !== undefined) {
+                window.clearInterval(sessionCountdownTimer);
+                sessionCountdownTimer = undefined;
+              }
+              return;
+            }
+            const ms = await focusSessionRemainingMs(localStorageFocusSession());
+            focusOverlay.setNote(ms > 0 ? `Session ends in ${formatRemaining(ms)}` : "Session ended — this site is free again.");
+          })();
+        }, 1000);
+      }
+    } else if (reason === "schedule" || reason === "budget") {
+      focusOverlay = createFocusOverlay(
+        window.location.hostname,
+        {
+          onPause: () => {
+            void pauseFocusUntil(localStorageFocus(), Date.now() + 10 * 60 * 1000);
+          },
+          onAllowToday: () => {
+            void allowHostnameToday(localStorageFocus(), window.location.hostname, new Date());
+          }
+        },
+        { reason }
+      );
+    }
   } else if (!reason && focusOverlay?.isVisible()) {
     focusOverlay.dismiss();
     focusOverlay = null;
@@ -696,6 +756,150 @@ async function reapplyHighlights(): Promise<void> {
     const range = findRangeForText(document, highlight.text);
     if (range) wrapRange(range, highlight.color, highlight.id);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Autofill — a small fill chip on focused form fields                */
+/* ------------------------------------------------------------------ */
+
+let autofillChip: HTMLElement | null = null;
+
+function dismissAutofillChip(): void {
+  autofillChip?.remove();
+  autofillChip = null;
+}
+
+function onFieldFocus(event: FocusEvent): void {
+  void (async () => {
+    dismissAutofillChip();
+    const s = await currentSettings();
+    if (!s.tools.autofill) return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement)) return;
+    if (target instanceof HTMLInputElement && target.type === "password") return;
+    const card = await readContactCard(localStorageContactCard());
+    if (!hasCardData(card)) return;
+    const field = matchField(target);
+    if (!field) return;
+    if (!isFieldEmpty(target)) return;
+
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.textContent = "🔑 Fill";
+    chip.title = `OneKit autofill — fill this field with your ${field}`;
+    chip.style.cssText = [
+      "position:fixed",
+      "z-index:2147483646",
+      "background:#4f46e5",
+      "color:#fff",
+      "border:none",
+      "padding:6px 10px",
+      "border-radius:6px",
+      "font:600 12px/1 system-ui,sans-serif",
+      "cursor:pointer",
+      "box-shadow:0 4px 12px rgba(0,0,0,.3)"
+    ].join(";");
+    chip.addEventListener("click", () => {
+      const value = card[field];
+      if (!value) return;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        target.value = value;
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+      } else if (target instanceof HTMLSelectElement) {
+        const option = [...target.options].find((o) => o.text.toLowerCase().includes(value.toLowerCase()));
+        if (option) {
+          target.value = option.value;
+          target.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+      dismissAutofillChip();
+      showToast("Filled from your contact card ✓", "ok");
+    });
+    const rect = target.getBoundingClientRect();
+    chip.style.left = `${Math.max(4, Math.min(rect.right - 60, window.innerWidth - 70))}px`;
+    chip.style.top = `${Math.max(4, rect.top - 34)}px`;
+    document.documentElement.appendChild(chip);
+    autofillChip = chip;
+  })().catch(() => {
+    // Best-effort.
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Dark mode — per-site CSS filter                                    */
+/* ------------------------------------------------------------------ */
+
+async function applyDarkMode(): Promise<void> {
+  const apply = await shouldApplyDarkMode(localStorageDarkMode(), window.location.hostname);
+  const existing = document.getElementById("onekit-dark-style");
+  if (apply && !existing) {
+    const style = document.createElement("style");
+    style.id = "onekit-dark-style";
+    style.textContent = DARK_MODE_CSS;
+    document.documentElement.appendChild(style);
+  } else if (!apply && existing) {
+    existing.remove();
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Full-page screenshot — scroll + capture + stitch                   */
+/* ------------------------------------------------------------------ */
+
+async function captureFullPage(): Promise<void> {
+  const viewportHeight = Math.max(1, window.innerHeight);
+  const scrollHeight = Math.max(viewportHeight, document.documentElement.scrollHeight || document.body.scrollHeight || 0);
+  const plan = planCaptureFrames(scrollHeight, viewportHeight);
+  const frames: string[] = [];
+  for (const y of plan.scrollY) {
+    window.scrollTo(0, y);
+    await new Promise((resolve) => window.setTimeout(resolve, 260)); // let scroll settle
+    try {
+      const shot = (await browser.runtime.sendMessage({ type: "ok:capture-visible" })) as string | undefined;
+      if (shot) frames.push(shot);
+    } catch {
+      // A capture can fail (e.g. the tab changed) — continue with what we have.
+    }
+  }
+  window.scrollTo(0, 0);
+  if (frames.length === 0) {
+    showToast("Could not capture the page.", "info");
+    return;
+  }
+
+  // Stitch the frames into one image (24px overlap removed between frames).
+  const first = await loadImage(frames[0]!);
+  const overlap = 24;
+  const frameH = Math.max(1, viewportHeight - overlap);
+  const canvas = document.createElement("canvas");
+  canvas.width = first.naturalWidth;
+  canvas.height = frames.length * frameH + overlap;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    showToast("Could not stitch the capture.", "info");
+    return;
+  }
+  for (let i = 0; i < frames.length; i++) {
+    const img = await loadImage(frames[i]!);
+    ctx.drawImage(img, 0, i * frameH, img.naturalWidth, img.naturalHeight);
+  }
+  const dataUrl = canvas.toDataURL("image/png");
+  const filename = `onekit-fullpage-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.png`;
+  try {
+    await browser.runtime.sendMessage({ type: "ok:download-dataurl", dataUrl, filename });
+    showToast(`Saved ${filename} ✓`, "ok");
+  } catch {
+    showToast("Capture ready — could not save it automatically.", "info");
+  }
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image load failed"));
+    img.src = src;
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -907,6 +1111,31 @@ browser.runtime.onMessage.addListener(
     window.setTimeout(updateReadAloudChip, 300);
     return;
   }
+  if (msg.type === "ok:archive-page") {
+    void (async () => {
+      const raw = document.body?.innerText ?? document.body?.textContent ?? "";
+      const saved = await saveArchiveItem(
+        localStorageArchive(),
+        {
+          url: window.location.href,
+          title: document.title || window.location.href,
+          text: extractPageText(raw),
+          html: document.documentElement.outerHTML
+        },
+        Date.now()
+      );
+      showToast(saved ? "Page saved to your local archive ✓" : "Nothing to archive on this page.", saved ? "ok" : "info");
+    })().catch(() => {
+      showToast("Could not archive this page.", "info");
+    });
+    return;
+  }
+  if (msg.type === "ok:fullpage-capture") {
+    void captureFullPage().catch(() => {
+      showToast("Could not capture the page.", "info");
+    });
+    return;
+  }
   }
 );
 
@@ -949,6 +1178,15 @@ function boot(): void {
   document.addEventListener("dblclick", onLookupDoubleClick, true);
   document.addEventListener("click", dismissLookupTooltip, true);
   document.addEventListener("scroll", dismissLookupTooltip, true);
+
+  // Autofill chip on focused form fields.
+  document.addEventListener("focusin", onFieldFocus, true);
+  document.addEventListener("click", dismissAutofillChip, true);
+
+  // Dark mode filter (applied on load and whenever settings change).
+  void applyDarkMode().catch(() => {
+    // Best-effort.
+  });
 
   // Read-aloud chip watcher while speech is running.
   window.setInterval(updateReadAloudChip, 2000);
@@ -993,8 +1231,19 @@ function boot(): void {
       dictationButton = null;
       void renderDictationButton();
     }
-    if (changes["ok.settings"] || changes["ok.focusRules"] || changes["ok.focusPause"] || changes["ok.focusAllowToday"]) {
+    if (
+      changes["ok.settings"] ||
+      changes["ok.focusRules"] ||
+      changes["ok.focusPause"] ||
+      changes["ok.focusAllowToday"] ||
+      changes["ok.focusSession"]
+    ) {
       void updateFocusBlocker();
+    }
+    if (changes["ok.settings"] || changes["ok.darkMode"]) {
+      void applyDarkMode().catch(() => {
+        // Best-effort.
+      });
     }
   });
 

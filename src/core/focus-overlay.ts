@@ -17,6 +17,8 @@ export interface FocusOverlayHandle {
   dismiss(): void;
   /** True while the overlay is still attached. */
   isVisible(): boolean;
+  /** Updates the hint line (used for the live session countdown). */
+  setNote(text: string): void;
 }
 
 const STYLE = `
@@ -45,8 +47,12 @@ button {
 `;
 
 export interface FocusOverlayOptions {
-  /** Why the site is covered — schedule window or daily budget. */
-  reason?: "schedule" | "budget";
+  /** Why the site is covered — schedule window, daily budget, or session. */
+  reason?: "schedule" | "budget" | "session";
+  /** Called by the session overlay's "End session" button. */
+  onEndSession?: () => void;
+  /** Shown in the session overlay (e.g. the countdown). */
+  sessionNote?: string;
 }
 
 /** Creates and mounts the blocking overlay. Returns a handle to dismiss it. */
@@ -74,13 +80,16 @@ export function createFocusOverlay(
   card.className = "card";
 
   const title = document.createElement("h1");
-  title.textContent = `Time for a break from ${hostname}`;
+  title.textContent =
+    options.reason === "session" ? "Focus session in progress" : `Time for a break from ${hostname}`;
 
   const body = document.createElement("p");
   body.textContent =
-    options.reason === "budget"
-      ? "You've hit your daily time budget for this site — OneKit is covering it until tomorrow. Everything is local; this is just the limit you set."
-      : "OneKit's distraction blocker is covering this site right now. Everything is local — no one is watching; this is just your schedule.";
+    options.reason === "session"
+      ? "Your focus session is blocking this site until it ends. Stick with it — you set this up on purpose."
+      : options.reason === "budget"
+        ? "You've hit your daily time budget for this site — OneKit is covering it until tomorrow. Everything is local; this is just the limit you set."
+        : "OneKit's distraction blocker is covering this site right now. Everything is local — no one is watching; this is just your schedule.";
 
   const buttons = document.createElement("div");
   buttons.className = "buttons";
@@ -106,9 +115,23 @@ export function createFocusOverlay(
   const hint = document.createElement("div");
   hint.className = "hint";
   hint.textContent =
-    "To change or remove this schedule, open the OneKit extension → Focus tab.";
+    options.reason === "session"
+      ? options.sessionNote ?? "Open OneKit → Focus tab to end or extend the session."
+      : "To change or remove this schedule, open the OneKit extension → Focus tab.";
 
-  buttons.append(pauseBtn, allowBtn);
+  if (options.reason === "session") {
+    const endBtn = document.createElement("button");
+    endBtn.className = "ghost";
+    endBtn.type = "button";
+    endBtn.textContent = "End session now";
+    endBtn.addEventListener("click", () => {
+      options.onEndSession?.();
+      dismiss();
+    });
+    buttons.append(endBtn);
+  } else {
+    buttons.append(pauseBtn, allowBtn);
+  }
   card.append(title, body, buttons, hint);
   overlay.appendChild(card);
   shadow.append(style, overlay);
@@ -117,8 +140,13 @@ export function createFocusOverlay(
     host?.remove();
   }
 
+  function setNote(text: string): void {
+    hint.textContent = text;
+  }
+
   return {
     dismiss,
-    isVisible: () => !!document.getElementById("onekit-focus-overlay")
+    isVisible: () => !!document.getElementById("onekit-focus-overlay"),
+    setNote
   };
 }

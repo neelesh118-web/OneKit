@@ -37,6 +37,10 @@ export interface ToolToggles {
   downloadOrganizer: boolean;
   /** Double-click a word to see its offline definition (default OFF). */
   wordLookup: boolean;
+  /** One-click contact-card form autofill (default OFF — only fills on click). */
+  autofill: boolean;
+  /** Starter dark mode — CSS filter per site with an off-list (default OFF). */
+  darkMode: boolean;
 }
 
 export interface OneKitSettings {
@@ -68,7 +72,9 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     sessionBackup: true,
     tabSuspender: false,
     downloadOrganizer: false,
-    wordLookup: false
+    wordLookup: false,
+    autofill: false,
+    darkMode: false
   },
   textExpanderEnabled: true,
   onboarded: false

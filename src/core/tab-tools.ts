@@ -14,6 +14,7 @@ export interface TabLike {
   index?: number;
   audible?: boolean;
   lastAccessed?: number;
+  groupId?: number;
 }
 
 /** Normalizes a URL for duplicate grouping: strips fragment + trailing slash. */

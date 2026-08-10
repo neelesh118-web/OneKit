@@ -29,4 +29,16 @@ export interface OneKitCapabilities {
   makeQr(text: string): { dataUrl: string; sizePx: number; modules: number };
   /** Downloads a text file (chat export, etc.). */
   downloadText(text: string, filename: string): void;
+  /** Groups open tabs by site (background applies chrome.tabs.group). */
+  groupTabs(): Promise<{ grouped: number }>;
+  /** Asks the active tab's content script to scroll-capture the full page. */
+  captureFullPage(): Promise<void>;
+  /** The full bookmarks tree (browser.bookmarks.getTree). */
+  getBookmarks(): Promise<BookmarkNodeLike[]>;
+  /** Removes bookmarks by id (browser.bookmarks.remove). */
+  removeBookmarks(ids: string[]): Promise<void>;
+  /** Saves raw bytes as a file (PDF merge/split results). */
+  downloadBytes(bytes: Uint8Array, filename: string): void;
 }
+
+import type { BookmarkNodeLike } from "../core/bookmark-cleaner";

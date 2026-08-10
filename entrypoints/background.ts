@@ -10,6 +10,7 @@ import {
   localStorageDownloads,
   routedFilename
 } from "../src/core/downloads";
+import { planTabGroups } from "../src/core/tab-grouping";
 
 /**
  * OneKit background — owns right-click quick actions, install-time defaults,
@@ -24,6 +25,7 @@ const READ_LATER_MENU_ID = "onekit-read-later";
 const READER_MENU_ID = "onekit-open-reader";
 const READ_SELECTION_MENU_ID = "onekit-read-selection";
 const READ_PAGE_MENU_ID = "onekit-read-page";
+const ARCHIVE_PAGE_MENU_ID = "onekit-archive-page";
 
 const SESSION_BACKUP_ALARM = "ok-session-backup";
 const TAB_SUSPENDER_ALARM = "ok-tab-suspender";
@@ -81,6 +83,11 @@ export default defineBackground(() => {
         title: "OneKit — Read page aloud",
         contexts: ["page"]
       });
+      browser.contextMenus.create({
+        id: ARCHIVE_PAGE_MENU_ID,
+        title: "OneKit — Save page to local archive",
+        contexts: ["page"]
+      });
     } catch {
       // Menus unavailable — the popup tools still cover everything.
     }
@@ -106,7 +113,14 @@ export default defineBackground(() => {
   /* Messages from content scripts / the palette ----------------------- */
   try {
     browser.runtime.onMessage.addListener((message: unknown) => {
-      const msg = message as { type?: string; query?: string; tabId?: number; url?: string };
+      const msg = message as {
+        type?: string;
+        query?: string;
+        tabId?: number;
+        url?: string;
+        dataUrl?: string;
+        filename?: string;
+      };
       if (msg.type === "ok:search-tabs") {
         return (async () => {
           const tabs = (await browser.tabs.query({})) as TabLike[];
@@ -142,6 +156,55 @@ export default defineBackground(() => {
             await browser.action.openPopup();
           } catch {
             // No-op — the palette shows its own hint.
+          }
+        })();
+      }
+      if (msg.type === "ok:open-sidepanel") {
+        return (async () => {
+          try {
+            const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+            if (tab?.windowId !== undefined) {
+              await browser.sidePanel.open({ windowId: tab.windowId });
+            }
+          } catch {
+            // Side panel unavailable (Firefox, older Chrome) — popup covers it.
+          }
+        })();
+      }
+      if (msg.type === "ok:capture-visible") {
+        return (async () => {
+          try {
+            return await browser.tabs.captureVisibleTab();
+          } catch {
+            return undefined;
+          }
+        })();
+      }
+      if (msg.type === "ok:download-dataurl") {
+        return (async () => {
+          if (typeof msg.dataUrl !== "string" || typeof msg.filename !== "string") return;
+          try {
+            await browser.downloads.download({ url: msg.dataUrl, filename: msg.filename });
+          } catch {
+            // Best-effort.
+          }
+        })();
+      }
+      if (msg.type === "ok:group-tabs") {
+        return (async () => {
+          try {
+            const tabs = (await browser.tabs.query({})) as TabLike[];
+            const plans = planTabGroups(tabs);
+            let grouped = 0;
+            for (const plan of plans) {
+              // Plans only contain groups with ≥2 tabs, so the tuple cast is safe.
+              const groupId = (await browser.tabs.group({ tabIds: plan.tabIds as [number, ...number[]] })) as number;
+              await browser.tabGroups.update(groupId, { title: plan.name, color: plan.color });
+              grouped += plan.tabIds.length;
+            }
+            return { grouped };
+          } catch {
+            return { grouped: 0 };
           }
         })();
       }
@@ -198,6 +261,10 @@ export default defineBackground(() => {
       } else if (info.menuItemId === READ_PAGE_MENU_ID) {
         if (tabId !== undefined) {
           await sendToTab(tabId, { type: "ok:read-page" });
+        }
+      } else if (info.menuItemId === ARCHIVE_PAGE_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, { type: "ok:archive-page" });
         }
       }
     });

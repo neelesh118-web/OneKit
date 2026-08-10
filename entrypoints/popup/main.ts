@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import { qrDataUrl } from "../../src/core/qr";
 import { localStorageArea } from "../../src/core/storage-utils";
 import type { TabLike } from "../../src/core/tab-tools";
+import type { BookmarkNodeLike } from "../../src/core/bookmark-cleaner";
 import type { OneKitCapabilities } from "../../src/popup/capabilities";
 import { createMemoryController } from "../../src/popup/memory-controller";
 import { createVaultController } from "../../src/popup/vault-controller";
@@ -75,6 +76,35 @@ const caps: OneKitCapabilities = {
   makeQr: (text) => qrDataUrl(text),
   downloadText: (text, filename) => {
     const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  },
+  groupTabs: async () => {
+    const result = (await browser.runtime.sendMessage({ type: "ok:group-tabs" })) as { grouped?: number } | undefined;
+    return { grouped: result?.grouped ?? 0 };
+  },
+  captureFullPage: async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id !== undefined) {
+      await browser.tabs.sendMessage(tab.id, { type: "ok:fullpage-capture" });
+    }
+  },
+  getBookmarks: async () => {
+    const tree = await browser.bookmarks.getTree();
+    return tree as unknown as BookmarkNodeLike[];
+  },
+  removeBookmarks: async (ids) => {
+    for (const id of ids) {
+      await browser.bookmarks.remove(id).catch(() => {
+        // A bookmark may vanish mid-loop; keep going.
+      });
+    }
+  },
+  downloadBytes: (bytes, filename) => {
+    const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = filename;

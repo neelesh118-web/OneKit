@@ -21,6 +21,12 @@ import {
   saveBudget
 } from "../core/budgets";
 import { loadSettings, saveSettings } from "../core/settings";
+import {
+  endFocusSession,
+  formatRemaining,
+  readFocusSession,
+  startFocusSession
+} from "../core/focus-session";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -301,10 +307,68 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
     void clearScreenTime(caps.storage).then(() => void renderScreenTime());
   });
 
+  /* Focus session (deep-work timer) ------------------------------------- */
+  const sessionMinutes = $("session-minutes") as HTMLSelectElement;
+  const sessionStart = $("session-start") as HTMLButtonElement;
+  const sessionEnd = $("session-end") as HTMLButtonElement;
+  const sessionAllowlist = $("session-allowlist") as HTMLInputElement;
+  const sessionStatus = $("session-status");
+  let sessionTimer: number | undefined;
+
+  async function renderSession(): Promise<void> {
+    const session = await readFocusSession(caps.storage);
+    if (!session) {
+      sessionEnd.disabled = true;
+      sessionStatus.textContent =
+        "No session active. Start one to block distracting sites everywhere for a set time — the overlay counts down and you can end it anytime.";
+      return;
+    }
+    const remaining = Math.max(0, session.until - caps.now());
+    if (remaining <= 0) {
+      await endFocusSession(caps.storage);
+      await renderSession();
+      return;
+    }
+    sessionEnd.disabled = false;
+    const allowText = session.allowlist.length > 0 ? ` · ${session.allowlist.join(", ")} allowed` : "";
+    sessionStatus.textContent = `Session active — ends in ${formatRemaining(remaining)}${allowText}.`;
+  }
+
+  sessionStart.addEventListener("click", () => {
+    void (async () => {
+      const minutes = Number(sessionMinutes.value) || 45;
+      const allowlist = sessionAllowlist.value
+        .split(",")
+        .map((h) => h.trim())
+        .filter(Boolean);
+      const session = await startFocusSession(caps.storage, minutes, allowlist, caps.now());
+      sessionAllowlist.value = "";
+      sessionStatus.textContent =
+        `Session started — ${formatRemaining(session.until - session.startedAt)} of deep work. Every site except ${session.allowlist.length > 0 ? session.allowlist.join(", ") : "none"} is now covered.`;
+      sessionEnd.disabled = false;
+    })();
+  });
+
+  sessionEnd.addEventListener("click", () => {
+    void endFocusSession(caps.storage).then(() => void renderSession());
+  });
+
+  void renderSession();
+  if (sessionTimer !== undefined) window.clearInterval(sessionTimer);
+  sessionTimer = window.setInterval(() => {
+    void (async () => {
+      const session = await readFocusSession(caps.storage);
+      if (!session) return;
+      await renderSession();
+    })();
+  }, 60_000);
+
   renderDayPicker();
   void renderMasterToggle();
   void renderRules();
   void renderBudgets();
   void renderScreenTime();
-  return () => {};
+  return () => {
+    if (sessionTimer !== undefined) window.clearInterval(sessionTimer);
+  };
 }

@@ -175,6 +175,23 @@ export function createSpeedController(caps: OneKitCapabilities): () => void {
     })();
   });
 
+  /* Auto tab grouping --------------------------------------------------- */
+  const groupBtn = $("group-tabs-btn") as HTMLButtonElement;
+  const groupStatus = $("group-tabs-status");
+
+  groupBtn.addEventListener("click", () => {
+    void (async () => {
+      groupStatus.textContent = "Grouping…";
+      const { grouped } = await caps.groupTabs();
+      groupStatus.textContent =
+        grouped > 0
+          ? `Grouped ${grouped} tab${grouped === 1 ? "" : "s"} by site — tabs already in a group were left alone.`
+          : "Nothing to group — open a few tabs on the same site first (single-tab sites don't need a group).";
+    })().catch(() => {
+      groupStatus.textContent = "Could not group tabs — this browser may not support tab groups.";
+    });
+  });
+
   /* Automatic session backup ------------------------------------------- */
   const backupStatus = $("backup-status");
   const backupRestoreBtn = $("backup-restore-btn") as HTMLButtonElement;

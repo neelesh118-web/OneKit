@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>30 tools · 100% local · free forever</span>
+          <span>40 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -87,6 +87,35 @@
           <div id="readlater-list" class="results"></div>
           <div class="btn-row">
             <button id="readlater-clear" type="button" class="mini-btn danger">Clear read-later list</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔑 Contact card (autofill)</span>
+          </div>
+          <p class="hint">Save your details once; a small “🔑 Fill” chip appears on matching form fields (only when this is on in Settings).</p>
+          <input id="card-name" type="text" placeholder="Full name" autocomplete="off" />
+          <input id="card-email" type="email" placeholder="Email" autocomplete="off" />
+          <input id="card-phone" type="tel" placeholder="Phone" autocomplete="off" />
+          <textarea id="card-address" rows="2" placeholder="Address"></textarea>
+          <input id="card-company" type="text" placeholder="Company (optional)" autocomplete="off" />
+          <div class="btn-row">
+            <button id="card-save" type="button" class="mini-btn">Save contact card</button>
+            <button id="card-clear" type="button" class="mini-btn danger">Clear card</button>
+          </div>
+          <p id="card-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📦 Local web archive</span>
+          </div>
+          <p class="hint">Pages saved via right-click → “OneKit — Save page to local archive”. Searchable, stored on this device.</p>
+          <input id="archive-search" type="search" placeholder="Search saved pages…" autocomplete="off" />
+          <div id="archive-list" class="results"></div>
+          <div class="btn-row">
+            <button id="archive-clear" type="button" class="mini-btn danger">Clear archive</button>
           </div>
         </div>
       </section>
@@ -251,6 +280,17 @@
 
         <div class="tool-block">
           <div class="tool-heading">
+            <span class="tool-label">🗃 Auto tab grouping</span>
+          </div>
+          <p class="hint">Group open tabs by site into colored Chrome tab groups. Tabs already in a group are left alone.</p>
+          <div class="btn-row">
+            <button id="group-tabs-btn" type="button" class="mini-btn">Group tabs by site</button>
+          </div>
+          <p id="group-tabs-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
             <span class="tool-label">💾 Tab memory saver</span>
           </div>
           <p class="hint">Suspend tabs that have been inactive for a while so Chrome uses less memory. Suspended tabs keep their title and reload the instant you click them.</p>
@@ -303,6 +343,28 @@
           <div class="btn-row">
             <button id="focus-rules-clear" type="button" class="mini-btn danger">Clear all schedules</button>
           </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎯 Focus session</span>
+          </div>
+          <p class="hint">One-click deep work: block every distracting site (except your allowlist) until the timer ends. Overrides schedules; you can end it any time from the overlay.</p>
+          <div class="btn-row">
+            <label>Minutes
+              <select id="session-minutes">
+                <option value="25">25</option>
+                <option value="45" selected>45</option>
+                <option value="60">60</option>
+                <option value="90">90</option>
+                <option value="120">120</option>
+              </select>
+            </label>
+            <button id="session-start" type="button" class="mini-btn">Start focus session</button>
+            <button id="session-end" type="button" class="mini-btn danger">End now</button>
+          </div>
+          <input id="session-allowlist" type="text" placeholder="Allowlist, comma-separated (e.g. github.com, docs.google.com)" autocomplete="off" spellcheck="false" />
+          <p id="session-status" class="status"></p>
         </div>
 
         <div class="tool-block">
@@ -406,13 +468,64 @@
 
         <div class="tool-block">
           <div class="tool-heading">
-            <span class="tool-label">📸 Screenshot</span>
+            <span class="tool-label">📸 Screenshots</span>
           </div>
-          <p class="hint">Capture the current tab as a PNG. Saved to your downloads, never uploaded.</p>
+          <p class="hint">Capture the visible tab, or the whole page (scrolls and stitches the shots). Saved to your downloads, never uploaded.</p>
           <div class="btn-row">
             <button id="screenshot-btn" type="button" class="mini-btn">Capture visible tab</button>
+            <button id="fullpage-btn" type="button" class="mini-btn">Capture full page</button>
           </div>
           <p id="screenshot-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📄 PDF merge &amp; split</span>
+          </div>
+          <p class="hint">Merge several PDFs into one, or extract a page range. Everything happens on this device with pdf-lib.</p>
+          <div class="btn-row">
+            <input id="pdf-merge-files" type="file" accept=".pdf" multiple />
+            <button id="pdf-merge-btn" type="button" class="mini-btn">Merge PDFs</button>
+          </div>
+          <div class="btn-row">
+            <input id="pdf-split-file" type="file" accept=".pdf" />
+            <label>Pages <input id="pdf-split-from" type="number" min="1" value="1" style="width:64px" /> – <input id="pdf-split-to" type="number" min="1" value="1" style="width:64px" /></label>
+            <button id="pdf-split-btn" type="button" class="mini-btn">Extract range</button>
+          </div>
+          <p id="pdf-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎨 Image convert &amp; resize</span>
+          </div>
+          <p class="hint">Convert PNG/JPEG/WebP, resize and compress — all on-device via canvas.</p>
+          <div class="btn-row">
+            <input id="img-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+            <label>to
+              <select id="img-format">
+                <option value="png">PNG</option>
+                <option value="jpeg">JPEG</option>
+                <option value="webp">WebP</option>
+              </select>
+            </label>
+            <label>max px <input id="img-max" type="number" min="0" value="0" style="width:64px" /> (0 = keep)</label>
+            <button id="img-convert-btn" type="button" class="mini-btn">Convert</button>
+          </div>
+          <p id="img-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔖 Bookmark cleaner</span>
+          </div>
+          <p class="hint">Finds exact duplicates (same page saved twice+) and structurally broken URLs. Real dead-link checks would need network calls, so this stays local and honest.</p>
+          <div class="btn-row">
+            <button id="bookmarks-scan" type="button" class="mini-btn">Scan bookmarks</button>
+            <button id="bookmarks-remove" type="button" class="mini-btn danger" disabled>Remove found</button>
+          </div>
+          <div id="bookmarks-results" class="results"></div>
+          <p id="bookmarks-status" class="status"></p>
         </div>
       </section>
 
@@ -482,6 +595,19 @@
             <button id="data-clear-all" type="button" class="mini-btn danger">Erase all OneKit data</button>
           </div>
           <p id="data-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🌙 Dark mode off-list</span>
+          </div>
+          <p class="hint">Sites where the dark filter should never apply (one per line, e.g. <code>youtube.com</code>).</p>
+          <textarea id="darkmode-offlist" rows="3" placeholder="youtube.com
+wikipedia.org"></textarea>
+          <div class="btn-row">
+            <button id="darkmode-save" type="button" class="mini-btn">Save off-list</button>
+          </div>
+          <p id="darkmode-status" class="status"></p>
         </div>
 
         <div class="tool-block">

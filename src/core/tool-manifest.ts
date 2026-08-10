@@ -256,6 +256,80 @@ export const TOOLS: ToolDef[] = [
     settingLabel: "Organize downloads into folders by type"
   },
   {
+    id: "autofill",
+    name: "Form autofill (contact card)",
+    icon: "🔑",
+    tab: "memory",
+    description: "Save your name, email, phone and address once; fill matching forms with one click.",
+    toggleKey: "autofill",
+    settingLabel: "Contact-card form autofill (fills only on click)"
+  },
+  {
+    id: "webArchive",
+    name: "Local web archive",
+    icon: "📦",
+    tab: "memory",
+    description: "Right-click a page to save its full HTML into a searchable local archive."
+  },
+  {
+    id: "focusSession",
+    name: "Focus session (deep-work timer)",
+    icon: "🎯",
+    tab: "focus",
+    description: "One-click block of distracting sites for 25–120 minutes, with an allowlist and countdown overlay."
+  },
+  {
+    id: "darkMode",
+    name: "Dark mode (starter)",
+    icon: "🌙",
+    tab: "settings",
+    description: "Per-site CSS dark filter with an off-list — a basic dark reader.",
+    toggleKey: "darkMode",
+    settingLabel: "Dark mode (per-site filter, off-list in Settings)"
+  },
+  {
+    id: "tabGrouping",
+    name: "Auto tab grouping",
+    icon: "🗃",
+    tab: "speed",
+    description: "Group open tabs by site into colored Chrome tab groups with one click."
+  },
+  {
+    id: "fullPageShot",
+    name: "Full-page screenshot",
+    icon: "🖼",
+    tab: "tools",
+    description: "Capture an entire page — scrolls and stitches the shots into one PNG."
+  },
+  {
+    id: "pdfTools",
+    name: "PDF merge & split",
+    icon: "📄",
+    tab: "tools",
+    description: "Merge PDFs or extract a page range locally with pdf-lib."
+  },
+  {
+    id: "imageTools",
+    name: "Image convert & resize",
+    icon: "🎨",
+    tab: "tools",
+    description: "Convert PNG/JPEG/WebP, resize and compress — all on-device."
+  },
+  {
+    id: "bookmarkCleaner",
+    name: "Bookmark cleaner",
+    icon: "🔖",
+    tab: "tools",
+    description: "Find duplicate and broken bookmarks and remove them in one pass."
+  },
+  {
+    id: "sidePanel",
+    name: "Side panel",
+    icon: "🧩",
+    tab: "settings",
+    description: "Open OneKit as a side panel — search, screen time and focus session beside your tabs."
+  },
+  {
     id: "palette",
     name: "Unified search (Ctrl+Shift+K)",
     icon: "⌨️",

@@ -68,6 +68,21 @@ Built as a fresh project that borrows the *plumbing pattern* from SkillMesh
 
 Plus: **first-run onboarding** (a 4-choice picker that switches on only the tools you want) and the **Ctrl+Shift+K palette now searches everything** — history, saved items (read-later / highlights / workspaces), chats, tabs, drafts, clipboard, screen time, focus rules — and doubles as a **tool launcher**.
 
+### Phase 6 (10 features — 40 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🔑 Form autofill (contact card) | Save name/email/phone/address/company once; a 🔑 Fill chip appears on matching empty fields and fills them on click. Never fills on load, never overwrites typed text. OFF by default | On-page (toggle in Settings) + Popup → Memory |
+| 🎯 Focus session (deep-work timer) | One click blocks distracting sites everywhere for 25–120 min (with an allowlist). Overrides per-site schedules; the overlay shows a live countdown and an “End session” button | Popup → Focus + Side panel |
+| 🗃 Auto tab grouping | Group open tabs by site into colored Chrome tab groups with one click. Single-tab sites and tabs already in a group are left alone; multi-part TLDs (co.uk etc.) group correctly | Popup → Speed |
+| 📸 Full-page screenshot | Scrolls the page viewport-by-viewport and stitches the shots into one PNG (24px overlap removed). Saved to Downloads | Popup → Tools |
+| 📄 PDF merge & split | Merge several PDFs or extract a page range entirely on-device via pdf-lib. Files never leave the browser | Popup → Tools |
+| 🎨 Image convert & resize | Convert PNG/JPEG/WebP and downscale via canvas, all local | Popup → Tools |
+| 🔖 Bookmark cleaner | Finds exact duplicate bookmarks (normalized URLs, same title+URL) and structurally broken URLs; removes them in one pass. Honest scope: real dead-link checks need network calls, so it stays local | Popup → Tools |
+| 🌙 Dark mode (starter) | Per-site CSS invert-filter with an off-list (youtube.com etc. never change). Honest scope: a filter, not per-rule theming | On-page (toggle in Settings) + Settings → off-list |
+| 🧩 Side panel | OneKit as a docked side panel (Chrome 114+): the same unified search, a focus-session quick-start, and today's screen time beside your tabs | Side panel button in the toolbar |
+| 📦 Local web archive | Right-click a page to save its full HTML into a searchable local archive (capped at 50 pages, 400 KB each) so you can re-read it even if the site changes or goes offline | Right-click + Popup → Memory |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard
@@ -117,7 +132,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (183 tests)
+npm test               # vitest (240 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```
