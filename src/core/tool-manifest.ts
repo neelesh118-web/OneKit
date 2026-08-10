@@ -692,6 +692,90 @@ export const TOOLS: ToolDef[] = [
     icon: "🔎",
     tab: "dev",
     description: "Local heuristics for a pasted link: spaces, missing scheme, broken encoding, placeholders, local-only hosts. No network pings, so it's honest."
+  },
+  {
+    id: "tabParking",
+    name: "Tab parking",
+    icon: "🅿️",
+    tab: "memory",
+    description: "OneTab-style memory saving done safely: park this window's inactive tabs, restore any time, nothing is ever deleted."
+  },
+  {
+    id: "csvExport",
+    name: "CSV export hub",
+    icon: "📊",
+    tab: "settings",
+    description: "Standard CSV exports for passwords and TOTP secrets — the interchange format password managers and 2FA apps import."
+  },
+  {
+    id: "passphrase",
+    name: "Passphrase generator",
+    icon: "🧩",
+    tab: "tools",
+    description: "Diceware-style passphrases you can actually remember — long, strong, and guess-resistant by construction."
+  },
+  {
+    id: "clipboardPin",
+    name: "Pinned clipboard",
+    icon: "📌",
+    tab: "memory",
+    description: "Pin clipboard items so they survive the 50-entry rotation — the thing you copied stays reachable."
+  },
+  {
+    id: "scheduledSessions",
+    name: "Scheduled session opens",
+    icon: "⏰",
+    tab: "memory",
+    description: "Auto-open a set of tabs at a set time — your work tabs every weekday morning. Runs in the background."
+  },
+  {
+    id: "downloadsCleaner",
+    name: "Downloads cleaner",
+    icon: "🗑️",
+    tab: "tools",
+    description: "Finds duplicate and older-than-90-days downloads in your history so the list stays tidy — files on disk are untouched."
+  },
+  {
+    id: "pageToPdf",
+    name: "Page → PDF",
+    icon: "📄",
+    tab: "tools",
+    description: "One click opens the clean, readable version of the current page ready to save as PDF — the browser's own PDF engine."
+  },
+  {
+    id: "clipboardExport",
+    name: "Clipboard export",
+    icon: "📎",
+    tab: "memory",
+    description: "Turn clipboard history into a readable Markdown file, or clear it."
+  },
+  {
+    id: "textReplace",
+    name: "Text find & replace",
+    icon: "🔀",
+    tab: "typing",
+    description: "Replace text in a pasted block right in the popup — the fix you keep retyping, done once."
+  },
+  {
+    id: "bookmarksMarkdown",
+    name: "Bookmarks → Markdown",
+    icon: "🗃️",
+    tab: "tools",
+    description: "Export your bookmark tree as a readable Markdown file or a CSV — your bookmarks as a document you can keep anywhere."
+  },
+  {
+    id: "sessionIo",
+    name: "Session export / import",
+    icon: "🗂️",
+    tab: "memory",
+    description: "Take workspaces, parked tabs and the session backup with you in one portable JSON file — your tabs, your file."
+  },
+  {
+    id: "activityLog",
+    name: "Activity log",
+    icon: "🧹",
+    tab: "memory",
+    description: "A local audit trail of what OneKit did — reminders fired, scheduled opens, exports made. Capped at 200 events."
   }
 ];
 

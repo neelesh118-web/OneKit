@@ -173,6 +173,25 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | 〰️ Barcode generator | Code 128 barcodes for any ASCII text (product codes, asset tags, serials), rendered locally as SVG — downloadable | Popup → Tools |
 | 🔎 Link status inspector | Local heuristics for a pasted URL: spaces, missing scheme, broken percent-encoding, placeholder hosts, local-only hosts. No network pings — checks the URL's own structure | Popup → Dev |
 
+### Phase 15 (12 features — 101 tools total)
+
+Built from real 1-star review complaints about the biggest utility extensions — OneTab's "my tabs vanished forever", password managers without portable exports, save-as-PDF that needs the print dialog. Everything stays 100% local.
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🅿️ Tab parking | OneTab-style memory saving done safely: parks this window's inactive web tabs into a reversible list (never deletes anything, pinned + active tabs are skipped), restore one or all | Popup → Memory |
+| 📊 CSV export hub | Standard CSV exports — links, todos, passwords and TOTP secrets in the columns Bitwarden/2FA importers accept. Vaults are encrypted at rest, so a passphrase unlocks them for CSV | Popup → Settings |
+| 🧩 Passphrase generator | Diceware-style passphrases you can actually remember (4-8 words, separator, number, capitalization options) — long, strong, guess-resistant by construction | Popup → Tools |
+| 📌 Pinned clipboard | Pin clipboard items so they survive the 50-entry rotation — the thing you copied stays reachable, pinned entries sort to the top | Popup → Memory |
+| ⏰ Scheduled session opens | Auto-open a set of tabs at a set time — your work tabs every weekday morning, your reading list on Sundays. Runs on chrome.alarms in the background even with the popup closed | Popup → Memory + background |
+| 🗑️ Downloads cleaner | Finds duplicate downloads (keeps the newest) and entries older than 90 days in download history — files on disk are never touched, it only cleans the list | Popup → Tools |
+| 📄 Page → PDF | One click: the page's clean article opens in the reader and the browser's own print dialog (Save as PDF) fires. Uses the browser's PDF engine — nothing is uploaded | Popup → Tools |
+| 📎 Clipboard export | Clipboard history as a readable Markdown file, or clear it — your copied text as a document you can keep | Popup → Memory |
+| 🔀 Text find & replace | Replace text in a pasted block right in the popup — the fix you keep retyping, done once | Popup → Typing |
+| 🗃️ Bookmarks → Markdown | Export the bookmark tree as a readable Markdown file (grouped by folder) or CSV — a portable backup you can take anywhere | Popup → Tools |
+| 🗂️ Session export / import | Workspaces, parked tabs and the session backup travel as one portable JSON file — your tabs, your file, restorable on another machine | Popup → Memory |
+| 🧹 Activity log | A local audit trail of what OneKit did — reminders fired, scheduled opens, exports made. Capped at 200 events | Popup → Memory |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

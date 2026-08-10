@@ -81,7 +81,8 @@ function fakeCaps(storage: ReturnType<typeof createMemoryStorage>): OneKitCapabi
     openVideoPip: async () => ({ ok: false, reason: "unsupported" }),
     ocrImage: async () => "",
     fileToDataUrl: async () => "data:image/png;base64,",
-    loadWordlist: async () => []
+    loadWordlist: async () => [],
+    readerUrl: () => "chrome-extension://reader/reader.html"
   };
 }
 

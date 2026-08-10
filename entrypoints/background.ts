@@ -21,6 +21,14 @@ import { listClipboard, localStorageClipboard } from "../src/core/clipboard-stor
 import { dueReminders, localStorageReminders, markFired } from "../src/core/reminders";
 import { loadLimit, localStorageTabLimit, statusFor } from "../src/core/tab-limiter";
 import { addCollectedLink, localStorageLinkCollection } from "../src/core/link-collector";
+import {
+  advanceSession,
+  dueSessions,
+  loadScheduledSessions,
+  localStorageScheduledSessions,
+  saveScheduledSessions
+} from "../src/core/scheduled-sessions";
+import { localStorageActivity, logActivity } from "../src/core/activity-log";
 
 /**
  * OneKit background — owns right-click quick actions, install-time defaults,
@@ -170,6 +178,8 @@ export default defineBackground(() => {
       await browser.alarms.create(SESSION_BACKUP_ALARM, { periodInMinutes: 15 });
       await browser.alarms.create(TAB_SUSPENDER_ALARM, { periodInMinutes: 5 });
       await browser.alarms.create(TAB_SNOOZE_ALARM, { periodInMinutes: 1 });
+      // Scheduled sessions check every half hour (and on tab events).
+      await browser.alarms.create("ok-scheduled-sessions", { periodInMinutes: 30 });
     } catch {
       // Alarms unavailable in this environment.
     }
@@ -627,6 +637,29 @@ export default defineBackground(() => {
     }
   }
 
+  /* Scheduled sessions — open due sessions, then roll them forward ------- */
+  async function openDueScheduledSessions(): Promise<void> {
+    try {
+      const storage = localStorageScheduledSessions();
+      const due = await dueSessions(storage, Date.now());
+      if (due.length === 0) return;
+      const list = await loadScheduledSessions(storage);
+      for (const session of due) {
+        for (const tab of session.tabs.slice(0, 20)) {
+          await browser.tabs.create({ url: tab.url, active: false }).catch(() => {
+            // Best-effort: one bad URL must not block the rest.
+          });
+        }
+        const idx = list.findIndex((s) => s.id === session.id);
+        if (idx >= 0) list[idx] = advanceSession(session, Date.now());
+        void logActivity(localStorageActivity(), "session.opened", `Opened scheduled session "${session.name}" (${session.tabs.length} tabs).`);
+      }
+      await saveScheduledSessions(storage, list);
+    } catch {
+      // Best-effort: scheduled opens must never break the worker.
+    }
+  }
+
   /* Tab limiter — warn when the tab count is way over ------------------- */
   let lastLimitWarn = 0;
   async function checkTabLimit(): Promise<void> {
@@ -661,10 +694,13 @@ export default defineBackground(() => {
       else if (alarm.name === TAB_SUSPENDER_ALARM) void suspendIdleTabs();
       else if (alarm.name === TAB_SNOOZE_ALARM) void reopenDueSnoozes();
       else if (alarm.name.startsWith("ok-reminder-")) void fireDueReminders();
+      else if (alarm.name === "ok-scheduled-sessions") void openDueScheduledSessions();
     });
-    // Reminders and the tab limiter also catch up on tab events so a
-    // machine that slept past alarms still fires on the next interaction.
+    // Reminders, scheduled sessions and the tab limiter also catch up on
+    // tab events so a machine that slept past alarms still fires on the
+    // next interaction.
     browser.tabs.onCreated.addListener(() => void fireDueReminders());
+    browser.tabs.onCreated.addListener(() => void openDueScheduledSessions());
     browser.tabs.onUpdated.addListener(() => void checkTabLimit());
     browser.tabs.onCreated.addListener(() => void checkTabLimit());
     browser.tabs.onRemoved.addListener(() => void checkTabLimit());

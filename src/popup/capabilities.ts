@@ -87,6 +87,8 @@ export interface OneKitCapabilities {
   fileToDataUrl(file: Blob): Promise<string>;
   /** Spell-check: the bundled 274k-word list, fetched on demand. */
   loadWordlist(): Promise<string[]>;
+  /** Reader page URL (page→PDF opens it with ?url=…&print=1). */
+  readerUrl(): string;
 }
 
 import type { CookieLike } from "../core/cookie-manager";

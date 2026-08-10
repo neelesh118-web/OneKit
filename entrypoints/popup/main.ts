@@ -18,6 +18,7 @@ import { createPasswordVaultController } from "../../src/popup/password-vault-co
 import { createMediaController } from "../../src/popup/media-controller";
 import { createUtilitiesController } from "../../src/popup/utilities-controller";
 import { createMemoryToolsController } from "../../src/popup/memory-tools-controller";
+import { createSessionToolsController } from "../../src/popup/session-tools-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -269,7 +270,8 @@ const caps: OneKitCapabilities = {
     const res = await fetch(getUrl("dictionary/words.json"));
     if (!res.ok) throw new Error("The dictionary file is missing from this install.");
     return (await res.json()) as string[];
-  }
+  },
+  readerUrl: () => browser.runtime.getURL("/reader.html")
 };
 
 /* Tab navigation ------------------------------------------------------ */
@@ -382,6 +384,7 @@ void (async () => {
   createMediaController(caps);
   createUtilitiesController(caps);
   createMemoryToolsController(caps);
+  createSessionToolsController(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);

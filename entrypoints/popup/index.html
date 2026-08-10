@@ -11,22 +11,22 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>89 tools · 100% local · free forever</span>
+          <span>101 tools · 100% local · free forever</span>
         </div>
       </header>
 
       <nav class="tab-nav" aria-label="OneKit tools">
-        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">11</span></button>
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">16</span></button>
         <button type="button" class="tab-btn" data-tab="vault">💬 Vault <span class="tab-count">2</span></button>
         <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">9</span></button>
         <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">10</span></button>
         <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">9</span></button>
-        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">8</span></button>
-        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">18</span></button>
+        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">9</span></button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">22</span></button>
         <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">4</span></button>
         <button type="button" class="tab-btn" data-tab="convert">🔄 Convert <span class="tab-count">4</span></button>
         <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">6</span></button>
+        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">7</span></button>
       </nav>
 
       <!-- ============================================================ -->
@@ -172,6 +172,74 @@
             <button id="lc-clear" type="button" class="mini-btn danger">Clear all</button>
           </div>
           <p id="lc-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🅿️ Tab parking</span>
+          </div>
+          <p class="hint">OneTab-style memory saving, done safely: parking closes this window's inactive web tabs and keeps them here — restore any time, nothing is ever deleted.</p>
+          <div class="btn-row">
+            <button id="pk-park" type="button" class="mini-btn primary">🅿️ Park inactive tabs</button>
+            <button id="pk-restore-all" type="button" class="mini-btn">Restore all</button>
+            <button id="pk-clear" type="button" class="mini-btn danger">Clear parked list</button>
+          </div>
+          <div id="pk-list" class="results"></div>
+          <p id="pk-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏰ Scheduled session opens</span>
+          </div>
+          <p class="hint">Auto-open a set of tabs at a set time — your work tabs every weekday morning, your reading list on Sundays. Runs in the background even with the popup closed.</p>
+          <div class="btn-row">
+            <input id="ss-name" type="text" placeholder="Session name (optional)" autocomplete="off" />
+            <input id="ss-time" type="time" value="09:00" aria-label="Time" />
+            <select id="ss-freq" aria-label="Frequency"></select>
+            <select id="ss-day" aria-label="Day of week"></select>
+            <button id="ss-add" type="button" class="mini-btn primary">Schedule</button>
+          </div>
+          <div id="ss-list" class="results"></div>
+          <p id="ss-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗂 Session export / import</span>
+          </div>
+          <p class="hint">Take your workspaces, parked tabs and session backup with you in one portable JSON file — or bring them back on another machine. Your tabs, your file.</p>
+          <div class="btn-row">
+            <button id="si-export" type="button" class="mini-btn">⬇ Export sessions</button>
+            <button id="si-import" type="button" class="mini-btn">⬆ Import sessions</button>
+            <input id="si-file" type="file" accept=".json,application/json" hidden />
+          </div>
+          <p id="si-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📎 Clipboard export</span>
+          </div>
+          <p class="hint">Turn clipboard history into a readable file, or clear it.</p>
+          <div class="btn-row">
+            <button id="ce-export" type="button" class="mini-btn">⬇ Export clipboard as Markdown</button>
+            <button id="ce-clear" type="button" class="mini-btn danger">Clear clipboard history</button>
+          </div>
+          <div id="ce-list" class="results"></div>
+          <p id="ce-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧹 Activity log</span>
+          </div>
+          <p class="hint">A local audit trail of what OneKit did — reminders fired, scheduled sessions opened, exports made. Capped at 200 events.</p>
+          <div id="al-list" class="results"></div>
+          <div class="btn-row">
+            <button id="al-clear" type="button" class="mini-btn danger">Clear log</button>
+          </div>
+          <p id="al-status" class="status"></p>
         </div>
       </section>
 
@@ -816,6 +884,24 @@
                   <textarea id="tl-output" rows="5" readonly placeholder="Result appears here"></textarea>
                   <p id="tl-status" class="status"></p>
                 </div>
+
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">🔀 Text find &amp; replace</span>
+                  </div>
+                  <p class="hint">Replace text in a pasted block right here — the fix you keep retyping, done once.</p>
+                  <textarea id="tr-input" rows="3" placeholder="Paste the text to fix…"></textarea>
+                  <div class="btn-row">
+                    <input id="tr-find" type="text" placeholder="Find…" />
+                    <input id="tr-replace" type="text" placeholder="Replace with…" />
+                  </div>
+                  <div class="btn-row">
+                    <label><input id="tr-case" type="checkbox" /> Match case</label>
+                    <button id="tr-run" type="button" class="mini-btn primary">Replace</button>
+                  </div>
+                  <textarea id="tr-output" rows="3" readonly placeholder="Result appears here"></textarea>
+                  <p id="tr-status" class="status"></p>
+                </div>
       </section>
 
       <!-- ============================================================ -->
@@ -950,6 +1036,61 @@
           </div>
           <strong id="unit-result" class="unit-result"></strong>
           <p id="unit-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧩 Passphrase generator</span>
+          </div>
+          <p class="hint">A memorable phrase instead of a random string — stronger than a password and possible to actually remember. Generated locally.</p>
+          <div class="btn-row">
+            <label>Words <input id="ph-words" type="number" min="2" max="8" value="4" style="width:52px" /></label>
+            <label>Separator <input id="ph-sep" type="text" value="-" maxlength="2" style="width:34px" /></label>
+            <label><input id="ph-number" type="checkbox" checked /> Add number</label>
+            <label><input id="ph-cap" type="checkbox" /> Capitalize</label>
+          </div>
+          <div class="btn-row">
+            <button id="ph-gen" type="button" class="mini-btn primary">Generate</button>
+            <input id="ph-output" type="text" readonly />
+            <button id="ph-copy" type="button" class="mini-btn">Copy</button>
+          </div>
+          <p id="ph-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📄 Page → PDF</span>
+          </div>
+          <p class="hint">One click: the page's clean article opens in the reader and the browser's own print dialog (Save as PDF) fires. OneKit uses the browser's PDF engine — nothing is uploaded.</p>
+          <div class="btn-row">
+            <button id="pp-btn" type="button" class="mini-btn">Save this page as PDF</button>
+          </div>
+          <p id="pp-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗑️ Downloads cleaner</span>
+          </div>
+          <p class="hint">Scans download history for duplicates and entries older than 90 days. Files on disk are never touched — this only cleans the history list.</p>
+          <div class="btn-row">
+            <button id="dc-scan" type="button" class="mini-btn">Scan download history</button>
+            <button id="dc-remove" type="button" class="mini-btn danger" disabled>Remove found from history</button>
+          </div>
+          <div id="dc-list" class="results"></div>
+          <p id="dc-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗃️ Bookmarks → Markdown</span>
+          </div>
+          <p class="hint">Export your bookmark tree as a readable Markdown file (grouped by folder) or a CSV — a portable backup you can take anywhere.</p>
+          <div class="btn-row">
+            <button id="bm-export" type="button" class="mini-btn">⬇ Export as Markdown</button>
+            <button id="bm-csv" type="button" class="mini-btn">⬇ Export as CSV</button>
+          </div>
+          <p id="bm-status" class="status"></p>
         </div>
 
         <div class="tool-block">
@@ -1436,6 +1577,23 @@ wikipedia.org"></textarea>
             <button id="ex-md" type="button" class="mini-btn">⬇ Export friendly Markdown</button>
           </div>
           <p id="ex-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📊 CSV export hub</span>
+          </div>
+          <p class="hint">Standard CSV — the interchange format password managers and 2FA apps import. The vault stores are encrypted at rest, so a passphrase is needed to export them as plain CSV.</p>
+          <div class="btn-row">
+            <button id="csv-links" type="button" class="mini-btn">⬇ Links CSV</button>
+            <button id="csv-todos" type="button" class="mini-btn">⬇ Todos CSV</button>
+          </div>
+          <div class="btn-row">
+            <input id="csv-passphrase" type="password" placeholder="Master passphrase (vault exports)" autocomplete="off" />
+            <button id="csv-passwords" type="button" class="mini-btn">⬇ Passwords CSV</button>
+            <button id="csv-totp" type="button" class="mini-btn">⬇ TOTP CSV</button>
+          </div>
+          <p id="csv-status" class="status"></p>
         </div>
 
         <p class="footer-note">OneKit keeps everything on this device. No account, no cloud, no tracking. Uninstalling removes all OneKit data.</p>

@@ -12,6 +12,8 @@ export interface ClipboardEntry {
   ts: number;
   /** Origin the copy happened on (informational only). */
   url?: string;
+  /** Pinned entries survive trimming and sort above the rest. */
+  pinned?: boolean;
 }
 
 export const CLIPBOARD_STORAGE_KEY = "ok.clipboard";
@@ -74,13 +76,18 @@ export async function addClipboardEntry(
   }
   const entry: ClipboardEntry = { id: makeId(now, text), text, ts: now, ...(url ? { url } : {}) };
   entries.unshift(entry);
-  await writeEntries(storage, entries.slice(0, MAX_CLIPBOARD_ENTRIES));
+  // Keep pinned entries even when the cap is hit; trim the oldest unpinned.
+  const trimmed = entries
+    .filter((e) => e.pinned)
+    .concat(entries.filter((e) => !e.pinned))
+    .slice(0, MAX_CLIPBOARD_ENTRIES);
+  await writeEntries(storage, trimmed);
   return entry;
 }
 
 export async function listClipboard(storage: KvStorage): Promise<ClipboardEntry[]> {
   const entries = await readEntries(storage);
-  return entries.sort((a, b) => b.ts - a.ts);
+  return entries.sort((a, b) => Number(b.pinned ?? false) - Number(a.pinned ?? false) || b.ts - a.ts);
 }
 
 export async function removeClipboardEntry(storage: KvStorage, id: string): Promise<void> {
@@ -90,6 +97,16 @@ export async function removeClipboardEntry(storage: KvStorage, id: string): Prom
 
 export async function clearClipboard(storage: KvStorage): Promise<void> {
   await storage.remove(CLIPBOARD_STORAGE_KEY);
+}
+
+/** Toggles the pin on an entry. Pinned items survive the 50-entry trim. */
+export async function setClipboardPinned(storage: KvStorage, id: string, pinned: boolean): Promise<void> {
+  const entries = await readEntries(storage);
+  const entry = entries.find((e) => e.id === id);
+  if (!entry) return;
+  if (pinned) entry.pinned = true;
+  else delete entry.pinned;
+  await writeEntries(storage, entries);
 }
 
 export function localStorageClipboard(): KvStorage {
