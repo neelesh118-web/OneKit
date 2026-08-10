@@ -7,7 +7,8 @@ import { detectFile, TYPE_LABELS, type FileType } from "./detect";
 import { TARGET_LABELS, targetExtension, targetsFor, type TargetFormat } from "./matrix";
 import { convertImage, type ImageConvertSettings, type ImageTarget } from "./images";
 import { convertFont, type FontTarget } from "./fonts";
-import { anyToWav, decodeAudioInBrowser, normalizeWav, wavToMp3, type AudioDecoder } from "./audio";
+import { anyToMp3, anyToWav, decodeAudioInBrowser, normalizeWav, wavToMp3, type AudioDecoder } from "./audio";
+import { videoToGif, type VideoFrameExtractor } from "./video";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
@@ -31,6 +32,8 @@ export interface ConvertOptions {
   image?: ImageConvertSettings;
   /** Injectable audio decoder (defaults to the Web Audio API). */
   audioDecoder?: AudioDecoder;
+  /** Injectable video frame extractor (defaults to the <video> element). */
+  videoFrames?: VideoFrameExtractor;
 }
 
 export const MIME_BY_TARGET: Record<TargetFormat, string> = {
@@ -113,6 +116,7 @@ async function runConversion(
     case "image-gif":
     case "image-bmp":
     case "image-avif":
+      if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
@@ -120,17 +124,26 @@ async function runConversion(
     case "pdf":
       if (target === "text") return toBytes(await docs.pdfToText(bytes));
       if (target === "markdown") return toBytes(await docs.pdfToMarkdown(bytes));
-      return toBytes(await docs.pdfToHtml(bytes));
+      if (target === "html") return toBytes(await docs.pdfToHtml(bytes));
+      // Single-file path: the first page. The Convert tab zips all pages
+      // via pdfToImages so multi-page PDFs never lose pages.
+      {
+        const pages = await docs.pdfToImages(bytes, target === "image-png" ? "png" : "jpeg");
+        if (pages.length === 0) throw new Error("This PDF has no pages to render.");
+        return pages[0]!.bytes;
+      }
     case "docx": {
       const html = await docs.docxToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
+      if (target === "pdf") return docs.docxToPdf(bytes);
       return toBytes(docs.htmlToText(html));
     }
     case "epub": {
       const html = docs.epubToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
+      if (target === "pdf") return docs.epubToPdf(bytes);
       return toBytes(docs.htmlToText(html));
     }
     case "html": {
@@ -143,17 +156,20 @@ async function runConversion(
       const md = toText(bytes);
       const html = docs.markdownToHtml(md);
       if (target === "html") return toBytes(html);
+      if (target === "pdf") return docs.markdownToPdf(md);
       return toBytes(docs.htmlToText(html));
     }
     case "text": {
       const text = toText(bytes);
       if (target === "txt-base64") return toBytes(txt.textToBase64(text));
       if (target === "txt-hex") return toBytes(txt.textToHex(text));
+      if (target === "pdf") return docs.textToPdf(text);
       return toBytes(txt.textToUrl(text));
     }
     case "csv": {
       const csv = toText(bytes);
       if (target === "json") return toBytes(JSON.stringify(docs.csvToJson(csv), null, 2));
+      if (target === "pdf") return docs.csvToPdf(csv);
       return docs.csvToXlsx(csv);
     }
     case "json": {
@@ -200,9 +216,18 @@ async function runConversion(
       }
       return normalizeWav(bytes);
     case "audio-mp3":
+      return anyToWav(bytes, opts.audioDecoder ?? decodeAudioInBrowser);
     case "audio-ogg":
     case "audio-m4a":
-      return anyToWav(bytes, opts.audioDecoder ?? decodeAudioInBrowser);
+    case "audio-flac": {
+      const decode = opts.audioDecoder ?? decodeAudioInBrowser;
+      if (target === "audio-mp3") return anyToMp3(bytes, decode);
+      return anyToWav(bytes, decode);
+    }
+    case "video-mp4":
+    case "video-webm":
+    case "video-mov":
+      return videoToGif(bytes, opts.videoFrames);
     default:
       throw new Error("Unsupported conversion.");
   }

@@ -750,7 +750,7 @@
           <div class="tool-heading">
             <span class="tool-label">🔄 File converter</span>
           </div>
-          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick or drop one or several files of the same type, choose a target, then convert individually or bundle the results into one ZIP. Files that don't match the batch are listed and skipped, never silently converted wrong.</p>
+          <p class="hint">Convert files between formats — 100% local, nothing is uploaded. Pick or drop one or several files of the same type, choose a target, then convert individually or bundle the results into one ZIP (optionally into a single Downloads subfolder). Batch extras: several images → one PDF, several images → one animated GIF, a PDF → all pages as images (zipped), an animated GIF → its frames, and videos (MP4/WebM/MOV) → GIF. Files that don't match the batch are listed and skipped, never silently converted wrong.</p>
           <div class="drop-zone" id="convert-dropzone">
             <input id="convert-file" type="file" multiple />
             <p class="drop-hint">…or drop files anywhere in this box</p>
@@ -771,6 +771,28 @@
               <span id="convert-quality-label" class="quality-value">90%</span>
             </label>
             <label>Max px <input id="convert-maxdim" type="number" min="0" value="0" style="width:64px" /> (0 = keep)</label>
+            <label>Rotate
+              <select id="convert-rotate">
+                <option value="0">0°</option>
+                <option value="90">90°</option>
+                <option value="180">180°</option>
+                <option value="270">270°</option>
+              </select>
+            </label>
+            <label>Flip
+              <select id="convert-flip">
+                <option value="">none</option>
+                <option value="h">horizontal</option>
+                <option value="v">vertical</option>
+                <option value="hv">both</option>
+              </select>
+            </label>
+          </div>
+          <div class="btn-row" id="convert-gif-delay-row" hidden>
+            <label>GIF frame delay <input id="convert-gif-delay" type="number" min="10" max="5000" value="250" style="width:70px" /> ms (animated GIF maker)</label>
+          </div>
+          <div class="btn-row">
+            <label>Output folder <input id="convert-folder" type="text" placeholder="optional, e.g. converted" style="width:160px" /> <span class="hint">(empty = Downloads)</span></label>
           </div>
           <div id="convert-results" class="results"></div>
           <p id="convert-status" class="status"></p>
@@ -780,7 +802,7 @@
           <div class="tool-heading">
             <span class="tool-label">ℹ️ What can convert to what</span>
           </div>
-          <p class="hint">Images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF keeps 256 colors — screenshots and simple graphics convert well, photos lose depth) · PDF, DOCX, EPUB → text/Markdown/HTML · XLSX ↔ CSV/JSON · JSON ↔ YAML/XML/CSV · ZIP/TAR/GZIP · fonts TTF/WOFF/WOFF2 · MP3/OGG/M4A → WAV and WAV → MP3. Proprietary formats (DWG, PAGES, RAW photos) can't be decoded locally, so they're honestly not offered.</p>
+          <p class="hint">Images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF keeps 256 colors — screenshots and simple graphics convert well, photos lose depth) · Images/TXT/CSV/Markdown/DOCX/EPUB → PDF · PDF ↔ text/Markdown/HTML and PDF → PNG/JPG pages · XLSX ↔ CSV/JSON · JSON ↔ YAML/XML/CSV · ZIP/TAR/GZIP · fonts TTF/WOFF/WOFF2 · MP3/OGG/M4A/FLAC → WAV or MP3 · videos (MP4/WebM/MOV) → GIF. Proprietary formats (DWG, PAGES, RAW photos, HEIC) can't be decoded locally, so they're honestly not offered.</p>
         </div>
       </section>
 

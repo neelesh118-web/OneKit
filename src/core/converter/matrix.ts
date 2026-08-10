@@ -33,22 +33,25 @@ const IMAGE_SOURCES: FileType[] = [
 
 const IMAGE_TARGETS: TargetFormat[] = ["image-png", "image-jpeg", "image-webp", "image-avif", "image-gif"];
 
+/** Raster images can also be packed into a PDF (smallpdf/pdfresizer). */
+const IMAGE_AND_PDF: TargetFormat[] = [...IMAGE_TARGETS, "pdf"];
+
 export const MATRIX: Record<FileType, TargetFormat[]> = {
-  "image-png": IMAGE_TARGETS,
-  "image-jpeg": IMAGE_TARGETS,
-  "image-webp": IMAGE_TARGETS,
-  "image-gif": IMAGE_TARGETS,
-  "image-bmp": IMAGE_TARGETS,
-  "image-avif": IMAGE_TARGETS,
+  "image-png": IMAGE_AND_PDF,
+  "image-jpeg": IMAGE_AND_PDF,
+  "image-webp": IMAGE_AND_PDF,
+  "image-gif": IMAGE_AND_PDF,
+  "image-bmp": IMAGE_AND_PDF,
+  "image-avif": IMAGE_AND_PDF,
   "image-svg": ["image-png", "image-jpeg", "image-webp", "image-gif", "text"],
-  pdf: ["text", "markdown", "html"],
-  docx: ["html", "markdown", "text"],
+  pdf: ["text", "markdown", "html", "image-png", "image-jpeg"],
+  docx: ["html", "markdown", "text", "pdf"],
   xlsx: ["csv", "json"],
-  epub: ["html", "text", "markdown"],
+  epub: ["html", "text", "markdown", "pdf"],
   html: ["markdown", "text", "pdf"],
-  markdown: ["html", "text"],
-  text: ["txt-base64", "txt-hex", "txt-url"],
-  csv: ["json", "xlsx"],
+  markdown: ["html", "text", "pdf"],
+  text: ["txt-base64", "txt-hex", "txt-url", "pdf"],
+  csv: ["json", "xlsx", "pdf"],
   json: ["yaml", "xml", "csv", "text"],
   yaml: ["json"],
   xml: ["json", "text"],
@@ -60,8 +63,12 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "font-woff2": ["font-ttf", "font-woff"],
   "audio-mp3": ["audio-wav"],
   "audio-wav": ["audio-mp3", "audio-wav"],
-  "audio-ogg": ["audio-wav"],
-  "audio-m4a": ["audio-wav"],
+  "audio-ogg": ["audio-wav", "audio-mp3"],
+  "audio-m4a": ["audio-wav", "audio-mp3"],
+  "audio-flac": ["audio-wav", "audio-mp3"],
+  "video-mp4": ["image-gif"],
+  "video-webm": ["image-gif"],
+  "video-mov": ["image-gif"],
   unknown: []
 };
 

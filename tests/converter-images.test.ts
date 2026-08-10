@@ -24,6 +24,9 @@ function fakeDeps(width: number, height: number, encodeTarget: ImageTarget): Ima
   }
   const ctx = {
     drawImage(): void {},
+    translate(): void {},
+    rotate(): void {},
+    scale(): void {},
     getImageData(x: number, y: number, w: number, h: number): { width: number; height: number; data: Uint8ClampedArray } {
       return { width: w, height: h, data: rgba };
     }
@@ -106,6 +109,9 @@ describe("convertImage settings", () => {
     let blobQuality: number | undefined;
     const ctx = {
       drawImage(): void {},
+      translate(): void {},
+      rotate(): void {},
+      scale(): void {},
       getImageData(): { width: number; height: number; data: Uint8ClampedArray } {
         return { width: canvasW, height: canvasH, data: new Uint8ClampedArray(canvasW * canvasH * 4) };
       }
@@ -144,7 +150,12 @@ describe("convertImage settings", () => {
   it("keeps original dimensions when maxDimension is unset", async () => {
     let canvasW = 0;
     let canvasH = 0;
-    const ctx = { drawImage(): void {} };
+    const ctx = {
+      drawImage(): void {},
+      translate(): void {},
+      rotate(): void {},
+      scale(): void {}
+    };
     const deps: ImageConvertDeps = {
       canvasFactory: () =>
         ({
@@ -170,5 +181,89 @@ describe("convertImage settings", () => {
     await convertImage(pngHeader, "image-png", deps, {});
     expect(canvasW).toBe(16);
     expect(canvasH).toBe(16);
+  });
+
+  it("applies rotate and flip transforms with swapped dimensions", async () => {
+    const calls: string[] = [];
+    let canvasW = 0;
+    let canvasH = 0;
+    const ctx = {
+      drawImage(): void {
+        calls.push("drawImage");
+      },
+      translate(): void {
+        calls.push("translate");
+      },
+      rotate(): void {
+        calls.push("rotate");
+      },
+      scale(): void {
+        calls.push("scale");
+      }
+    };
+    const deps: ImageConvertDeps = {
+      canvasFactory: () =>
+        ({
+          get width() {
+            return canvasW;
+          },
+          set width(v: number) {
+            canvasW = v;
+          },
+          get height() {
+            return canvasH;
+          },
+          set height(v: number) {
+            canvasH = v;
+          },
+          getContext: (kind: string) => (kind === "2d" ? ctx : null),
+          toBlob(cb: (b: Blob | null) => void): void {
+            cb(new Blob([new Uint8Array([1])]));
+          }
+        }) as unknown as HTMLCanvasElement,
+      decode: async () => ({ width: 20, height: 10, close(): void {} }) as unknown as ImageBitmap
+    };
+    await convertImage(pngHeader, "image-png", deps, { rotate: 90, flipH: true });
+    // 90° swaps the axes: a 20×10 image becomes a 10×20 canvas.
+    expect(canvasW).toBe(10);
+    expect(canvasH).toBe(20);
+    expect(calls).toContain("translate");
+    expect(calls).toContain("rotate");
+    expect(calls).toContain("scale");
+    expect(calls).toContain("drawImage");
+  });
+
+  it("does not rotate or flip when the settings are absent", async () => {
+    const calls: string[] = [];
+    const ctx = {
+      drawImage(): void {
+        calls.push("drawImage");
+      },
+      translate(): void {
+        calls.push("translate");
+      },
+      rotate(): void {
+        calls.push("rotate");
+      },
+      scale(): void {
+        calls.push("scale");
+      }
+    };
+    const deps: ImageConvertDeps = {
+      canvasFactory: () =>
+        ({
+          width: 20,
+          height: 10,
+          getContext: (kind: string) => (kind === "2d" ? ctx : null),
+          toBlob(cb: (b: Blob | null) => void): void {
+            cb(new Blob([new Uint8Array([1])]));
+          }
+        }) as unknown as HTMLCanvasElement,
+      decode: async () => ({ width: 20, height: 10, close(): void {} }) as unknown as ImageBitmap
+    };
+    await convertImage(pngHeader, "image-png", deps, {});
+    expect(calls).toContain("translate");
+    expect(calls).not.toContain("rotate");
+    expect(calls).not.toContain("scale");
   });
 });

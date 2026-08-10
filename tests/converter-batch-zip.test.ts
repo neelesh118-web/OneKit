@@ -31,6 +31,10 @@ describe("convertBatchToZip", () => {
     );
     expect(outcome.failed).toHaveLength(0);
     expect(outcome.converted).toHaveLength(2);
+    // Each converted row carries the original size so the results list
+    // can show an honest before/after readout.
+    expect(outcome.converted[0]!.originalSize).toBe(toBytes('{"number": 1}').length);
+    expect(outcome.converted[0]!.size).toBeGreaterThan(0);
     const files = unzipToFiles(outcome.zip);
     expect(Object.keys(files).sort()).toEqual(["one.yaml", "two.yaml"]);
     expect(new TextDecoder().decode(files["one.yaml"]!)).toContain("number: 1");

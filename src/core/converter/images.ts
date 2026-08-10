@@ -39,6 +39,12 @@ export interface ImageConvertSettings {
   quality?: number;
   /** Downscale so the longest side is ≤ this many pixels. 0/undefined = keep. */
   maxDimension?: number;
+  /** Clockwise rotation applied before encoding. */
+  rotate?: 90 | 180 | 270;
+  /** Mirror horizontally (after rotation). */
+  flipH?: boolean;
+  /** Mirror vertically (after rotation). */
+  flipV?: boolean;
 }
 
 /** Proportional downscale math — never upscales, never shrinks below 1px. */
@@ -118,12 +124,22 @@ export async function convertImage(
   }
   try {
     const fitted = fitMaxDimension(bitmap.width, bitmap.height, settings?.maxDimension);
+    const rotate = settings?.rotate ?? 0;
+    const flipH = settings?.flipH === true;
+    const flipV = settings?.flipV === true;
+    const swapped = rotate === 90 || rotate === 270;
     const canvas = canvasFactory();
-    canvas.width = fitted.width;
-    canvas.height = fitted.height;
+    canvas.width = swapped ? fitted.height : fitted.width;
+    canvas.height = swapped ? fitted.width : fitted.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Canvas drawing isn't available in this browser.");
-    ctx.drawImage(bitmap, 0, 0, fitted.width, fitted.height);
+    // Rotate around the center, then mirror — the freeconvert-style
+    // transform applied to every image target, GIF path included.
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    if (rotate) ctx.rotate((rotate * Math.PI) / 180);
+    if (flipH) ctx.scale(-1, 1);
+    if (flipV) ctx.scale(1, -1);
+    ctx.drawImage(bitmap, -fitted.width / 2, -fitted.height / 2, fitted.width, fitted.height);
     if (target === "image-gif") {
       // Browsers can't toBlob a GIF — encode from pixels via gifenc.
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);

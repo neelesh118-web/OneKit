@@ -11,7 +11,8 @@ export type FileType =
   | "csv" | "json" | "yaml" | "xml"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2"
-  | "audio-mp3" | "audio-wav" | "audio-ogg" | "audio-m4a"
+  | "audio-mp3" | "audio-wav" | "audio-ogg" | "audio-m4a" | "audio-flac"
+  | "video-mp4" | "video-webm" | "video-mov"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -22,19 +23,21 @@ export const TYPE_LABELS: Record<FileType, string> = {
   csv: "CSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
   "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font",
-  "audio-mp3": "MP3 audio", "audio-wav": "WAV audio", "audio-ogg": "OGG audio", "audio-m4a": "M4A audio",
+  "audio-mp3": "MP3 audio", "audio-wav": "WAV audio", "audio-ogg": "OGG audio", "audio-m4a": "M4A audio", "audio-flac": "FLAC audio",
+  "video-mp4": "MP4 video", "video-webm": "WebM video", "video-mov": "MOV video",
   unknown: "Unknown format"
 };
 
 export const EXTENSIONS: Record<FileType, string[]> = {
-  "image-png": ["png"], "image-jpeg": ["jpg", "jpeg"], "image-webp": ["webp"],
+  "image-png": ["png"], "image-jpeg": ["jpg", "jpeg", "jfif"], "image-webp": ["webp"],
   "image-gif": ["gif"], "image-bmp": ["bmp"], "image-avif": ["avif"], "image-svg": ["svg"],
   pdf: ["pdf"], docx: ["docx"], xlsx: ["xlsx"], epub: ["epub"],
   html: ["html", "htm"], markdown: ["md", "markdown"], text: ["txt"],
   csv: ["csv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
   "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"],
-  "audio-mp3": ["mp3"], "audio-wav": ["wav"], "audio-ogg": ["ogg", "oga"], "audio-m4a": ["m4a", "mp4"],
+  "audio-mp3": ["mp3"], "audio-wav": ["wav"], "audio-ogg": ["ogg", "oga"], "audio-m4a": ["m4a"],
+  "audio-flac": ["flac"], "video-mp4": ["mp4"], "video-webm": ["webm"], "video-mov": ["mov"],
   unknown: []
 };
 
@@ -88,7 +91,14 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "ID3")) return "audio-mp3";
   if (asciiAt(bytes, 0, "OggS")) return "audio-ogg";
   if (asciiAt(bytes, 0, "RIFF") && asciiAt(bytes, 8, "WAVE")) return "audio-wav";
-  if (asciiAt(bytes, 4, "ftypM4A") || asciiAt(bytes, 4, "ftypisom")) return "audio-m4a";
+  if (asciiAt(bytes, 0, "fLaC")) return "audio-flac";
+  // MP4/MOV/M4A share the ftyp box — the brand tells video from audio.
+  if (asciiAt(bytes, 4, "ftypM4A")) return "audio-m4a";
+  if (asciiAt(bytes, 4, "ftypisom") || asciiAt(bytes, 4, "ftypmp42") || asciiAt(bytes, 4, "ftypavc1") ||
+      asciiAt(bytes, 4, "ftypmp41") || asciiAt(bytes, 4, "ftypdash") || asciiAt(bytes, 4, "ftypcmfc")) return "video-mp4";
+  if (asciiAt(bytes, 4, "ftypqt")) return "video-mov";
+  // WebM/Matroska EBML header.
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "video-webm";
   // MP3 frame sync (no ID3 tag): FF FB / FF F3 / FF F2.
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) return "audio-mp3";
   // TAR: "ustar" at offset 257.

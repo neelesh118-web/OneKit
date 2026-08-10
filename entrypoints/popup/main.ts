@@ -122,6 +122,17 @@ const caps: OneKitCapabilities = {
     a.click();
     URL.revokeObjectURL(a.href);
   },
+  saveFileTo: async (bytes, filename, folder, mime) => {
+    const blob = new Blob([bytes as unknown as BlobPart], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const path = folder ? `${folder}/${filename}` : filename;
+    try {
+      await browser.downloads.download({ url, filename: path, saveAs: false });
+    } finally {
+      // downloads.download copies the blob asynchronously — revoke after it's done.
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }
+  },
   getCookies: async (url) => {
     const cookies = await browser.cookies.getAll({ url });
     return cookies as unknown as CookieLike[];

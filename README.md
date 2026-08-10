@@ -111,7 +111,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 
 | Feature | What it does | Where |
 |---|---|---|
-| 🔄 File converter | Convert files 100% locally — one file or a whole batch, saved individually or bundled into one ZIP: images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF is a 256-color format, honest about the depth loss) with a quality slider (JPEG/WebP) and max-size downscaling, PDF/DOCX/EPUB → text/Markdown/HTML, XLSX ↔ CSV/JSON, JSON ↔ YAML/XML/CSV, ZIP/TAR/GZIP, fonts TTF/WOFF/WOFF2, MP3/OGG/M4A → WAV and WAV → MP3. Detection uses magic bytes, not just the file extension; unsupported pairs are honestly refused, and batch picks that don't match are listed and skipped rather than converted wrong. Files never leave the device | Popup → Convert |
+| 🔄 File converter | Convert files 100% locally — one file or a whole batch, saved individually or bundled into one ZIP (optionally into one Downloads subfolder): images ↔ PNG/JPEG/WebP/AVIF/GIF (GIF is a 256-color format, honest about the depth loss) with quality, max-size, rotate and flip controls; several images → one PDF or one animated GIF (GIF maker, per-frame delay); PDF → text/Markdown/HTML or PNG/JPG pages (multi-page zips); images/TXT/CSV/Markdown/DOCX/EPUB → PDF; XLSX ↔ CSV/JSON; JSON ↔ YAML/XML/CSV; ZIP/TAR/GZIP; fonts TTF/WOFF/WOFF2; MP3/OGG/M4A/FLAC → WAV or MP3; videos (MP4/WebM/MOV) → GIF. Detection uses magic bytes, not just the file extension (JFIF is recognized as JPEG); unsupported pairs (HEIC, RAW, Pages, DWG, OCR, e-signing) are honestly refused rather than faked, and batch picks that don't match are listed and skipped. Files never leave the device | Popup → Convert |
 
 ## Defaults & privacy posture
 
@@ -162,7 +162,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (386 tests)
+npm test               # vitest (431 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```

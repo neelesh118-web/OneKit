@@ -205,6 +205,14 @@ export async function anyToWav(bytes: Uint8Array, decode: AudioDecoder): Promise
   return samplesToWav(decoded.sampleRate, decoded.channels, decoded.samples);
 }
 
+/** Decodes any supported audio and re-encodes it as MP3 (128 kbps). */
+export async function anyToMp3(bytes: Uint8Array, decode: AudioDecoder): Promise<Uint8Array> {
+  const wav = await anyToWav(bytes, decode);
+  const mp3 = wavToMp3(wav);
+  if (!mp3.ok) throw new Error(mp3.error);
+  return mp3.value;
+}
+
 /** Browser decoder backed by the Web Audio API (OfflineAudioContext). */
 export async function decodeAudioInBrowser(bytes: Uint8Array): Promise<DecodedAudio> {
   const OfflineCtx = (globalThis as { OfflineAudioContext?: new (c: number, l: number, r: number) => {

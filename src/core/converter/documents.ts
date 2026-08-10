@@ -5,6 +5,8 @@
  */
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { toArrayBuffer } from "./util";
+import { detectFromBytes } from "./detect";
+import { convertImage } from "./images";
 // Make pdfjs's worker available on the main thread so extraction works in
 // extension popups, Node, and tests without spawning a worker.
 import * as pdfjsWorkerModule from "pdfjs-dist/legacy/build/pdf.worker.mjs";
@@ -79,6 +81,149 @@ export async function pdfToHtml(bytes: Uint8Array): Promise<string> {
     .filter(Boolean);
   const body = paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join("\n");
   return `<!doctype html>\n<html><head><meta charset="utf-8"><title>PDF text</title></head>\n<body>\n${body}\n</body>\n</html>`;
+}
+
+/* PDF → images ------------------------------------------------------- */
+
+export interface PdfImageFile {
+  bytes: Uint8Array;
+  name: string;
+}
+
+/**
+ * PDF → PNG/JPEG: renders every page to an image via pdfjs. Multi-page
+ * documents produce one image per page (the caller zips them). The
+ * canvas factory is injectable so tests can stub the render surface.
+ */
+export async function pdfToImages(
+  bytes: Uint8Array,
+  format: "png" | "jpeg",
+  deps: { canvasFactory?: () => HTMLCanvasElement; scale?: number } = {}
+): Promise<PdfImageFile[]> {
+  const scale = Math.min(4, Math.max(1, deps.scale ?? 2));
+  const canvasFactory = deps.canvasFactory ?? (() => document.createElement("canvas"));
+  const ext = format === "png" ? "png" : "jpg";
+  const mime = format === "png" ? "image/png" : "image/jpeg";
+  let task;
+  let pdf;
+  try {
+    task = getDocument({
+      data: bytes,
+      disableFontFace: true,
+      useSystemFonts: false,
+      useWorkerFetch: false
+    });
+    pdf = await task.promise;
+    const out: PdfImageFile[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale });
+      const canvas = canvasFactory();
+      canvas.width = Math.max(1, Math.floor(viewport.width));
+      canvas.height = Math.max(1, Math.floor(viewport.height));
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas drawing isn't available in this browser.");
+      await page.render({ canvasContext: ctx, viewport } as never).promise;
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, mime, 0.92);
+      });
+      if (!blob) throw new Error(`This browser couldn't encode page ${i} as ${mime}.`);
+      out.push({
+        bytes: new Uint8Array(await blob.arrayBuffer()),
+        name: `page-${String(i).padStart(2, "0")}.${ext}`
+      });
+    }
+    return out;
+  } catch (err) {
+    if (err instanceof Error && /Could not read this PDF/.test(err.message)) throw err;
+    throw new Error(`Could not render this PDF: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    await task?.destroy().catch(() => {});
+  }
+}
+
+/* Images → PDF ------------------------------------------------------- */
+
+/**
+ * Images → PDF: packs one or several images into a single PDF, one
+ * image per page, fitted to A4 without upscaling. PNG/JPEG embed
+ * directly; other raster formats re-encode to PNG first (injectable for
+ * tests — the browser path uses canvas).
+ */
+export async function imagesToPdf(
+  files: { bytes: Uint8Array; name: string }[],
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<Uint8Array> {
+  if (files.length === 0) throw new Error("Pick at least one image to make a PDF.");
+  const rasterize =
+    deps.rasterize ??
+    (async (b: Uint8Array, name: string) => {
+      const type = detectFromBytes(b, "unknown");
+      if (type === "image-png" || type === "image-jpeg") return b;
+      try {
+        return await convertImage(b, "image-png");
+      } catch {
+        throw new Error(`Couldn't prepare ${name} for the PDF.`);
+      }
+    });
+  const doc = await PDFDocument.create();
+  const maxW = 595.28; // A4 portrait points
+  const maxH = 841.89;
+  for (const file of files) {
+    const ready = await rasterize(file.bytes, file.name);
+    const type = detectFromBytes(ready, "unknown");
+    const image =
+      type === "image-jpeg"
+        ? await doc.embedJpg(ready)
+        : type === "image-png"
+          ? await doc.embedPng(ready)
+          : null;
+    if (!image) throw new Error(`Couldn't embed ${file.name} in the PDF.`);
+    const scale = Math.min(maxW / image.width, maxH / image.height, 1);
+    const w = image.width * scale;
+    const h = image.height * scale;
+    const page = doc.addPage([maxW, maxH]);
+    page.drawImage(image, { x: (maxW - w) / 2, y: (maxH - h) / 2, width: w, height: h });
+  }
+  return doc.save();
+}
+
+/* Text-ish → PDF ----------------------------------------------------- */
+
+/** Plain text → PDF (word-wrapped paragraphs, like the HTML path). */
+export function textToPdf(text: string): Promise<Uint8Array> {
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((p) => `<p>${escapeHtml(p.replace(/\s*\n\s*/g, " ").trim())}</p>`)
+    .join("\n");
+  return htmlToPdf(`<!doctype html>\n<html><head><meta charset="utf-8"></head>\n<body>\n${paragraphs}\n</body>\n</html>`);
+}
+
+/** Markdown → PDF (renders through the HTML path). */
+export async function markdownToPdf(md: string): Promise<Uint8Array> {
+  return htmlToPdf(markdownToHtml(md));
+}
+
+/**
+ * CSV → PDF: renders the rows as an HTML table. The PDF text layout
+ * flattens the table to readable rows (cells separated by spaces).
+ */
+export function csvToPdf(csv: string): Promise<Uint8Array> {
+  const rows = parseCsv(csv);
+  const table = rows
+    .map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`)
+    .join("\n");
+  return htmlToPdf(`<!doctype html>\n<html><head><meta charset="utf-8"></head>\n<body>\n<table>${table}</table>\n</body>\n</html>`);
+}
+
+/** EPUB → PDF (renders the chapters through the HTML path). */
+export async function epubToPdf(bytes: Uint8Array): Promise<Uint8Array> {
+  return htmlToPdf(epubToHtml(bytes));
+}
+
+/** DOCX → PDF (renders the document through the HTML path). */
+export async function docxToPdf(bytes: Uint8Array): Promise<Uint8Array> {
+  return htmlToPdf(await docxToHtml(bytes));
 }
 
 /* DOCX --------------------------------------------------------------- */

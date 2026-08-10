@@ -10,7 +10,7 @@ import type { TargetFormat } from "./matrix";
 
 export interface ZipBatchOutcome {
   zip: Uint8Array;
-  converted: { source: string; output: string; size: number }[];
+  converted: { source: string; output: string; size: number; originalSize: number }[];
   failed: { source: string; error: string }[];
 }
 
@@ -49,7 +49,7 @@ export async function convertBatchToZip(
       );
       const name = uniqueName(result.name, used);
       entries[name] = result.bytes;
-      converted.push({ source: file.name, output: name, size: result.bytes.length });
+      converted.push({ source: file.name, output: name, size: result.bytes.length, originalSize: file.bytes.length });
     } catch (err) {
       failed.push({ source: file.name, error: err instanceof Error ? err.message : String(err) });
     }

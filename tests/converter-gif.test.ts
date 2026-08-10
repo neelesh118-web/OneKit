@@ -38,7 +38,7 @@ describe("converter gif", () => {
   });
 
   it("rejects empty images honestly", () => {
-    expect(() => encodeGif({ width: 0, height: 1, data: new Uint8ClampedArray(0) })).toThrow(/empty image/);
-    expect(() => encodeGif({ width: 2, height: 2, data: new Uint8ClampedArray(4) })).toThrow(/empty image/);
+    expect(() => encodeGif({ width: 0, height: 1, data: new Uint8ClampedArray(0) })).toThrow(/empty image|empty frame/);
+    expect(() => encodeGif({ width: 2, height: 2, data: new Uint8ClampedArray(4) })).toThrow(/empty image|empty frame/);
   });
 });

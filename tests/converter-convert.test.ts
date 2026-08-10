@@ -131,8 +131,12 @@ describe("converter convertFile", () => {
   });
 
   it("throws honestly for unsupported pairs", async () => {
+    // Text → image isn't offered; PDF → Excel isn't offered locally either.
     await expect(
-      convertFile({ bytes: pngHeader, name: "img.png" }, "pdf")
+      convertFile({ bytes: new TextEncoder().encode("hello"), name: "note.txt" }, "image-png")
+    ).rejects.toThrow(/isn't supported locally/);
+    await expect(
+      convertFile({ bytes: await makeTextPdf(), name: "doc.pdf" }, "xlsx")
     ).rejects.toThrow(/isn't supported locally/);
   });
 
@@ -146,7 +150,12 @@ describe("converter convertFile", () => {
     let canvasW = 0;
     let canvasH = 0;
     let blobQuality: number | undefined;
-    const ctx = { drawImage(): void {} };
+    const ctx = {
+      drawImage(): void {},
+      translate(): void {},
+      rotate(): void {},
+      scale(): void {}
+    };
     const deps = {
       canvasFactory: () =>
         ({

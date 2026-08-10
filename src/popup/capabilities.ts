@@ -41,6 +41,8 @@ export interface OneKitCapabilities {
   downloadBytes(bytes: Uint8Array, filename: string): void;
   /** Saves raw bytes as a file with an explicit MIME type (converter output). */
   saveFile(bytes: Uint8Array, filename: string, mime: string): void;
+  /** Saves bytes into a relative Downloads subfolder (converter output folder). */
+  saveFileTo(bytes: Uint8Array, filename: string, folder: string, mime: string): Promise<void>;
   /** All cookies for a URL (browser.cookies.getAll). */
   getCookies(url: string): Promise<CookieLike[]>;
   /** Sets a cookie (browser.cookies.set). Returns the cookie or null. */
