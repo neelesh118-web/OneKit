@@ -41,6 +41,12 @@ export interface ToolToggles {
   autofill: boolean;
   /** Starter dark mode — CSS filter per site with an off-list (default OFF). */
   darkMode: boolean;
+  /** Sticky notes pinned to pages (default OFF — an annotation layer). */
+  webNotes: boolean;
+  /** Right-button drag mouse gestures (default OFF — changes right-click behavior). */
+  mouseGestures: boolean;
+  /** Thin reading-progress bar on article-like pages (default OFF). */
+  readingProgress: boolean;
 }
 
 export interface OneKitSettings {
@@ -74,7 +80,10 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     downloadOrganizer: false,
     wordLookup: false,
     autofill: false,
-    darkMode: false
+    darkMode: false,
+    webNotes: false,
+    mouseGestures: false,
+    readingProgress: false
   },
   textExpanderEnabled: true,
   onboarded: false

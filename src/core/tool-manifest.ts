@@ -337,6 +337,61 @@ export const TOOLS: ToolDef[] = [
     description: "One search box over history, chats, tabs, drafts, clipboard, saved items and tools.",
     toggleKey: "commandPalette",
     settingLabel: "Ctrl+Shift+K unified search palette"
+  },
+  {
+    id: "tabSnooze",
+    name: "Tab snooze",
+    icon: "⏰",
+    tab: "speed",
+    description: "Hide a tab now and reopen it automatically later today, tomorrow, or on a date."
+  },
+  {
+    id: "webNotes",
+    name: "Sticky web notes",
+    icon: "🗒️",
+    tab: "memory",
+    description: "Pin colored notes to any page — they re-appear where you left them on revisit.",
+    toggleKey: "webNotes",
+    settingLabel: "Sticky notes on pages (right-click → Add note)"
+  },
+  {
+    id: "markdown",
+    name: "Copy as Markdown + link extractor",
+    icon: "⬇️",
+    tab: "typing",
+    description: "Copy a selection, link, or tab as Markdown; dump every link on a page as a clean list."
+  },
+  {
+    id: "mouseGestures",
+    name: "Mouse gestures",
+    icon: "🖱️",
+    tab: "speed",
+    description: "Hold the right button and drag: ↑ new tab, ↓ scroll to bottom, ← back, → forward, L close tab, U reload.",
+    toggleKey: "mouseGestures",
+    settingLabel: "Mouse gestures (right-drag; disables right-click drag menu)"
+  },
+  {
+    id: "omnibox",
+    name: "Omnibox commands",
+    icon: "🔎",
+    tab: "settings",
+    description: "Type 'ok' in the address bar to search history, tabs, clipboard and run tools without opening the popup."
+  },
+  {
+    id: "screenshotAnnotate",
+    name: "Screenshot annotate",
+    icon: "✏️",
+    tab: "tools",
+    description: "Capture a page, then draw arrows, boxes and text on it before saving."
+  },
+  {
+    id: "readingProgress",
+    name: "Reading progress bar",
+    icon: "📏",
+    tab: "focus",
+    description: "A thin bar at the top of article-like pages shows how far you are — resume where you left off.",
+    toggleKey: "readingProgress",
+    settingLabel: "Reading progress bar on long pages"
   }
 ];
 

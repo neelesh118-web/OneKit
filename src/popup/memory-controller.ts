@@ -32,6 +32,11 @@ import {
   removeArchiveItem,
   searchArchive
 } from "../core/web-archive";
+import {
+  clearAllNotes,
+  listAllNotes,
+  removeWebNote
+} from "../core/web-notes";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -149,6 +154,50 @@ export function createMemoryController(caps: OneKitCapabilities): () => void {
   });
   archiveClear.addEventListener("click", () => {
     void clearArchive(caps.storage).then(() => void renderArchive());
+  });
+
+  /* Sticky web notes ---------------------------------------------------- */
+  const notesList = $("notes-list");
+  const notesClear = $("notes-clear") as HTMLButtonElement;
+  const notesStatus = $("notes-status");
+
+  async function renderNotes(): Promise<void> {
+    const notes = await listAllNotes(caps.storage);
+    notesList.innerHTML = "";
+    if (notes.length === 0) {
+      notesStatus.textContent =
+        "No notes yet. Turn on Sticky web notes in Settings → Tools, then use the + button on any page (or the right-click menu).";
+      return;
+    }
+    notesStatus.textContent = `${notes.length} note${notes.length === 1 ? "" : "s"} across ${new Set(notes.map((n) => n.origin)).size} site${new Set(notes.map((n) => n.origin)).size === 1 ? "" : "s"} — each stays on its own site.`;
+    for (const note of notes.slice(0, 40)) {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const title = document.createElement("strong");
+      title.className = "result-title";
+      title.textContent = `${note.text.slice(0, 80)}${note.text.length > 80 ? "…" : ""}`;
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `${note.origin.replace(/^https?:\/\//, "")} · ${new Date(note.createdAt).toLocaleString()}`;
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "mini-btn";
+      open.textContent = "Open";
+      open.addEventListener("click", () => void caps.openUrl(note.url));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", () => {
+        void removeWebNote(caps.storage, note.id).then(() => void renderNotes());
+      });
+      row.append(title, meta, open, remove);
+      notesList.appendChild(row);
+    }
+  }
+
+  notesClear.addEventListener("click", () => {
+    void clearAllNotes(caps.storage).then(() => void renderNotes());
   });
 
   const refreshMemory = $("memory-refresh") as HTMLButtonElement;
@@ -367,7 +416,8 @@ export function createMemoryController(caps: OneKitCapabilities): () => void {
       renderHighlights(),
       renderReadLater(),
       renderContactCard(),
-      renderArchive()
+      renderArchive(),
+      renderNotes()
     ]);
     const stats = await historyStats(caps.storage);
     historyCount.textContent = String(stats.count);

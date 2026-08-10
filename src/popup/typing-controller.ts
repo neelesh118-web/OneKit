@@ -7,6 +7,8 @@ import {
   saveSnippet
 } from "../core/snippets";
 import { textStats } from "../core/text-utils";
+import { sortTabsByPosition } from "../core/tab-tools";
+import { tabsToMarkdown } from "../core/markdown";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -93,6 +95,65 @@ export function createTypingController(caps: OneKitCapabilities): () => void {
     counterStats.textContent = counterInput.value
       ? `${stats.words} words · ${stats.chars} characters · ${stats.charsNoSpaces} without spaces · ${stats.lines} lines`
       : "Start typing or paste text to count it.";
+  });
+
+  /* Copy as Markdown ----------------------------------------------------- */
+  const mdActiveTab = $("md-active-tab") as HTMLButtonElement;
+  const mdAllTabs = $("md-all-tabs") as HTMLButtonElement;
+  const mdPageLinks = $("md-page-links") as HTMLButtonElement;
+  const mdStatus = $("md-status");
+
+  function flashCopied(message: string): void {
+    mdStatus.textContent = message;
+    window.setTimeout(() => (mdStatus.textContent = ""), 2500);
+  }
+
+  mdActiveTab.addEventListener("click", () => {
+    void (async () => {
+      const tab = await caps.getActiveTab();
+      if (!tab.url) {
+        mdStatus.textContent = "No normal page open to copy.";
+        return;
+      }
+      const md = tabsToMarkdown([tab]);
+      if (!md) {
+        mdStatus.textContent = "That page can't be copied as Markdown (http/https only).";
+        return;
+      }
+      await caps.copyText(md);
+      flashCopied("Active tab copied as Markdown ✓");
+    })().catch(() => {
+      mdStatus.textContent = "Could not copy.";
+    });
+  });
+
+  mdAllTabs.addEventListener("click", () => {
+    void (async () => {
+      const tabs = sortTabsByPosition(await caps.queryTabs());
+      const md = tabsToMarkdown(tabs);
+      if (!md) {
+        mdStatus.textContent = "No http(s) tabs open to copy.";
+        return;
+      }
+      await caps.copyText(md);
+      flashCopied(`Copied ${tabs.filter((t) => t.url).length} tabs as Markdown ✓`);
+    })().catch(() => {
+      mdStatus.textContent = "Could not copy tabs.";
+    });
+  });
+
+  mdPageLinks.addEventListener("click", () => {
+    void (async () => {
+      const tab = await caps.getActiveTab();
+      if (tab.id === undefined) {
+        mdStatus.textContent = "No page open to read links from.";
+        return;
+      }
+      await caps.sendMessage(tab.id, { type: "ok:copy-all-links" });
+      flashCopied("Asked the page to copy its links — check the toast there.");
+    })().catch(() => {
+      mdStatus.textContent = "Could not reach that page (it may not have OneKit loaded).";
+    });
   });
 
   void renderSnippets();

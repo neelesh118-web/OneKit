@@ -83,6 +83,18 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | 🧩 Side panel | OneKit as a docked side panel (Chrome 114+): the same unified search, a focus-session quick-start, and today's screen time beside your tabs | Side panel button in the toolbar |
 | 📦 Local web archive | Right-click a page to save its full HTML into a searchable local archive (capped at 50 pages, 400 KB each) so you can re-read it even if the site changes or goes offline | Right-click + Popup → Memory |
 
+### Phase 7 (7 features — 47 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| ⏰ Tab snooze | Hide the current tab and reopen it automatically in 15 min, 1 h, 4 h, tomorrow, or a week. The background alarm wakes, reopens due tabs, and parks the rest. Snoozed tabs are listed in Speed with Open now / Cancel | Popup → Speed |
+| 🗒️ Sticky web notes | Pin colored notes to any page at a percentage anchor — they re-appear exactly where you left them on revisit. Double-click to edit, drag to move, + button on the page to add. Notes never leak across sites (keyed by origin) | On-page (toggle in Settings) + Popup → Memory |
+| ⬇️ Copy as Markdown + link extractor | Copy a selection, a link, or the whole page as Markdown; one click dumps every link on a page as a clean bullet list. Made for AI prompts and docs | Right-click + Popup → Typing |
+| 🖱️ Mouse gestures | Hold the right button and drag: ↑ new tab, ↓ scroll to bottom, ← back, → forward, L close tab, U reload. Gesture recognition is deliberately conservative — messy drags never trigger anything | On-page (toggle in Settings) |
+| 🔎 Omnibox commands | Type `ok` + a word in the address bar to search history, tabs and clipboard, then Enter to open or copy — no popup needed | Address bar |
+| ✏️ Screenshot annotate | Capture the visible tab, then draw pens, arrows, boxes and text on it before saving at full resolution | Popup → Tools |
+| 📏 Reading progress bar | A thin bar at the top of article-like pages shows how far you are; returning to the page jumps you back to where you left off (per-URL, local) | On-page (toggle in Settings) |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard
@@ -132,7 +144,7 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 npm install
 npx wxt prepare        # generate WXT types (also runs on build)
 npm run typecheck      # tsc --noEmit
-npm test               # vitest (240 tests)
+npm test               # vitest (270 tests)
 npm run build          # → .output/chrome-mv3/
 npx wxt zip            # → .output/*.zip (store package)
 ```

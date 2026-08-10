@@ -16,6 +16,13 @@ import {
   saveSessionBackup
 } from "../core/session-backup";
 import { tabsToSuspend, thresholdLabel } from "../core/tab-suspender";
+import {
+  clearSnoozedTabs,
+  formatReopenLabel,
+  listSnoozedTabs,
+  snoozeTab,
+  unsnoozeTab
+} from "../core/tab-snooze";
 import { loadSettings, saveSettings } from "../core/settings";
 import type { OneKitCapabilities } from "./capabilities";
 
@@ -175,6 +182,74 @@ export function createSpeedController(caps: OneKitCapabilities): () => void {
     })();
   });
 
+  /* Tab snooze ----------------------------------------------------------- */
+  const snoozeDelay = $("snooze-delay") as HTMLSelectElement;
+  const snoozeBtn = $("snooze-btn") as HTMLButtonElement;
+  const snoozeList = $("snooze-list");
+  const snoozeStatus = $("snooze-status");
+
+  async function renderSnoozes(): Promise<void> {
+    const items = await listSnoozedTabs(caps.storage);
+    snoozeList.innerHTML = "";
+    if (items.length === 0) {
+      snoozeStatus.textContent = "Nothing snoozed — pick a time above and park the current tab.";
+      return;
+    }
+    snoozeStatus.textContent = `${items.length} tab${items.length === 1 ? "" : "s"} parked — they reopen automatically when due.`;
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "result-row";
+      const left = document.createElement("div");
+      const title = document.createElement("strong");
+      title.className = "result-title";
+      title.textContent = item.title;
+      title.title = item.url;
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `reopens ${formatReopenLabel(item.reopenAt, caps.now())} · ${item.url}`;
+      left.append(title, meta);
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "mini-btn";
+      open.textContent = "Open now";
+      open.addEventListener("click", () => {
+        void caps.openUrl(item.url).then(() => void unsnoozeTab(caps.storage, item.id)).then(() => void renderSnoozes());
+      });
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Cancel";
+      remove.addEventListener("click", () => {
+        void unsnoozeTab(caps.storage, item.id).then(() => void renderSnoozes());
+      });
+      row.append(left, open, remove);
+      snoozeList.appendChild(row);
+    }
+  }
+
+  snoozeBtn.addEventListener("click", () => {
+    void (async () => {
+      const tab = await caps.getActiveTab();
+      if (tab.id === undefined || !tab.url) {
+        snoozeStatus.textContent = "Nothing to snooze — open a normal page first.";
+        return;
+      }
+      const minutes = Number(snoozeDelay.value) || 1440;
+      const record = await snoozeTab(
+        caps.storage,
+        { url: tab.url, title: tab.title ?? tab.url, reopenAt: caps.now() + minutes * 60 * 1000 },
+        caps.now()
+      );
+      if (!record) {
+        snoozeStatus.textContent = "That page can't be snoozed (only http/https tabs).";
+        return;
+      }
+      await caps.closeTabs([tab.id]);
+      snoozeStatus.textContent = `Parked for ${minutes} min — it reopens automatically.`;
+      await renderSnoozes();
+    })();
+  });
+
   /* Auto tab grouping --------------------------------------------------- */
   const groupBtn = $("group-tabs-btn") as HTMLButtonElement;
   const groupStatus = $("group-tabs-status");
@@ -284,5 +359,6 @@ export function createSpeedController(caps: OneKitCapabilities): () => void {
   void renderWorkspaces();
   void renderBackup();
   void renderSuspender();
+  void renderSnoozes();
   return () => {};
 }

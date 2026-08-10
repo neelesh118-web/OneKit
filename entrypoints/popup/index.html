@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>40 tools · 100% local · free forever</span>
+          <span>47 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -117,6 +117,18 @@
           <div class="btn-row">
             <button id="archive-clear" type="button" class="mini-btn danger">Clear archive</button>
           </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗒️ Sticky web notes</span>
+          </div>
+          <p class="hint">Notes pinned to pages (turn on in Settings → Tools, then right-click a page → OneKit → or use the + button on the page). Listed here for editing and deleting.</p>
+          <div id="notes-list" class="results"></div>
+          <div class="btn-row">
+            <button id="notes-clear" type="button" class="mini-btn danger">Clear all notes</button>
+          </div>
+          <p id="notes-status" class="status"></p>
         </div>
       </section>
 
@@ -311,6 +323,25 @@
           </div>
           <p id="suspender-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏰ Tab snooze</span>
+          </div>
+          <p class="hint">Hide the current tab now and reopen it automatically later. Pick a time below, then it's parked until then.</p>
+          <div class="btn-row">
+            <select id="snooze-delay">
+              <option value="15">In 15 minutes</option>
+              <option value="60">In 1 hour</option>
+              <option value="240">In 4 hours</option>
+              <option value="1440" selected>Tomorrow (same time)</option>
+              <option value="10080">In 1 week</option>
+            </select>
+            <button id="snooze-btn" type="button" class="mini-btn">Snooze current tab</button>
+          </div>
+          <div id="snooze-list" class="results"></div>
+          <p id="snooze-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -426,6 +457,19 @@
           <textarea id="counter-input" rows="3" placeholder="Paste or type text to count…"></textarea>
           <p id="counter-stats" class="status">Start typing or paste text to count it.</p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⬇️ Copy as Markdown</span>
+          </div>
+          <p class="hint">Turn tabs, pages and selections into Markdown — great for AI prompts and docs. Also on right-click.</p>
+          <div class="btn-row">
+            <button id="md-active-tab" type="button" class="mini-btn">Copy active tab as Markdown</button>
+            <button id="md-all-tabs" type="button" class="mini-btn">Copy all tabs as Markdown</button>
+            <button id="md-page-links" type="button" class="mini-btn">Copy all links on active page</button>
+          </div>
+          <p id="md-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -526,6 +570,17 @@
           </div>
           <div id="bookmarks-results" class="results"></div>
           <p id="bookmarks-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">✏️ Screenshot annotate</span>
+          </div>
+          <p class="hint">Capture the visible tab, then draw arrows, boxes and text on it before saving. All on-device.</p>
+          <div class="btn-row">
+            <button id="annotate-capture" type="button" class="mini-btn">Capture &amp; annotate</button>
+          </div>
+          <p id="annotate-status" class="status"></p>
         </div>
       </section>
 

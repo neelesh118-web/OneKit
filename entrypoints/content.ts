@@ -79,6 +79,32 @@ import {
 } from "../src/core/dark-mode";
 import { saveArchiveItem, localStorageArchive } from "../src/core/web-archive";
 import { planCaptureFrames } from "../src/core/fullpage-screenshot";
+import {
+  addWebNote,
+  listNotesForOrigin,
+  removeWebNote,
+  updateWebNote,
+  localStorageWebNotes
+} from "../src/core/web-notes";
+import {
+  pathLength,
+  recognizeGesture,
+  type GestureId,
+  type Point
+} from "../src/core/mouse-gestures";
+import {
+  isArticleLike,
+  progressPercent,
+  readProgress,
+  saveProgress,
+  localStorageReadingProgress
+} from "../src/core/reading-progress";
+import {
+  extractLinks,
+  linkToMarkdown,
+  linksToMarkdown,
+  selectionToMarkdown
+} from "../src/core/markdown";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -1136,6 +1162,40 @@ browser.runtime.onMessage.addListener(
     });
     return;
   }
+  if (msg.type === "ok:copy-selection-md") {
+    const md = selectionToMarkdown(msg.text ?? "");
+    void copyToClipboard(md).then(() => showToast("Copied as Markdown ✓", "ok"));
+    return;
+  }
+  if (msg.type === "ok:copy-link-md") {
+    const md = linkToMarkdown(msg.text ?? "", msg.url ?? "");
+    void copyToClipboard(md).then(() => showToast("Copied link as Markdown ✓", "ok"));
+    return;
+  }
+  if (msg.type === "ok:copy-page-md") {
+    const md = linkToMarkdown(msg.text ?? document.title, msg.url ?? window.location.href);
+    void copyToClipboard(md).then(() => showToast("Copied page as Markdown ✓", "ok"));
+    return;
+  }
+  if (msg.type === "ok:copy-all-links") {
+    const anchors = [...document.querySelectorAll<HTMLAnchorElement>("a[href]")].map((a) => ({
+      href: a.href,
+      text: a.textContent ?? ""
+    }));
+    const links = extractLinks(anchors);
+    if (links.length === 0) {
+      showToast("No links found on this page.", "info");
+      return;
+    }
+    void copyToClipboard(linksToMarkdown(links)).then(() => {
+      showToast(`Copied ${links.length} links as Markdown ✓`, "ok");
+    });
+    return;
+  }
+  if (msg.type === "ok:add-note") {
+    void renderNotes();
+    return;
+  }
   }
 );
 
@@ -1153,6 +1213,282 @@ async function copyToClipboard(text: string): Promise<void> {
     document.execCommand("copy");
     ta.remove();
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sticky web notes — notes pinned to this page                       */
+/* ------------------------------------------------------------------ */
+
+const NOTES_HOST_ID = "onekit-notes-host";
+const NOTE_STYLE_ID = "onekit-notes-style";
+let notesHost: HTMLElement | null = null;
+
+function noteStyle(): HTMLStyleElement {
+  let style = document.getElementById(NOTE_STYLE_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement("style");
+    style.id = NOTE_STYLE_ID;
+    style.textContent = `
+#onekit-notes-host { position: fixed; inset: 0; pointer-events: none; z-index: 2147483646; }
+.onekit-note {
+  position: fixed; pointer-events: auto; max-width: 220px; min-width: 140px;
+  border-radius: 8px; padding: 8px 10px; font: 13px/1.4 system-ui, sans-serif;
+  color: #1f2937; box-shadow: 0 4px 16px rgba(0,0,0,.25); cursor: move;
+}
+.onekit-note[data-color="yellow"] { background: #fef08a; border: 1px solid #eab308; }
+.onekit-note[data-color="green"] { background: #bbf7d0; border: 1px solid #22c55e; }
+.onekit-note[data-color="blue"] { background: #bfdbfe; border: 1px solid #3b82f6; }
+.onekit-note[data-color="pink"] { background: #fbcfe8; border: 1px solid #ec4899; }
+.onekit-note[data-color="orange"] { background: #fed7aa; border: 1px solid #f97316; }
+.onekit-note .onekit-note-text { white-space: pre-wrap; word-break: break-word; }
+.onekit-note .onekit-note-x { float: right; border: none; background: none; cursor: pointer; color: #6b7280; font-size: 12px; padding: 0 2px; }
+.onekit-note textarea { width: 100%; border: none; background: transparent; resize: none; font: inherit; color: inherit; outline: none; min-height: 48px; }
+.onekit-note .onekit-note-colors { display: flex; gap: 4px; margin-top: 4px; }
+.onekit-note .onekit-note-colors span { width: 14px; height: 14px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0,0,0,.2); }
+.onekit-note-add {
+  position: fixed; right: 14px; bottom: 14px; pointer-events: auto;
+  width: 40px; height: 40px; border-radius: 50%; border: none; background: #4f46e5;
+  color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.35); z-index: 2147483646;
+}
+`;
+    document.documentElement.appendChild(style);
+  }
+  return style;
+}
+
+async function currentOrigin(): Promise<string> {
+  return window.location.origin;
+}
+
+async function renderNotes(): Promise<void> {
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  const settings = await loadSettings();
+  if (!settings.tools.webNotes) return;
+  noteStyle();
+  if (!notesHost) {
+    notesHost = document.createElement("div");
+    notesHost.id = NOTES_HOST_ID;
+    document.documentElement.appendChild(notesHost);
+  }
+  notesHost.innerHTML = "";
+  const notes = await listNotesForOrigin(localStorageWebNotes(), await currentOrigin());
+  for (const note of notes) {
+    const el = document.createElement("div");
+    el.className = "onekit-note";
+    el.dataset.color = note.color;
+    el.dataset.id = note.id;
+    el.style.left = `${note.xPct}%`;
+    el.style.top = `${note.yPct}%`;
+    const close = document.createElement("button");
+    close.className = "onekit-note-x";
+    close.textContent = "✕";
+    close.title = "Delete note";
+    close.addEventListener("click", (event) => {
+      event.stopPropagation();
+      void removeWebNote(localStorageWebNotes(), note.id).then(() => void renderNotes());
+    });
+    const text = document.createElement("div");
+    text.className = "onekit-note-text";
+    text.textContent = note.text;
+    text.addEventListener("dblclick", () => {
+      // Double-click to edit inline.
+      const textarea = document.createElement("textarea");
+      textarea.value = note.text;
+      textarea.addEventListener("blur", () => {
+        void updateWebNote(localStorageWebNotes(), note.id, { text: textarea.value }).then(() => void renderNotes());
+      });
+      text.replaceWith(textarea);
+      textarea.focus();
+    });
+    el.append(close, text);
+    notesHost.appendChild(el);
+    makeNoteDraggable(el, note.id);
+  }
+
+  if (notesHost.querySelector(".onekit-note-add")) return;
+  const add = document.createElement("button");
+  add.className = "onekit-note-add";
+  add.textContent = "+";
+  add.title = "OneKit — add a sticky note at the center of the screen";
+  add.addEventListener("click", () => {
+    void (async () => {
+      const note = await addWebNote(
+        localStorageWebNotes(),
+        {
+          origin: await currentOrigin(),
+          url: window.location.href,
+          text: "New note — double-click to edit.",
+          color: "yellow",
+          xPct: 50,
+          yPct: Math.round((window.scrollY / Math.max(1, document.documentElement.scrollHeight)) * 100)
+        },
+        Date.now()
+      );
+      if (note) await renderNotes();
+    })();
+  });
+  notesHost.appendChild(add);
+}
+
+function makeNoteDraggable(el: HTMLElement, id: string): void {
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  el.addEventListener("pointerdown", (event) => {
+    if ((event.target as HTMLElement).closest("textarea,button")) return;
+    dragging = true;
+    startX = event.clientX - el.getBoundingClientRect().left;
+    startY = event.clientY - el.getBoundingClientRect().top;
+    event.preventDefault();
+  });
+  el.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    el.style.left = `${event.clientX - startX}px`;
+    el.style.top = `${event.clientY - startY}px`;
+  });
+  el.addEventListener("pointerup", () => {
+    if (!dragging) return;
+    dragging = false;
+    const rect = el.getBoundingClientRect();
+    void updateWebNote(
+      localStorageWebNotes(),
+      id,
+      {
+        xPct: Math.max(0, Math.min(100, Math.round((rect.left / window.innerWidth) * 100))),
+        yPct: Math.max(0, Math.min(100, Math.round(((rect.top + window.scrollY) / Math.max(1, document.documentElement.scrollHeight)) * 100)))
+      }
+    );
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Mouse gestures — right-drag shapes                                 */
+/* ------------------------------------------------------------------ */
+
+let gesturePoints: Point[] = [];
+let gestureTracking = false;
+let gestureDrew = false;
+
+const GESTURE_ACTIONS: Record<GestureId, (() => void) | null> = {
+  up: () => {
+    void browser.runtime.sendMessage({ type: "ok:gesture-new-tab" });
+  },
+  down: () => {
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+  },
+  left: () => {
+    window.history.back();
+  },
+  right: () => {
+    window.history.forward();
+  },
+  L: () => {
+    void browser.runtime.sendMessage({ type: "ok:gesture-close-tab" });
+  },
+  U: () => {
+    void browser.runtime.sendMessage({ type: "ok:gesture-reload" });
+  },
+  none: null
+};
+
+function onGesturePointerDown(event: PointerEvent): void {
+  if (event.button !== 2) return;
+  gestureTracking = true;
+  gestureDrew = false;
+  gesturePoints = [{ x: event.clientX, y: event.clientY }];
+}
+
+function onGesturePointerMove(event: PointerEvent): void {
+  if (!gestureTracking) return;
+  const last = gesturePoints[gesturePoints.length - 1]!;
+  if (Math.abs(event.clientX - last.x) + Math.abs(event.clientY - last.y) < 3) return;
+  gesturePoints.push({ x: event.clientX, y: event.clientY });
+  if (pathLength(gesturePoints) > 24) gestureDrew = true;
+}
+
+function onGesturePointerUp(event: PointerEvent): void {
+  if (!gestureTracking) return;
+  gestureTracking = false;
+  if (event.button !== 2) return;
+  if (!gestureDrew) return;
+  const gesture = recognizeGesture(gesturePoints);
+  gesturePoints = [];
+  const action = GESTURE_ACTIONS[gesture];
+  if (action) {
+    event.preventDefault();
+    action();
+    showToast(`Gesture: ${gesture}`, "info");
+  }
+}
+
+function onGestureContextMenu(event: MouseEvent): void {
+  // A drawn gesture must never open the context menu.
+  if (gestureDrew) event.preventDefault();
+}
+
+async function startMouseGestures(): Promise<void> {
+  const settings = await loadSettings();
+  if (!settings.tools.mouseGestures) return;
+  document.addEventListener("pointerdown", onGesturePointerDown, true);
+  document.addEventListener("pointermove", onGesturePointerMove, true);
+  document.addEventListener("pointerup", onGesturePointerUp, true);
+  document.addEventListener("contextmenu", onGestureContextMenu, true);
+}
+
+/* ------------------------------------------------------------------ */
+/* Reading progress bar — thin bar on article-like pages              */
+/* ------------------------------------------------------------------ */
+
+const PROGRESS_BAR_ID = "onekit-progress-bar";
+let progressBar: HTMLElement | null = null;
+let progressSaveTimer: number | undefined;
+
+async function updateProgressBar(): Promise<void> {
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  const settings = await loadSettings();
+  const el = document.getElementById(PROGRESS_BAR_ID);
+  if (!settings.tools.readingProgress) {
+    el?.remove();
+    progressBar = null;
+    return;
+  }
+  const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+  const clientHeight = window.innerHeight;
+  const paragraphs = document.querySelectorAll("p").length;
+  const textLength = (document.body?.innerText ?? "").length;
+  if (!isArticleLike({ textLength, paragraphCount: paragraphs, scrollHeight, clientHeight })) {
+    el?.remove();
+    progressBar = null;
+    return;
+  }
+  if (!el) {
+    const bar = document.createElement("div");
+    bar.id = PROGRESS_BAR_ID;
+    bar.style.cssText =
+      "position:fixed;top:0;left:0;height:3px;width:0;background:#4f46e5;z-index:2147483646;transition:width .2s ease;pointer-events:none;";
+    document.documentElement.appendChild(bar);
+    progressBar = bar;
+  }
+  const pct = progressPercent(window.scrollY, scrollHeight, clientHeight);
+  if (progressBar) progressBar.style.width = `${pct}%`;
+  if (progressSaveTimer !== undefined) window.clearTimeout(progressSaveTimer);
+  progressSaveTimer = window.setTimeout(() => {
+    void saveProgress(localStorageReadingProgress(), window.location.href, pct).catch(() => {
+      // Best-effort.
+    });
+  }, 800);
+}
+
+async function resumeSavedProgress(): Promise<void> {
+  if (!/^https?:$/.test(window.location.protocol)) return;
+  const settings = await loadSettings();
+  if (!settings.tools.readingProgress) return;
+  const record = await readProgress(localStorageReadingProgress(), window.location.href);
+  if (!record || record.pct < 5 || record.pct > 98) return;
+  const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 0;
+  const target = (scrollHeight - window.innerHeight) * (record.pct / 100);
+  window.scrollTo({ top: target });
+  showToast(`Resumed where you left off (${record.pct}%).`, "info");
 }
 
 /* ------------------------------------------------------------------ */
@@ -1245,6 +1581,18 @@ function boot(): void {
         // Best-effort.
       });
     }
+    if (changes["ok.settings"] || changes["ok.webNotes"]) {
+      notesHost?.remove();
+      notesHost = null;
+      void renderNotes().catch(() => {
+        // Best-effort.
+      });
+    }
+    if (changes["ok.settings"]) {
+      void updateProgressBar().catch(() => {
+        // Best-effort.
+      });
+    }
   });
 
   // Screen-time tracking (local per-site active time).
@@ -1254,6 +1602,25 @@ function boot(): void {
 
   // Distraction blocker — checks now and on every visibility return.
   startFocusBlocker();
+
+  // Sticky web notes layer.
+  void renderNotes().catch(() => {
+    // Best-effort.
+  });
+
+  // Mouse gestures (right-drag shapes).
+  void startMouseGestures().catch(() => {
+    // Best-effort.
+  });
+
+  // Reading progress bar + resume.
+  document.addEventListener("scroll", () => void updateProgressBar(), { passive: true });
+  void updateProgressBar().catch(() => {
+    // Best-effort.
+  });
+  void resumeSavedProgress().catch(() => {
+    // Best-effort.
+  });
 }
 
 export default defineContentScript({

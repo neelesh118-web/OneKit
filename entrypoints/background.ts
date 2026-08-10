@@ -11,6 +11,13 @@ import {
   routedFilename
 } from "../src/core/downloads";
 import { planTabGroups } from "../src/core/tab-grouping";
+import {
+  dueSnoozedTabs,
+  localStorageSnooze,
+  unsnoozeTab
+} from "../src/core/tab-snooze";
+import { localStorageHistory, searchHistory } from "../src/core/history-store";
+import { listClipboard, localStorageClipboard } from "../src/core/clipboard-store";
 
 /**
  * OneKit background — owns right-click quick actions, install-time defaults,
@@ -29,6 +36,12 @@ const ARCHIVE_PAGE_MENU_ID = "onekit-archive-page";
 
 const SESSION_BACKUP_ALARM = "ok-session-backup";
 const TAB_SUSPENDER_ALARM = "ok-tab-suspender";
+const TAB_SNOOZE_ALARM = "ok-tab-snooze";
+
+const COPY_SELECTION_MD_MENU_ID = "onekit-copy-selection-md";
+const COPY_LINK_MD_MENU_ID = "onekit-copy-link-md";
+const COPY_PAGE_MD_MENU_ID = "onekit-copy-page-md";
+const COPY_LINKS_MENU_ID = "onekit-copy-all-links";
 
 export default defineBackground(() => {
   /* Install / update -------------------------------------------------- */
@@ -88,6 +101,26 @@ export default defineBackground(() => {
         title: "OneKit — Save page to local archive",
         contexts: ["page"]
       });
+      browser.contextMenus.create({
+        id: COPY_SELECTION_MD_MENU_ID,
+        title: "OneKit — Copy selection as Markdown",
+        contexts: ["selection"]
+      });
+      browser.contextMenus.create({
+        id: COPY_LINK_MD_MENU_ID,
+        title: "OneKit — Copy link as Markdown",
+        contexts: ["link"]
+      });
+      browser.contextMenus.create({
+        id: COPY_PAGE_MD_MENU_ID,
+        title: "OneKit — Copy page as Markdown link",
+        contexts: ["page"]
+      });
+      browser.contextMenus.create({
+        id: COPY_LINKS_MENU_ID,
+        title: "OneKit — Copy all links on page as Markdown",
+        contexts: ["page"]
+      });
     } catch {
       // Menus unavailable — the popup tools still cover everything.
     }
@@ -97,8 +130,65 @@ export default defineBackground(() => {
     try {
       await browser.alarms.create(SESSION_BACKUP_ALARM, { periodInMinutes: 15 });
       await browser.alarms.create(TAB_SUSPENDER_ALARM, { periodInMinutes: 5 });
+      await browser.alarms.create(TAB_SNOOZE_ALARM, { periodInMinutes: 1 });
     } catch {
       // Alarms unavailable in this environment.
+    }
+
+    // Omnibox commands: type "ok" + query to search/act without the popup.
+    try {
+      browser.omnibox.setDefaultSuggestion({ description: "OneKit: search history, tabs, clipboard — then open or copy" });
+      browser.omnibox.onInputChanged.addListener((text, suggest) => {
+        void (async () => {
+          const q = text.trim();
+          if (!q) {
+            suggest([]);
+            return;
+          }
+          const suggestions: Array<{ content: string; description: string }> = [];
+          const seen = new Set<string>();
+          const push = (content: string, description: string): void => {
+            if (seen.has(content) || suggestions.length >= 7) return;
+            seen.add(content);
+            suggestions.push({ content, description });
+          };
+          for (const entry of (await searchHistory(localStorageHistory(), q)).slice(0, 4)) {
+            push(entry.url, `📄 ${entry.title} — ${entry.url}`);
+          }
+          for (const tab of filterTabs((await browser.tabs.query({})) as TabLike[], q).slice(0, 4)) {
+            if (tab.url) push(tab.url, `🗂 ${tab.title ?? tab.url} — ${tab.url}`);
+          }
+          for (const clip of (await listClipboard(localStorageClipboard())).slice(0, 4)) {
+            if (clip.text.toLowerCase().includes(q.toLowerCase())) {
+              push(`copy:${clip.text.slice(0, 500)}`, `📋 ${clip.text.slice(0, 60)}`);
+            }
+          }
+          suggest(suggestions);
+        })().catch(() => suggest([]));
+      });
+      browser.omnibox.onInputEntered.addListener((text, disposition) => {
+        void (async () => {
+          const value = text.trim();
+          if (!value) return;
+          const open = (url: string): void => {
+            if (disposition === "currentTab") void browser.tabs.update({ url });
+            else void browser.tabs.create({ url, active: disposition === "newForegroundTab" });
+          };
+          if (value.startsWith("copy:")) {
+            await navigator.clipboard.writeText(value.slice(5));
+            return;
+          }
+          if (/^https?:\/\//.test(value)) {
+            open(value);
+          } else {
+            open(`https://www.google.com/search?q=${encodeURIComponent(value)}`);
+          }
+        })().catch(() => {
+          // Best-effort.
+        });
+      });
+    } catch {
+      // Omnibox unavailable in this environment.
     }
   });
 
@@ -190,6 +280,25 @@ export default defineBackground(() => {
           }
         })();
       }
+      if (msg.type === "ok:gesture-new-tab") {
+        return (async () => {
+          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+          await browser.tabs.create({ active: true });
+          void tab;
+        })();
+      }
+      if (msg.type === "ok:gesture-close-tab") {
+        return (async () => {
+          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id !== undefined) await browser.tabs.remove(tab.id);
+        })();
+      }
+      if (msg.type === "ok:gesture-reload") {
+        return (async () => {
+          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+          if (tab?.id !== undefined) await browser.tabs.reload(tab.id);
+        })();
+      }
       if (msg.type === "ok:group-tabs") {
         return (async () => {
           try {
@@ -265,6 +374,33 @@ export default defineBackground(() => {
       } else if (info.menuItemId === ARCHIVE_PAGE_MENU_ID) {
         if (tabId !== undefined) {
           await sendToTab(tabId, { type: "ok:archive-page" });
+        }
+      } else if (info.menuItemId === COPY_SELECTION_MD_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, {
+            type: "ok:copy-selection-md",
+            text: info.selectionText ?? ""
+          });
+        }
+      } else if (info.menuItemId === COPY_LINK_MD_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, {
+            type: "ok:copy-link-md",
+            url: info.linkUrl ?? "",
+            text: (info.selectionText ?? "") || (tab?.title ?? "")
+          });
+        }
+      } else if (info.menuItemId === COPY_PAGE_MD_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, {
+            type: "ok:copy-page-md",
+            url: info.pageUrl ?? "",
+            text: tab?.title ?? ""
+          });
+        }
+      } else if (info.menuItemId === COPY_LINKS_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, { type: "ok:copy-all-links" });
         }
       }
     });
@@ -360,11 +496,26 @@ export default defineBackground(() => {
     // Downloads API unavailable.
   }
 
+  /* Tab snooze — reopen due tabs ----------------------------------------- */
+  async function reopenDueSnoozes(): Promise<void> {
+    try {
+      const storage = localStorageSnooze();
+      const due = await dueSnoozedTabs(storage, Date.now());
+      for (const tab of due) {
+        await browser.tabs.create({ url: tab.url, active: false });
+        await unsnoozeTab(storage, tab.id);
+      }
+    } catch {
+      // Best-effort: a failed reopen never breaks anything.
+    }
+  }
+
   /* Alarm-driven background jobs --------------------------------------- */
   try {
     browser.alarms.onAlarm.addListener((alarm) => {
       if (alarm.name === SESSION_BACKUP_ALARM) void snapshotTabs();
       else if (alarm.name === TAB_SUSPENDER_ALARM) void suspendIdleTabs();
+      else if (alarm.name === TAB_SNOOZE_ALARM) void reopenDueSnoozes();
     });
   } catch {
     // No alarms in this environment.

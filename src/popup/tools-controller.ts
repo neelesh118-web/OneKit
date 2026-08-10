@@ -276,7 +276,230 @@ export function createToolsController(caps: OneKitCapabilities): () => void {
     });
   });
 
-  /* Bookmark cleaner ---------------------------------------------------- */
+  /* Screenshot annotate -------------------------------------------------- */
+  const annotateCapture = $("annotate-capture") as HTMLButtonElement;
+  const annotateStatus = $("annotate-status");
+
+  annotateCapture.addEventListener("click", () => {
+    void (async () => {
+      annotateStatus.textContent = "Capturing…";
+      const dataUrl = await caps.captureVisibleTab();
+      await openAnnotator(dataUrl, caps);
+      annotateStatus.textContent = "Annotator opened — draw, then save.";
+    })().catch(() => {
+      annotateStatus.textContent = "Could not capture — try again on a normal web page.";
+    });
+  });
+
+/**
+ * A small in-popup canvas editor for annotating a captured screenshot.
+ * Tools: pen, arrow, rect, text. Saves at the image's full resolution — the
+ * canvas is the natural size, only the CSS display is scaled down to fit.
+ */
+async function openAnnotator(dataUrl: string, caps: OneKitCapabilities): Promise<void> {
+  const img = await loadImage(dataUrl);
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.drawImage(img, 0, 0);
+
+  let tool: "pen" | "arrow" | "rect" | "text" = "pen";
+  let drawing = false;
+  let originX = 0;
+  let originY = 0;
+  let lastX = 0;
+  let lastY = 0;
+  const history: ImageData[] = [];
+  const MAX_HISTORY = 10;
+
+  const overlay = document.createElement("div");
+  overlay.style.cssText = [
+    "position:fixed",
+    "inset:0",
+    "z-index:2147483647",
+    "background:rgba(15,23,42,.92)",
+    "display:flex",
+    "flex-direction:column",
+    "align-items:center",
+    "padding:14px",
+    "overflow:auto"
+  ].join(";");
+
+  const toolbar = document.createElement("div");
+  toolbar.style.cssText = [
+    "display:flex",
+    "gap:6px",
+    "flex-wrap:wrap",
+    "margin-bottom:10px",
+    "align-items:center"
+  ].join(";");
+
+  const makeBtn = (label: string, active = false): HTMLButtonElement => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = label;
+    btn.style.cssText = [
+      "padding:6px 10px",
+      "border-radius:7px",
+      "border:1px solid #64748b",
+      "background:#1e293b",
+      "color:#e2e8f0",
+      "cursor:pointer",
+      "font:600 12px/1 system-ui,sans-serif"
+    ].join(";");
+    if (active) btn.style.borderColor = "#4f46e5";
+    return btn;
+  };
+
+  const penBtn = makeBtn("✏️ Pen", true);
+  const arrowBtn = makeBtn("➡️ Arrow");
+  const rectBtn = makeBtn("▭ Box");
+  const textBtn = makeBtn("🔤 Text");
+  const textInput = document.createElement("input");
+  textInput.type = "text";
+  textInput.placeholder = "Text to place…";
+  textInput.style.cssText = "padding:6px 8px;border-radius:7px;border:1px solid #64748b;background:#0f172a;color:#e2e8f0;width:150px";
+  const undoBtn = makeBtn("↩ Undo");
+  const clearBtn = makeBtn("🗑 Clear");
+  const saveBtn = makeBtn("💾 Save");
+  const closeBtn = makeBtn("✕ Close");
+
+  const selectTool = (next: "pen" | "arrow" | "rect" | "text"): void => {
+    tool = next;
+    for (const [btn, t] of [[penBtn, "pen"], [arrowBtn, "arrow"], [rectBtn, "rect"], [textBtn, "text"]] as const) {
+      btn.style.borderColor = t === tool ? "#4f46e5" : "#64748b";
+    }
+  };
+
+  penBtn.addEventListener("click", () => selectTool("pen"));
+  arrowBtn.addEventListener("click", () => selectTool("arrow"));
+  rectBtn.addEventListener("click", () => selectTool("rect"));
+  textBtn.addEventListener("click", () => selectTool("text"));
+
+  const snapshot = (): void => {
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    history.push(data);
+    if (history.length > MAX_HISTORY) history.shift();
+  };
+
+  undoBtn.addEventListener("click", () => {
+    const previous = history.pop();
+    if (previous) ctx.putImageData(previous, 0, 0);
+  });
+
+  clearBtn.addEventListener("click", () => {
+    snapshot();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+  });
+
+  saveBtn.addEventListener("click", () => {
+    const filename = `onekit-annotated-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.png`;
+    caps.downloadDataUrl(canvas.toDataURL("image/png"), filename);
+    overlay.remove();
+  });
+
+  closeBtn.addEventListener("click", () => overlay.remove());
+
+  toolbar.append(penBtn, arrowBtn, rectBtn, textBtn, textInput, undoBtn, clearBtn, saveBtn, closeBtn);
+
+  canvas.style.cssText = [
+    "max-width:100%",
+    "max-height:62vh",
+    "border-radius:8px",
+    "box-shadow:0 12px 40px rgba(0,0,0,.5)",
+    "background:#0f172a",
+    "cursor:crosshair"
+  ].join(";");
+
+  // Map CSS-displayed coordinates back to canvas (device) pixels.
+  const toCanvas = (e: PointerEvent): { x: number; y: number } => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height
+    };
+  };
+
+  canvas.addEventListener("pointerdown", (e) => {
+    const p = toCanvas(e);
+    drawing = true;
+    originX = p.x;
+    originY = p.y;
+    lastX = p.x;
+    lastY = p.y;
+    if (tool === "text") {
+      const text = textInput.value.trim();
+      if (!text) {
+        drawing = false;
+        return;
+      }
+      snapshot();
+      ctx.font = `${Math.max(14, Math.round(canvas.width / 60))}px system-ui, sans-serif`;
+      ctx.fillStyle = "#ef4444";
+      ctx.fillText(text, p.x, p.y);
+      drawing = false;
+    } else if (tool === "arrow" || tool === "rect") {
+      // One snapshot per shape — undo restores the pre-shape state.
+      snapshot();
+    }
+    canvas.setPointerCapture(e.pointerId);
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!drawing) return;
+    const p = toCanvas(e);
+    if (tool === "pen") {
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = Math.max(2, Math.round(canvas.width / 400));
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    } else if (tool === "arrow" || tool === "rect") {
+      // Live preview: restore the pre-shape snapshot, then redraw.
+      const previous = history[history.length - 1];
+      if (previous) ctx.putImageData(previous, 0, 0);
+      ctx.strokeStyle = "#ef4444";
+      ctx.lineWidth = Math.max(2, Math.round(canvas.width / 400));
+      if (tool === "rect") {
+        ctx.strokeRect(originX, originY, p.x - originX, p.y - originY);
+      } else {
+        drawArrow(ctx, originX, originY, p.x, p.y);
+      }
+    }
+    lastX = p.x;
+    lastY = p.y;
+  });
+
+  const stopDrawing = (): void => {
+    drawing = false;
+  };
+  canvas.addEventListener("pointerup", stopDrawing);
+  canvas.addEventListener("pointercancel", stopDrawing);
+
+  overlay.append(toolbar, canvas);
+  document.body.appendChild(overlay);
+}
+
+function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const head = Math.max(10, Math.hypot(x2 - x1, y2 - y1) * 0.12);
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 7), y2 - head * Math.sin(angle - Math.PI / 7));
+  ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 7), y2 - head * Math.sin(angle + Math.PI / 7));
+  ctx.closePath();
+  ctx.fillStyle = "#ef4444";
+  ctx.fill();
+}
   const bookmarksScan = $("bookmarks-scan") as HTMLButtonElement;
   const bookmarksRemove = $("bookmarks-remove") as HTMLButtonElement;
   const bookmarksResults = $("bookmarks-results");
