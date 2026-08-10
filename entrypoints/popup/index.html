@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OneKit</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <div class="brand">
+          <strong>OneKit</strong>
+          <span>25 tools · 100% local · free forever</span>
+        </div>
+      </header>
+
+      <nav class="tab-nav" aria-label="OneKit tools">
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory</button>
+        <button type="button" class="tab-btn" data-tab="vault">💬 Vault</button>
+        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety</button>
+        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed</button>
+        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus</button>
+        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing</button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools</button>
+        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings</button>
+      </nav>
+
+      <!-- ============================================================ -->
+      <!-- Memory                                                        -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-memory">
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔎 Full-text history search</span>
+            <span class="tool-count" id="history-count">—</span>
+          </div>
+          <p class="hint">Find any page you've visited by a word you remember from it. Indexed locally.</p>
+          <input id="history-search" type="search" placeholder="Search pages you've seen…" autocomplete="off" />
+          <div id="history-results" class="results"></div>
+          <p id="history-status" class="status">Type a word or phrase you remember from a page.</p>
+          <div class="btn-row">
+            <button id="memory-refresh" type="button" class="mini-btn">Refresh</button>
+            <button id="history-clear" type="button" class="mini-btn danger">Clear history</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📋 Clipboard history</span>
+          </div>
+          <p class="hint">Text you copy is remembered here (last 50). Nothing is uploaded.</p>
+          <div id="clipboard-list" class="results"></div>
+          <div class="btn-row">
+            <button id="clipboard-clear" type="button" class="mini-btn danger">Clear clipboard history</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📝 Form draft vault</span>
+          </div>
+          <p class="hint">Drafts saved from forms (per site, never shared across sites).</p>
+          <div id="drafts-list" class="results"></div>
+          <div class="btn-row">
+            <button id="drafts-clear" type="button" class="mini-btn danger">Clear drafts</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⭐ Highlights</span>
+          </div>
+          <p class="hint">Text you highlighted via right-click → “OneKit — Highlight selection”. Re-applied when you revisit a page.</p>
+          <div id="highlights-list" class="results"></div>
+          <div class="btn-row">
+            <button id="highlights-clear" type="button" class="mini-btn danger">Clear highlights</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📚 Read later</span>
+          </div>
+          <p class="hint">Pages saved via right-click → “OneKit — Save page to read later”. Open in the clean reader.</p>
+          <div id="readlater-list" class="results"></div>
+          <div class="btn-row">
+            <button id="readlater-clear" type="button" class="mini-btn danger">Clear read-later list</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Vault (AI Chat Vault)                                        -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-vault" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">💬 AI Chat Vault</span>
+            <span class="tool-count" id="vault-count">—</span>
+          </div>
+          <p class="hint">Local archive of your ChatGPT / Claude / Gemini conversations. Turn it on in Settings → Tools; capture is best-effort. Search, export, or delete — everything stays on this device.</p>
+          <input id="vault-search" type="search" placeholder="Search your saved chats…" autocomplete="off" />
+          <div class="btn-row">
+            <button id="vault-refresh" type="button" class="mini-btn">Refresh</button>
+            <button id="vault-clear" type="button" class="mini-btn danger">Clear vault</button>
+          </div>
+          <div id="vault-results" class="results"></div>
+          <p id="vault-status" class="status"></p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Safety                                                        -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-safety" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧹 Clean Link</span>
+          </div>
+          <p class="hint">Strip tracking parameters (utm_*, fbclid, gclid…) before sharing a link.</p>
+          <input id="cleanlink-input" type="text" placeholder="Paste a link with tracking parameters…" spellcheck="false" />
+          <div class="btn-row">
+            <button id="cleanlink-btn" type="button" class="mini-btn">Clean link</button>
+          </div>
+          <div class="btn-row">
+            <input id="cleanlink-output" type="text" readonly placeholder="Cleaned link appears here" />
+            <button id="cleanlink-copy" type="button" class="mini-btn" disabled>Copy</button>
+          </div>
+          <p id="cleanlink-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🍪 Cookie banner auto-reject</span>
+          </div>
+          <p class="hint">Auto-clicks "Reject / Decline" on consent banners. Never clicks "Accept". Turn it on in Settings → Tools.</p>
+          <p class="status">Right-click any link → "OneKit — Copy clean link (no tracking)" also works on every page.</p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🚨 Scam-site radar</span>
+          </div>
+          <p class="hint">Local heuristics on the current page: bad URL patterns, missing contact/privacy info, pressure language. A tripwire, not a verdict — everything is checked on your device.</p>
+          <div class="btn-row">
+            <button id="scam-check" type="button" class="mini-btn">Check current page</button>
+          </div>
+          <div id="scam-result" class="scam-result"></div>
+          <p id="scam-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔒 PII redactor</span>
+          </div>
+          <p class="hint">Scan text for emails, phone numbers, card numbers, SSNs and API keys — get a copy-safe redacted version. Runs entirely on your device.</p>
+          <textarea id="pii-input" rows="3" placeholder="Paste text to scan…"></textarea>
+          <div class="btn-row">
+            <button id="pii-scan" type="button" class="mini-btn">Scan &amp; redact</button>
+          </div>
+          <div id="pii-findings" class="results"></div>
+          <textarea id="pii-output" rows="3" readonly placeholder="Redacted text appears here"></textarea>
+          <div class="btn-row">
+            <button id="pii-copy" type="button" class="mini-btn" disabled>Copy redacted</button>
+          </div>
+          <p id="pii-status" class="status"></p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Speed                                                         -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-speed" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔁 Duplicate tab killer</span>
+          </div>
+          <p class="hint">Find tabs open to the same page and close the extras (keeps the leftmost).</p>
+          <div class="btn-row">
+            <button id="dupes-scan" type="button" class="mini-btn">Scan for duplicates</button>
+          </div>
+          <div id="dupes-results" class="results"></div>
+          <p id="dupes-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔍 Tab finder</span>
+          </div>
+          <p class="hint">Search every open tab and jump straight to it.</p>
+          <input id="tab-search" type="search" placeholder="Search open tabs…" autocomplete="off" />
+          <div id="tab-results" class="results"></div>
+          <p id="tab-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔇 Autoplay killer</span>
+          </div>
+          <p class="hint">Pauses video/audio that starts on its own. Never touches playback you started.</p>
+          <p class="status">Turn it on in Settings → Tools.</p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗂 Tab workspaces</span>
+          </div>
+          <p class="hint">Save your whole session (all open tabs) and restore it later. Restoring opens the saved tabs without touching what you have open now.</p>
+          <div class="split">
+            <input id="workspace-name" type="text" placeholder="Session name (optional)" autocomplete="off" />
+            <button id="workspace-save" type="button" class="mini-btn">Save session</button>
+          </div>
+          <div id="workspace-list" class="results"></div>
+          <p id="workspace-status" class="status"></p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Focus                                                         -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-focus" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧘 Distraction blocker</span>
+          </div>
+          <p class="hint">Hide distracting sites behind a local overlay during work hours. Never a trap — you can pause for 10 minutes or allow a site for today from the overlay itself.</p>
+          <label class="toggle-row">
+            <input id="focus-master" type="checkbox" />
+            <span>Distraction blocker on</span>
+          </label>
+          <div class="focus-rule-form">
+            <input id="focus-host" type="text" placeholder="Site to block, e.g. facebook.com" autocomplete="off" spellcheck="false" />
+            <label class="toggle-row"><input id="focus-always" type="checkbox" /><span>Block at all times</span></label>
+            <div class="focus-time-row">
+              <label>From <input id="focus-start" type="time" value="09:00" /></label>
+              <label>To <input id="focus-end" type="time" value="17:00" /></label>
+            </div>
+            <div id="focus-days" class="focus-days"></div>
+            <div class="btn-row">
+              <button id="focus-add" type="button" class="mini-btn">Add schedule</button>
+            </div>
+          </div>
+          <div id="focus-rules" class="results"></div>
+          <p id="focus-rules-status" class="status"></p>
+          <div class="btn-row">
+            <button id="focus-rules-clear" type="button" class="mini-btn danger">Clear all schedules</button>
+          </div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏱ Screen time</span>
+          </div>
+          <p class="hint">How long you've had pages open, per site — tracked locally while a tab is visible. Never uploaded.</p>
+          <p id="st-today" class="status"></p>
+          <div id="st-sites" class="results"></div>
+          <div id="st-week" class="st-week"></div>
+          <div class="btn-row">
+            <button id="st-clear" type="button" class="mini-btn danger">Reset screen time</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Typing                                                        -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-typing" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⚡ Text expander</span>
+          </div>
+          <p class="hint">Type <code>;alias</code> + space on any page and it expands to your saved text (e.g. <code>;addr</code> → your address).</p>
+          <div class="split">
+            <input id="snippet-alias" type="text" placeholder=";alias (e.g. addr)" spellcheck="false" />
+            <textarea id="snippet-text" rows="2" placeholder="Text it expands to…"></textarea>
+          </div>
+          <div class="btn-row">
+            <button id="snippet-add" type="button" class="mini-btn">Add snippet</button>
+          </div>
+          <div id="snippet-list" class="results"></div>
+          <p id="snippet-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧮 Word counter</span>
+          </div>
+          <p class="hint">Count any text. Also available via right-click → "OneKit — Count words in selection".</p>
+          <textarea id="counter-input" rows="3" placeholder="Paste or type text to count…"></textarea>
+          <p id="counter-stats" class="status">Start typing or paste text to count it.</p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Tools                                                         -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-tools" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔳 QR generator</span>
+          </div>
+          <p class="hint">Any URL or text → scannable QR, generated on-device.</p>
+          <div class="btn-row">
+            <input id="qr-input" type="text" placeholder="URL or text…" spellcheck="false" />
+            <button id="qr-btn" type="button" class="mini-btn">Make QR</button>
+          </div>
+          <div id="qr-output" class="qr-output"></div>
+          <p id="qr-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔑 Password generator</span>
+          </div>
+          <p class="hint">Cryptographically random, generated right here.</p>
+          <div class="pw-opts">
+            <label>Length <input id="pw-length" type="number" min="4" max="128" value="16" /></label>
+            <label><input id="pw-upper" type="checkbox" checked /> A–Z</label>
+            <label><input id="pw-lower" type="checkbox" checked /> a–z</label>
+            <label><input id="pw-digits" type="checkbox" checked /> 0–9</label>
+            <label><input id="pw-symbols" type="checkbox" checked /> !@#</label>
+            <label><input id="pw-ambig" type="checkbox" checked /> No 0/O/1/l</label>
+          </div>
+          <div class="btn-row">
+            <button id="pw-generate" type="button" class="mini-btn">Generate</button>
+            <input id="pw-output" type="text" readonly />
+            <button id="pw-copy" type="button" class="mini-btn">Copy</button>
+          </div>
+          <p id="pw-strength" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📸 Screenshot</span>
+          </div>
+          <p class="hint">Capture the current tab as a PNG. Saved to your downloads, never uploaded.</p>
+          <div class="btn-row">
+            <button id="screenshot-btn" type="button" class="mini-btn">Capture visible tab</button>
+          </div>
+          <p id="screenshot-status" class="status"></p>
+        </div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Settings                                                      -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-settings" hidden>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎨 Theme</span>
+          </div>
+          <select id="theme-select">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔧 Tools</span>
+          </div>
+          <p class="hint">Everything runs on your device. Memory tools are on by default; page-acting tools are off until you switch them on.</p>
+          <div id="tool-toggles"></div>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗄 Your data</span>
+          </div>
+          <p id="data-stats" class="status"></p>
+          <div class="btn-row">
+            <button id="data-clear-history" type="button" class="mini-btn danger">Clear history</button>
+            <button id="data-clear-clipboard" type="button" class="mini-btn danger">Clear clipboard</button>
+            <button id="data-clear-drafts" type="button" class="mini-btn danger">Clear drafts</button>
+          </div>
+          <div class="btn-row">
+            <button id="data-clear-all" type="button" class="mini-btn danger">Erase all OneKit data</button>
+          </div>
+          <p id="data-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗄 Backup &amp; restore</span>
+          </div>
+          <p class="hint">Export every OneKit store to a JSON file, or restore from one. Restore only touches keys that exist in the backup — nothing else is overwritten.</p>
+          <div class="btn-row">
+            <button id="backup-export" type="button" class="mini-btn">⬇ Backup all data</button>
+            <button id="backup-restore" type="button" class="mini-btn">Restore backup</button>
+            <input id="backup-restore-file" type="file" accept="application/json,.json" hidden />
+          </div>
+          <p id="backup-status" class="status"></p>
+        </div>
+
+        <p class="footer-note">OneKit keeps everything on this device. No account, no cloud, no tracking. Uninstalling removes all OneKit data.</p>
+      </section>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OneKit Reader</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="reader-topbar">
+      <div class="reader-actions">
+        <button id="back" type="button">← Back</button>
+        <button id="download" type="button">⬇ Download Markdown</button>
+        <button id="font-minus" type="button">A−</button>
+        <button id="font-plus" type="button">A+</button>
+      </div>
+      <span id="meta" class="reader-meta"></span>
+    </header>
+    <main id="article" class="reader-content">
+      <p id="status" class="reader-status">Loading…</p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

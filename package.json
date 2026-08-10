@@ -1,0 +1,27 @@
+{
+  "name": "onekit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OneKit — a 100% local browser toolbox: memory, safety, speed, typing, and utility tools in one extension.",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm test && npm run build",
+    "icons": "node scripts/gen-icons.mjs"
+  },
+  "devDependencies": {
+    "@types/qrcode-generator": "^1.0.6",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4",
+    "wxt": "^0.21.3"
+  },
+  "dependencies": {
+    "qrcode-generator": "^1.4.4"
+  }
+}
