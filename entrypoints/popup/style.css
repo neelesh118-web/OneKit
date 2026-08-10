@@ -695,3 +695,74 @@ a.result-title:hover {
   flex: 1;
   min-width: 80px;
 }
+
+/* TOTP authenticator */
+.totp-row {
+  flex-wrap: wrap;
+}
+.totp-code {
+  font: 700 18px/1.2 ui-monospace, "Cascadia Code", Consolas, monospace;
+  letter-spacing: 0.08em;
+  color: var(--accent, #4f46e5);
+}
+.totp-remaining {
+  font-size: 11px;
+  color: var(--muted, #64748b);
+  min-width: 30px;
+}
+
+/* Emoji picker */
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+.emoji-cell {
+  font-size: 20px;
+  line-height: 1;
+  padding: 6px 4px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 8px;
+  background: var(--card, #fff);
+  cursor: pointer;
+}
+.emoji-cell:hover {
+  border-color: var(--accent, #4f46e5);
+  transform: scale(1.12);
+}
+
+/* Unit + date results */
+.unit-result {
+  display: block;
+  font-size: 14px;
+  margin: 6px 0;
+  color: var(--fg, #0f172a);
+}
+
+/* Habit tracker */
+.habit-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+.habit-week {
+  display: flex;
+  gap: 4px;
+}
+.habit-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 10px;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+}
+.habit-day input {
+  accent-color: var(--accent, #4f46e5);
+  width: 16px;
+  height: 16px;
+}

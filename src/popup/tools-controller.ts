@@ -26,6 +26,16 @@ import {
   clearPalette,
   listPalette
 } from "../core/palette";
+import {
+  addDays,
+  convertUnit,
+  dateDiffDays,
+  formatConverted,
+  formatInTimeZone,
+  unitCategories,
+  unitsFor,
+  type UnitCategory
+} from "../core/unit-convert";
 import type { OneKitCapabilities } from "./capabilities";
 
 function readFileBytes(file: File): Promise<Uint8Array> {
@@ -698,6 +708,122 @@ function drawArrow(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: nu
     })().catch(() => {
       bookmarksStatus.textContent = "Could not remove bookmarks — try again.";
     });
+  });
+
+  /* Unit converter -------------------------------------------------------- */
+  const unitCategory = $("unit-category") as HTMLSelectElement;
+  const unitFrom = $("unit-from") as HTMLSelectElement;
+  const unitTo = $("unit-to") as HTMLSelectElement;
+  const unitValue = $("unit-value") as HTMLInputElement;
+  const unitConvertBtn = $("unit-convert-btn") as HTMLButtonElement;
+  const unitResult = $("unit-result");
+  const unitStatus = $("unit-status");
+
+  function fillUnitSelect(select: HTMLSelectElement, category: UnitCategory): void {
+    select.innerHTML = "";
+    for (const unit of unitsFor(category)) {
+      const option = document.createElement("option");
+      option.value = unit.symbol;
+      option.textContent = `${unit.label} (${unit.symbol})`;
+      select.appendChild(option);
+    }
+  }
+
+  for (const category of unitCategories()) {
+    const option = document.createElement("option");
+    option.value = category;
+    option.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+    unitCategory.appendChild(option);
+  }
+
+  function renderUnitSelects(): void {
+    const category = unitCategory.value as UnitCategory;
+    fillUnitSelect(unitFrom, category);
+    fillUnitSelect(unitTo, category);
+    // Sensible defaults per category.
+    const pairs: Partial<Record<UnitCategory, [string, string]>> = {
+      length: ["km", "mi"],
+      weight: ["kg", "lb"],
+      temperature: ["c", "f"],
+      data: ["gb", "gib"],
+      volume: ["gal", "l"],
+      time: ["h", "min"]
+    };
+    const pair = pairs[category];
+    if (pair) {
+      unitFrom.value = pair[0];
+      unitTo.value = pair[1];
+    }
+  }
+
+  unitCategory.addEventListener("change", renderUnitSelects);
+  renderUnitSelects();
+
+  unitConvertBtn.addEventListener("click", () => {
+    const value = Number(unitValue.value);
+    if (unitValue.value.trim() === "") {
+      unitStatus.textContent = "Enter a value first.";
+      unitResult.textContent = "";
+      return;
+    }
+    try {
+      const category = unitCategory.value as UnitCategory;
+      const result = convertUnit(category, value, unitFrom.value, unitTo.value);
+      unitResult.textContent = `${formatConverted(value)} ${unitFrom.value} = ${formatConverted(result)} ${unitTo.value}`;
+      unitStatus.textContent = "Converted locally — pure math, no network.";
+    } catch (err) {
+      unitStatus.textContent = err instanceof Error ? err.message : "Could not convert.";
+      unitResult.textContent = "";
+    }
+  });
+
+  /* Date & time tools ------------------------------------------------------ */
+  const dateA = $("date-a") as HTMLInputElement;
+  const dateB = $("date-b") as HTMLInputElement;
+  const dateDiffBtn = $("date-diff-btn") as HTMLButtonElement;
+  const dateDiffResult = $("date-diff-result");
+  const dateAddInput = $("date-add-input") as HTMLInputElement;
+  const dateAddDays = $("date-add-days") as HTMLInputElement;
+  const dateAddBtn = $("date-add-btn") as HTMLButtonElement;
+  const dateAddResult = $("date-add-result");
+  const dateTzIso = $("date-tz-iso") as HTMLInputElement;
+  const dateTzName = $("date-tz-name") as HTMLInputElement;
+  const dateTzBtn = $("date-tz-btn") as HTMLButtonElement;
+  const dateTzResult = $("date-tz-result");
+
+  dateDiffBtn.addEventListener("click", () => {
+    try {
+      const diff = dateDiffDays(dateA.value, dateB.value);
+      dateDiffResult.textContent =
+        diff === 0
+          ? "Same day."
+          : `${Math.abs(diff)} day${Math.abs(diff) === 1 ? "" : "s"} ${diff > 0 ? "between the two dates" : "(the first date is later)"}.`;
+    } catch (err) {
+      dateDiffResult.textContent = err instanceof Error ? err.message : "Check both dates.";
+    }
+  });
+
+  dateAddBtn.addEventListener("click", () => {
+    try {
+      const days = Number(dateAddDays.value) || 0;
+      const result = addDays(dateAddInput.value, days);
+      dateAddResult.textContent =
+        days === 0
+          ? `That date is ${result}.`
+          : `${formatConverted(days)} day${Math.abs(days) === 1 ? "" : "s"} ${days > 0 ? "after" : "before"} ${dateAddInput.value} → ${result}.`;
+    } catch (err) {
+      dateAddResult.textContent = err instanceof Error ? err.message : "Enter a valid date.";
+    }
+  });
+
+  dateTzBtn.addEventListener("click", () => {
+    try {
+      const iso = dateTzIso.value ? new Date(dateTzIso.value).toISOString() : new Date().toISOString();
+      const result = formatInTimeZone(iso, dateTzName.value.trim() || "UTC");
+      dateTzResult.textContent = `${result} (${dateTzName.value.trim() || "UTC"})`;
+    } catch (err) {
+      dateTzResult.textContent = err instanceof Error ? err.message : "Could not convert the time.";
+    }
   });
 
   return () => {};

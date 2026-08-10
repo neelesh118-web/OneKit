@@ -19,6 +19,7 @@ import {
 } from "../src/core/snippets";
 import { loadSettings, type OneKitSettings } from "../src/core/settings";
 import { countWords, countChars, countCharsNoSpaces } from "../src/core/text-utils";
+import { replaceAllMatches, replaceSummary } from "../src/core/find-replace";
 import { readingMetrics } from "../src/core/readability";
 import { cleanLink } from "../src/core/clean-links";
 import {
@@ -1235,8 +1236,49 @@ browser.runtime.onMessage.addListener(
     void renderPomodoroChip();
     return;
   }
+  if (msg.type === "ok:find-replace") {
+    const { query, replacement, caseSensitive } = msg as {
+      query?: string;
+      replacement?: string;
+      caseSensitive?: boolean;
+    };
+    return replaceOnPage(query ?? "", replacement ?? "", Boolean(caseSensitive)).then(
+      (replaced) => {
+        const summary = replaceSummary(replaced);
+        showToast(summary, replaced > 0 ? "ok" : "info");
+        return { replaced };
+      }
+    );
+  }
   }
 );
+
+/** Replaces `query` with `replacement` across every visible text node. */
+async function replaceOnPage(query: string, replacement: string, caseSensitive: boolean): Promise<number> {
+  if (!query) return 0;
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes: Text[] = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    // Skip script/style/textarea/input content.
+    const parent = node.parentElement;
+    if (!parent) continue;
+    const tag = parent.tagName;
+    if (tag === "SCRIPT" || tag === "STYLE" || tag === "TEXTAREA" || tag === "INPUT" || tag === "NOSCRIPT") continue;
+    if (node.textContent && node.textContent.trim()) nodes.push(node as Text);
+  }
+  let total = 0;
+  for (const node of nodes) {
+    const before = node.textContent ?? "";
+    if (!before) continue;
+    const { text, replaced } = replaceAllMatches(before, query, replacement, { caseSensitive });
+    if (replaced > 0) {
+      node.textContent = text;
+      total += replaced;
+    }
+  }
+  return total;
+}
 
 async function copyToClipboard(text: string): Promise<void> {
   try {

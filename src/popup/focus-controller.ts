@@ -33,6 +33,15 @@ import {
   readPomodoro,
   startPomodoro
 } from "../core/pomodoro";
+import {
+  addHabit,
+  habitStreak,
+  last7Keys,
+  listHabits,
+  removeHabit,
+  toggleHabitDay,
+  weekdayLabel
+} from "../core/habits";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -415,11 +424,90 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
     void renderPomodoro();
   }, 30_000);
 
+  /* Habit tracker ----------------------------------------------------------- */
+  const habitName = $("habit-name") as HTMLInputElement;
+  const habitIcon = $("habit-icon") as HTMLInputElement;
+  const habitAdd = $("habit-add") as HTMLButtonElement;
+  const habitList = $("habit-list");
+  const habitStatus = $("habit-status");
+  const weekKeys = last7Keys();
+
+  async function renderHabits(): Promise<void> {
+    const habits = await listHabits(caps.storage);
+    habitList.innerHTML = "";
+    if (habits.length === 0) {
+      habitStatus.textContent = "No habits yet. Add one — a 7-day grid and your streak appear here.";
+      return;
+    }
+    habitStatus.textContent = `${habits.length} habit${habits.length === 1 ? "" : "s"} — check off today to keep the streak alive.`;
+    for (const habit of habits) {
+      const stats = habitStreak(habit, new Date());
+      const row = document.createElement("div");
+      row.className = "result-row habit-row";
+      const head = document.createElement("div");
+      const title = document.createElement("strong");
+      title.className = "result-title";
+      title.textContent = `${habit.icon} ${habit.name}`;
+      const meta = document.createElement("span");
+      meta.className = "result-meta";
+      meta.textContent = `🔥 ${stats.streak}-day streak · ${stats.total} total · ${stats.last7}/7 this week`;
+      head.append(title, meta);
+
+      const grid = document.createElement("div");
+      grid.className = "habit-week";
+      for (const key of weekKeys) {
+        const day = document.createElement("label");
+        day.className = "habit-day";
+        day.title = key;
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = Boolean(habit.dates[key]);
+        box.addEventListener("change", () => {
+          void toggleHabitDay(habit.id, key, caps.storage).then(() => void renderHabits());
+        });
+        const span = document.createElement("span");
+        span.textContent = weekdayLabel(key);
+        day.append(box, span);
+        grid.appendChild(day);
+      }
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mini-btn danger";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", () => {
+        void removeHabit(habit.id, caps.storage).then(() => void renderHabits());
+      });
+      row.append(head, grid, remove);
+      habitList.appendChild(row);
+    }
+  }
+
+  habitAdd.addEventListener("click", () => {
+    void (async () => {
+      try {
+        await addHabit(habitName.value, habitIcon.value, caps.storage);
+        habitName.value = "";
+        habitStatus.textContent = "Habit added — check today's box to start the streak.";
+        await renderHabits();
+      } catch (err) {
+        habitStatus.textContent = err instanceof Error ? err.message : "Could not add habit.";
+      }
+    })();
+  });
+  habitName.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      (habitAdd as HTMLButtonElement).click();
+    }
+  });
+
   renderDayPicker();
   void renderMasterToggle();
   void renderRules();
   void renderBudgets();
   void renderScreenTime();
+  void renderHabits();
   return () => {
     if (sessionTimer !== undefined) window.clearInterval(sessionTimer);
     if (pomodoroTimer !== undefined) window.clearInterval(pomodoroTimer);

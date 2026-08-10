@@ -9,6 +9,9 @@ import {
 import { textStats } from "../core/text-utils";
 import { sortTabsByPosition } from "../core/tab-tools";
 import { tabsToMarkdown } from "../core/markdown";
+import { EMOJI_GROUPS, searchEmoji } from "../core/emoji";
+import { CASE_STYLES, convertCase, type CaseStyle } from "../core/case-convert";
+import { replaceSummary } from "../core/find-replace";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -153,6 +156,108 @@ export function createTypingController(caps: OneKitCapabilities): () => void {
       flashCopied("Asked the page to copy its links — check the toast there.");
     })().catch(() => {
       mdStatus.textContent = "Could not reach that page (it may not have OneKit loaded).";
+    });
+  });
+
+  /* Emoji picker -------------------------------------------------------- */
+  const emojiSearch = $("emoji-search") as HTMLInputElement;
+  const emojiGrid = $("emoji-grid");
+  const emojiStatus = $("emoji-status");
+
+  function renderEmoji(): void {
+    const results = searchEmoji(emojiSearch.value);
+    emojiGrid.innerHTML = "";
+    if (results.length === 0) {
+      emojiStatus.textContent = "No emoji match that search.";
+      return;
+    }
+    emojiStatus.textContent = `${results.length} emoji — click any to copy it.`;
+    for (const entry of results) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "emoji-cell";
+      btn.textContent = entry.emoji;
+      btn.title = entry.name;
+      btn.addEventListener("click", () => {
+        void caps.copyText(entry.emoji).then(() => {
+          emojiStatus.textContent = `${entry.emoji} ${entry.name} — copied ✓`;
+        });
+      });
+      emojiGrid.appendChild(btn);
+    }
+  }
+
+  emojiSearch.addEventListener("input", renderEmoji);
+  renderEmoji();
+  void EMOJI_GROUPS; // keep the grouped export referenced for tree-shaking
+
+  /* Text case converter -------------------------------------------------- */
+  const caseInput = $("case-input") as HTMLTextAreaElement;
+  const caseStyle = $("case-style") as HTMLSelectElement;
+  const caseConvertBtn = $("case-convert-btn") as HTMLButtonElement;
+  const caseOutput = $("case-output") as HTMLInputElement;
+  const caseCopy = $("case-copy") as HTMLButtonElement;
+  const caseStatus = $("case-status");
+
+  for (const style of CASE_STYLES) {
+    const option = document.createElement("option");
+    option.value = style.id;
+    option.textContent = `${style.label} — ${style.example}`;
+    caseStyle.appendChild(option);
+  }
+
+  caseConvertBtn.addEventListener("click", () => {
+    const text = caseInput.value;
+    if (!text.trim()) {
+      caseStatus.textContent = "Type or paste some text first.";
+      caseOutput.value = "";
+      caseCopy.disabled = true;
+      return;
+    }
+    caseOutput.value = convertCase(text, caseStyle.value as CaseStyle);
+    caseCopy.disabled = false;
+    caseStatus.textContent = "Converted locally — nothing leaves your device.";
+  });
+
+  caseCopy.addEventListener("click", () => {
+    void caps.copyText(caseOutput.value).then(() => {
+      caseStatus.textContent = "Copied ✓";
+      window.setTimeout(() => (caseStatus.textContent = ""), 1500);
+    });
+  });
+
+  /* Find & replace on page ----------------------------------------------- */
+  const frQuery = $("fr-query") as HTMLInputElement;
+  const frReplacement = $("fr-replacement") as HTMLInputElement;
+  const frCase = $("fr-case") as HTMLInputElement;
+  const frRun = $("fr-run") as HTMLButtonElement;
+  const frStatus = $("fr-status");
+
+  frRun.addEventListener("click", () => {
+    void (async () => {
+      const query = frQuery.value.trim();
+      if (!query) {
+        frStatus.textContent = "Type the text you want to find first.";
+        return;
+      }
+      const tab = await caps.getActiveTab();
+      if (tab.id === undefined) {
+        frStatus.textContent = "Open a normal page first.";
+        return;
+      }
+      const result = (await caps.sendMessage(tab.id, {
+        type: "ok:find-replace",
+        query,
+        replacement: frReplacement.value,
+        caseSensitive: frCase.checked
+      })) as { replaced?: number } | undefined;
+      const replaced = result?.replaced ?? 0;
+      frStatus.textContent =
+        replaced > 0
+          ? `${replaceSummary(replaced)} Check the toast on the page.`
+          : "No matches on this page. The page may need a reload if it just changed.";
+    })().catch(() => {
+      frStatus.textContent = "Could not reach the page — reload it and try again.";
     });
   });
 

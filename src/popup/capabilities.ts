@@ -61,6 +61,14 @@ export interface OneKitCapabilities {
   pickColor(): Promise<{ color?: string; error?: string }>;
   /** Asks the active tab to collect + download its images. Returns saved count. */
   downloadPageImages(): Promise<number>;
+  /** Browsing-history visits per host in the last `days` days (privacy sweep). */
+  getHistoryDomains(days: number): Promise<Array<{ host: string; visits: number }>>;
+  /** One host per cookie currently stored (privacy sweep). */
+  getAllCookieHosts(): Promise<string[]>;
+  /** Deletes every history entry for a host. Returns the number deleted. */
+  deleteHistoryForHost(host: string): Promise<number>;
+  /** Clears the browser's cached files (browsingData.removeCache). */
+  clearCacheAll(): Promise<void>;
 }
 
 import type { CookieLike } from "../core/cookie-manager";

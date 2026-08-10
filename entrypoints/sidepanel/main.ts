@@ -17,6 +17,7 @@ import {
   readFocusSession,
   startFocusSession
 } from "../../src/core/focus-session";
+import { buildTabOutline, filterTabOutline } from "../../src/core/tab-outline";
 
 /**
  * OneKit side panel — the search palette and focus session as a docked
@@ -271,6 +272,75 @@ async function renderScreenTime(): Promise<void> {
   }
 }
 
+/* Tab outline ------------------------------------------------------------ */
+
+const tabFilter = $("tab-filter") as HTMLInputElement;
+const tabOutlineEl = $("tab-outline");
+const tabOutlineStatus = $("tab-outline-status");
+
+async function renderTabOutline(): Promise<void> {
+  const raw = await browser.tabs.query({});
+  const outline = filterTabOutline(
+    buildTabOutline(raw as unknown as Array<Partial<{ id: number; title: string; url: string; index: number; active: boolean; discarded: boolean; pinned: boolean; windowId?: number }>>),
+    tabFilter.value
+  );
+  tabOutlineEl.innerHTML = "";
+  if (outline.totalTabs === 0) {
+    tabOutlineStatus.textContent = "No tabs open.";
+    return;
+  }
+  tabOutlineStatus.textContent =
+    `${outline.totalTabs} tabs across ${outline.windows} window${outline.windows === 1 ? "" : "s"} — ${outline.groups.length} site${outline.groups.length === 1 ? "" : "s"}.`;
+  for (const group of outline.groups) {
+    const label = document.createElement("div");
+    label.className = "group-label";
+    label.textContent = `${group.host} (${group.tabs.length})`;
+    tabOutlineEl.appendChild(label);
+    for (const tab of group.tabs) {
+      const row = document.createElement("div");
+      row.className = "row";
+      const title = document.createElement("span");
+      title.className = "row-title";
+      title.textContent = (tab.pinned ? "📌 " : "") + (tab.title || tab.host || "(untitled)");
+      const sub = document.createElement("span");
+      sub.className = "row-sub";
+      sub.textContent = tab.discarded ? `${tab.url} · suspended` : tab.url;
+      const actions = document.createElement("span");
+      actions.className = "btn-row";
+      const close = document.createElement("button");
+      close.type = "button";
+      close.textContent = "✕";
+      close.title = "Close tab";
+      close.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void browser.tabs.remove(tab.id);
+      });
+      const suspend = document.createElement("button");
+      suspend.type = "button";
+      suspend.textContent = "💤";
+      suspend.title = tab.discarded ? "Already suspended" : "Suspend tab (free memory)";
+      suspend.disabled = tab.discarded;
+      suspend.addEventListener("click", (e) => {
+        e.stopPropagation();
+        void browser.tabs.discard(tab.id).catch(() => {
+          // A tab may close mid-action; fine.
+        });
+      });
+      actions.append(suspend, close);
+      row.addEventListener("click", () => {
+        void (async () => {
+          await browser.tabs.update(tab.id, { active: true });
+          if (tab.windowId !== undefined) await browser.windows.update(tab.windowId, { focused: true });
+        })();
+      });
+      row.append(title, sub, actions);
+      tabOutlineEl.appendChild(row);
+    }
+  }
+}
+
+tabFilter.addEventListener("input", () => void renderTabOutline());
+
 $("open-popup").addEventListener("click", () => {
   void (async () => {
     try {
@@ -284,7 +354,9 @@ $("open-popup").addEventListener("click", () => {
 applyTheme();
 void renderSession();
 void renderScreenTime();
+void renderTabOutline();
 window.setInterval(() => {
   void renderSession();
   void renderScreenTime();
+  void renderTabOutline();
 }, 30_000);

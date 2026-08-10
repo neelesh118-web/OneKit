@@ -1,6 +1,7 @@
 import { localStorageArea } from "../../src/core/storage-utils";
 import { addGoal, listGoals, removeGoal, toggleGoal } from "../../src/core/goals-store";
 import { addLink, listLinks, removeLink } from "../../src/core/quick-links";
+import { habitStreak, listHabits, removeHabit, toggleHabitDay, todayKey } from "../../src/core/habits";
 
 /**
  * OneKit home — the new-tab dashboard. Daily goals and quick links, both
@@ -134,6 +135,46 @@ $("link-add").addEventListener("click", () => {
   })();
 });
 
+/* Habits ------------------------------------------------------------- */
+
+async function renderHabits(): Promise<void> {
+  const habits = await listHabits(storage);
+  const list = $("habit-list");
+  const empty = $("habit-empty");
+  list.innerHTML = "";
+  empty.hidden = habits.length > 0;
+  const today = todayKey();
+  for (const habit of habits) {
+    const stats = habitStreak(habit);
+    const item = document.createElement("div");
+    item.className = "habit-item";
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "check";
+    check.checked = Boolean(habit.dates[today]);
+    check.title = "Check off today";
+    check.addEventListener("change", () => {
+      void toggleHabitDay(habit.id, today, storage).then(() => void renderHabits());
+    });
+    const name = document.createElement("span");
+    name.className = "name";
+    name.textContent = `${habit.icon} ${habit.name}`;
+    const streak = document.createElement("span");
+    streak.className = "streak";
+    streak.textContent = `🔥 ${stats.streak} day streak · ${stats.last7}/7 this week`;
+    const remove = document.createElement("button");
+    remove.className = "x";
+    remove.textContent = "✕";
+    remove.title = "Remove habit";
+    remove.addEventListener("click", () => {
+      void removeHabit(habit.id, storage).then(() => void renderHabits());
+    });
+    item.append(check, name, streak, remove);
+    list.appendChild(item);
+  }
+}
+
 void renderDate();
 void renderGoals();
 void renderLinks();
+void renderHabits();

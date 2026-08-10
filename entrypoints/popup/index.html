@@ -11,7 +11,7 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>60 tools · 100% local · free forever</span>
+          <span>68 tools · 100% local · free forever</span>
         </div>
       </header>
 
@@ -264,6 +264,47 @@
           <div id="cookie-list" class="results"></div>
           <p id="cookie-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔐 TOTP 2FA authenticator</span>
+          </div>
+          <p class="hint">Generate 6–8 digit login codes locally — no phone app, no cloud. Codes refresh every 30 seconds.</p>
+          <div class="btn-row">
+            <input id="totp-passphrase-input" type="password" placeholder="Passphrase (encrypts secrets at rest)" />
+            <button id="totp-passphrase-set" type="button" class="mini-btn">Set passphrase</button>
+            <button id="totp-passphrase-clear" type="button" class="mini-btn danger" hidden>Remove passphrase</button>
+          </div>
+          <div class="btn-row" id="totp-unlock-wrap" hidden>
+            <input id="totp-unlock-input" type="password" placeholder="Enter passphrase to unlock" />
+            <button id="totp-unlock-btn" type="button" class="mini-btn primary">Unlock</button>
+          </div>
+          <div class="btn-row">
+            <input id="totp-add-label" type="text" placeholder="Label (e.g. GitHub)" />
+            <input id="totp-add-secret" type="text" placeholder="otpauth:// link or base32 secret" spellcheck="false" />
+            <button id="totp-add-btn" type="button" class="mini-btn primary">Add account</button>
+          </div>
+          <div class="btn-row">
+            <button id="totp-qr-btn" type="button" class="mini-btn">📷 Scan QR from image</button>
+            <input id="totp-qr-file" type="file" accept="image/*" hidden />
+          </div>
+          <div id="totp-list" class="results"></div>
+          <p id="totp-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧽 Privacy sweep</span>
+          </div>
+          <p class="hint">Scan your last 7 days of history and cookies, then clear them per site — one click. Everything here is on this device.</p>
+          <div class="btn-row">
+            <button id="sweep-scan" type="button" class="mini-btn primary">Scan last 7 days</button>
+            <button id="sweep-clear-cache" type="button" class="mini-btn">Clear cached files</button>
+          </div>
+          <input id="sweep-filter" type="text" placeholder="Filter sites…" />
+          <div id="sweep-list" class="results"></div>
+          <p id="sweep-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -477,6 +518,20 @@
           </div>
           <p id="pomodoro-status" class="status"></p>
         </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">✅ Habit tracker</span>
+          </div>
+          <p class="hint">Daily check-offs with streaks, stored locally. Also visible on the new-tab dashboard.</p>
+          <div class="btn-row">
+            <input id="habit-name" type="text" placeholder="Habit (e.g. Read 30 min)" />
+            <input id="habit-icon" type="text" placeholder="Icon (e.g. 📚)" maxlength="4" />
+            <button id="habit-add" type="button" class="mini-btn primary">Add habit</button>
+          </div>
+          <div id="habit-list" class="results"></div>
+          <p id="habit-status" class="status"></p>
+        </div>
       </section>
 
       <!-- ============================================================ -->
@@ -519,6 +574,46 @@
             <button id="md-page-links" type="button" class="mini-btn">Copy all links on active page</button>
           </div>
           <p id="md-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">😀 Emoji picker</span>
+          </div>
+          <p class="hint">Click any emoji to copy it. Searchable, bundled locally.</p>
+          <input id="emoji-search" type="text" placeholder="Search emoji (e.g. pizza, love)…" />
+          <div id="emoji-grid" class="emoji-grid"></div>
+          <p id="emoji-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔠 Text case converter</span>
+          </div>
+          <textarea id="case-input" rows="3" placeholder="Type or paste text…"></textarea>
+          <div class="btn-row">
+            <select id="case-style"></select>
+            <button id="case-convert-btn" type="button" class="mini-btn primary">Convert</button>
+            <button id="case-copy" type="button" class="mini-btn" disabled>Copy</button>
+          </div>
+          <input id="case-output" type="text" readonly placeholder="Converted text appears here" />
+          <p id="case-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔎 Find &amp; replace on page</span>
+          </div>
+          <p class="hint">Replace text on the active page — handy for typos you keep making. Reload the page to undo.</p>
+          <div class="btn-row">
+            <input id="fr-query" type="text" placeholder="Find…" />
+            <input id="fr-replacement" type="text" placeholder="Replace with…" />
+          </div>
+          <div class="btn-row">
+            <label><input id="fr-case" type="checkbox" /> Match case</label>
+            <button id="fr-run" type="button" class="mini-btn primary">Replace on page</button>
+          </div>
+          <p id="fr-status" class="status"></p>
         </div>
       </section>
 
@@ -635,6 +730,51 @@
             <button id="download-images" type="button" class="mini-btn">Download all images</button>
           </div>
           <p id="download-images-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📐 Unit &amp; date converter</span>
+          </div>
+          <p class="hint">Length, weight, temperature, data, volume and time — plus date math. Pure local math; currency rates need a network, so they're honestly not here.</p>
+          <div class="btn-row">
+            <select id="unit-category"></select>
+            <input id="unit-value" type="number" placeholder="Value" />
+          </div>
+          <div class="btn-row">
+            <select id="unit-from"></select>
+            <span>→</span>
+            <select id="unit-to"></select>
+            <button id="unit-convert-btn" type="button" class="mini-btn primary">Convert</button>
+          </div>
+          <strong id="unit-result" class="unit-result"></strong>
+          <p id="unit-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📅 Date &amp; time tools</span>
+          </div>
+          <p class="hint">Days between dates, add days, and see an instant in any IANA time zone.</p>
+          <div class="btn-row">
+            <input id="date-a" type="date" />
+            <input id="date-b" type="date" />
+            <button id="date-diff-btn" type="button" class="mini-btn">Days between</button>
+          </div>
+          <strong id="date-diff-result" class="unit-result"></strong>
+          <div class="btn-row">
+            <input id="date-add-input" type="date" />
+            <input id="date-add-days" type="number" placeholder="± days" />
+            <button id="date-add-btn" type="button" class="mini-btn">Add days</button>
+          </div>
+          <strong id="date-add-result" class="unit-result"></strong>
+          <div class="btn-row">
+            <input id="date-tz-iso" type="datetime-local" />
+            <input id="date-tz-name" type="text" placeholder="Time zone (e.g. America/New_York)" />
+            <button id="date-tz-btn" type="button" class="mini-btn">Convert time</button>
+          </div>
+          <strong id="date-tz-result" class="unit-result"></strong>
+          <p class="status">Leave the date-time blank to use right now.</p>
         </div>
       </section>
 

@@ -124,6 +124,19 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | 🔍 Local-storage inspector | List, view and delete `localStorage` keys for the active tab (read-only by default, delete asks first) | Popup → Dev |
 | 🏠 New-tab dashboard | A local new-tab page replacing Chrome's default: today's date, editable goals list, and quick-link tiles — no account, no cloud | New tab |
 
+### Phase 11 (8 features — 68 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🔐 TOTP 2FA authenticator | RFC 6238 login codes generated locally from an otpauth:// link or base32 secret, with a live 30s countdown and optional passphrase that encrypts secrets at rest (AES-GCM, key derived via PBKDF2 and held in memory for the session) | Popup → Safety |
+| 🧽 Privacy sweep | Scans the last 7 days of history and cookies, then clears them per site — history, cookies, storage, cache — ranked by footprint, with a per-host filter | Popup → Safety |
+| 😀 Emoji picker | Searchable, keyword-matching emoji grid bundled locally — click any to copy | Popup → Typing |
+| 🔠 Text case converter | UPPER, lower, Title, Sentence, camelCase, PascalCase, kebab-case, snake_case, CONSTANT_CASE and dot.case — pure local transforms | Popup → Typing |
+| 🔎 Find & replace on page | Replaces repeated typos or stale text across the active page in one click (case option); reload to undo | Popup → Typing |
+| 📐 Unit & date converter | Length, weight, temperature, data, volume and time conversion plus date math — days between dates, add days, IANA time zones. Pure local math; currency is honestly absent (live rates need a network) | Popup → Tools |
+| ✅ Habit tracker | Daily check-offs with streaks, stored locally, also shown on the new-tab dashboard | Popup → Focus + New tab |
+| 🗂 Tab outline (side panel) | Tree view of every open tab grouped by site in the side panel — switch, suspend or close tabs | Side panel |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

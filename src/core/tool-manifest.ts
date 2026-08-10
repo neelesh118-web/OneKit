@@ -483,6 +483,62 @@ export const TOOLS: ToolDef[] = [
     icon: "🏠",
     tab: "settings",
     description: "A local new-tab page with today's goals and editable quick links — no account, no cloud."
+  },
+  {
+    id: "totp",
+    name: "TOTP 2FA authenticator",
+    icon: "🔐",
+    tab: "safety",
+    description: "Generate 6–8 digit login codes locally from otpauth:// links, base32 secrets, or a scanned QR code, with an optional passphrase that encrypts the secrets at rest."
+  },
+  {
+    id: "privacySweep",
+    name: "Privacy sweep",
+    icon: "🧽",
+    tab: "safety",
+    description: "Scan the last 7 days of history and cookies, then clear them per site — history, cookies, storage, cache — all on this device."
+  },
+  {
+    id: "emojiPicker",
+    name: "Emoji picker",
+    icon: "😀",
+    tab: "typing",
+    description: "A searchable, keyword-matching emoji grid bundled locally — click any emoji to copy it."
+  },
+  {
+    id: "caseConverter",
+    name: "Text case converter",
+    icon: "🔠",
+    tab: "typing",
+    description: "Convert text to UPPER, lower, Title, Sentence, camelCase, PascalCase, kebab-case, snake_case and more — pure local transforms."
+  },
+  {
+    id: "findReplace",
+    name: "Find & replace on page",
+    icon: "🔎",
+    tab: "typing",
+    description: "Replace repeated typos or stale text across the active page in one click; reload to undo."
+  },
+  {
+    id: "unitConverter",
+    name: "Unit & date converter",
+    icon: "📐",
+    tab: "tools",
+    description: "Length, weight, temperature, data, volume and time conversion plus date math — days between dates, add days, time zones. Pure local math (currency is honestly absent: live rates need a network)."
+  },
+  {
+    id: "habits",
+    name: "Habit tracker",
+    icon: "✅",
+    tab: "focus",
+    description: "Daily check-offs with streaks, stored locally and shown on the new-tab dashboard."
+  },
+  {
+    id: "tabOutline",
+    name: "Tab outline (side panel)",
+    icon: "🗂",
+    tab: "speed",
+    description: "A tree view of every open tab grouped by site in the side panel — switch, suspend or close tabs without losing your place."
   }
 ];
 

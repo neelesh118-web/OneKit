@@ -150,13 +150,51 @@ const caps: OneKitCapabilities = {
     await browser.cookies.remove({ url, name });
   },
   clearSiteData: async (origin) => {
-    const url = new URL(origin);
     const since = 0;
     await browser.browsingData.remove(
       { origins: [origin], since },
       { cookies: true, localStorage: true, indexedDB: true, cacheStorage: true, serviceWorkers: true }
     );
-    void url;
+  },
+  getAllCookieHosts: async () => {
+    const cookies = await browser.cookies.getAll({});
+    return cookies.map((c) => c.domain.replace(/^\./, "")).filter(Boolean);
+  },
+  getHistoryDomains: async (days) => {
+    const startTime = Date.now() - days * 86_400_000;
+    const items = await browser.history.search({ text: "", startTime, maxResults: 100_000 });
+    const byHost = new Map<string, number>();
+    for (const item of items) {
+      if (!item.url) continue;
+      let host: string;
+      try {
+        host = new URL(item.url).hostname;
+      } catch {
+        continue;
+      }
+      if (!host) continue;
+      byHost.set(host, (byHost.get(host) ?? 0) + 1);
+    }
+    return [...byHost.entries()].map(([host, visits]) => ({ host, visits }));
+  },
+  deleteHistoryForHost: async (host) => {
+    const items = await browser.history.search({ text: "", startTime: 0, maxResults: 100_000 });
+    let deleted = 0;
+    for (const item of items) {
+      if (!item.url) continue;
+      try {
+        if (new URL(item.url).hostname === host) {
+          await browser.history.deleteUrl({ url: item.url });
+          deleted += 1;
+        }
+      } catch {
+        // A malformed URL can't be deleted; skip it.
+      }
+    }
+    return deleted;
+  },
+  clearCacheAll: async () => {
+    await browser.browsingData.removeCache({});
   },
   pickColor: async () => {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
