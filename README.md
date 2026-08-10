@@ -76,8 +76,8 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | 🎯 Focus session (deep-work timer) | One click blocks distracting sites everywhere for 25–120 min (with an allowlist). Overrides per-site schedules; the overlay shows a live countdown and an “End session” button | Popup → Focus + Side panel |
 | 🗃 Auto tab grouping | Group open tabs by site into colored Chrome tab groups with one click. Single-tab sites and tabs already in a group are left alone; multi-part TLDs (co.uk etc.) group correctly | Popup → Speed |
 | 📸 Full-page screenshot | Scrolls the page viewport-by-viewport and stitches the shots into one PNG (24px overlap removed). Saved to Downloads | Popup → Tools |
-| 📄 PDF merge & split | Merge several PDFs or extract a page range entirely on-device via pdf-lib. Files never leave the browser | Popup → Tools |
-| 🎨 Image convert & resize | Convert PNG/JPEG/WebP and downscale via canvas, all local | Popup → Tools |
+| 📄 PDF merge & split | Merge several PDFs or extract a page range entirely on-device via pdf-lib. Files never leave the browser | Popup → Convert |
+| 🎨 Image convert & resize | Convert PNG/JPEG/WebP and downscale via canvas, all local | Popup → Convert |
 | 🔖 Bookmark cleaner | Finds exact duplicate bookmarks (normalized URLs, same title+URL) and structurally broken URLs; removes them in one pass. Honest scope: real dead-link checks need network calls, so it stays local | Popup → Tools |
 | 🌙 Dark mode (starter) | Per-site CSS invert-filter with an off-list (youtube.com etc. never change). Honest scope: a filter, not per-rule theming | On-page (toggle in Settings) + Settings → off-list |
 | 🧩 Side panel | OneKit as a docked side panel (Chrome 114+): the same unified search, a focus-session quick-start, and today's screen time beside your tabs | Side panel button in the toolbar |

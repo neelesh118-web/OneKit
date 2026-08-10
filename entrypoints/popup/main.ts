@@ -14,7 +14,6 @@ import { createTypingController } from "../../src/popup/typing-controller";
 import { createToolsController } from "../../src/popup/tools-controller";
 import { createDownloadsController } from "../../src/popup/downloads-controller";
 import { createDevController } from "../../src/popup/dev-controller";
-import { createConvertController } from "../../src/popup/convert-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -175,7 +174,7 @@ const caps: OneKitCapabilities = {
 
 /* Tab navigation ------------------------------------------------------ */
 
-const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "dev", "downloads", "settings"];
+const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "dev", "convert", "downloads", "settings"];
 
 function switchTab(name: string): void {
   for (const tabName of TAB_ORDER) {
@@ -186,6 +185,10 @@ function switchTab(name: string): void {
     btn.classList.toggle("active", active);
     panel.hidden = !active;
   }
+  // The Convert tab drags in the heavy converter chain (pdfjs, mammoth,
+  // xlsx, gifenc, the WOFF2 wasm). Load it lazily the first time the tab
+  // is opened so a plain popup open stays fast.
+  if (name === "convert") void ensureConvertController();
 }
 
 document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
@@ -196,6 +199,21 @@ document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach((btn) => {
 });
 
 /* Boot ---------------------------------------------------------------- */
+
+let convertControllerReady = false;
+/** Loads the Convert-tab controller once, on first open. */
+async function ensureConvertController(): Promise<void> {
+  if (convertControllerReady) return;
+  convertControllerReady = true;
+  try {
+    const mod = await import("../../src/popup/convert-controller");
+    mod.createConvertController(caps);
+  } catch (err) {
+    // A lazy tab must never break the rest of the popup.
+    convertControllerReady = false;
+    console.error("Convert tab failed to load:", err);
+  }
+}
 
 const ONBOARDING_PRESETS: Record<string, (settings: OneKitSettings) => void> = {
   focus: (s) => {
@@ -262,7 +280,6 @@ void (async () => {
   createToolsController(caps);
   createDownloadsController(caps);
   createDevController(caps);
-  createConvertController(caps);
   createSettingsController(caps);
 
   wireOnboarding();

@@ -119,7 +119,7 @@ export function createSettingsController(caps: OneKitCapabilities): () => void {
   const backupExport = $("backup-export") as HTMLButtonElement;
   const backupRestore = $("backup-restore") as HTMLButtonElement;
   const backupFile = $("backup-restore-file") as HTMLInputElement;
-  const backupStatus = $("backup-status");
+  const backupStatus = $("backup-status-settings");
 
   backupExport.addEventListener("click", () => {
     void (async () => {

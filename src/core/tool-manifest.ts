@@ -305,14 +305,14 @@ export const TOOLS: ToolDef[] = [
     id: "pdfTools",
     name: "PDF merge & split",
     icon: "📄",
-    tab: "tools",
+    tab: "convert",
     description: "Merge PDFs or extract a page range locally with pdf-lib."
   },
   {
     id: "imageTools",
     name: "Image convert & resize",
     icon: "🎨",
-    tab: "tools",
+    tab: "convert",
     description: "Convert PNG/JPEG/WebP, resize and compress — all on-device."
   },
   {

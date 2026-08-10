@@ -75,8 +75,8 @@ body {
   border: none;
   background: transparent;
   color: var(--muted);
-  font: 12px/1 system-ui, sans-serif;
-  padding: 7px 9px;
+  font: 11.5px/1 system-ui, sans-serif;
+  padding: 6px 7px;
   border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
@@ -239,6 +239,7 @@ code {
 
 .btn-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
   margin: 4px 0;
@@ -546,6 +547,12 @@ a.result-title:hover {
   justify-content: center;
   background: rgba(10, 12, 20, 0.72);
   padding: 20px;
+}
+
+/* `display: flex` above overrides the browser's `[hidden]` rule, so be
+   explicit: a dismissed onboarding must really hide. */
+.onboarding[hidden] {
+  display: none;
 }
 
 .onboarding-card {
