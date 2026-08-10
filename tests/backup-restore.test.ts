@@ -73,6 +73,19 @@ describe("backup-restore", () => {
     expect(result.ok).toBe(false);
   });
 
+  it("requires an exact integer version (no negative/fractional/future)", () => {
+    for (const version of [0, -1, 1.5, 2, NaN, "1"]) {
+      const result = validateBackup({ app: "onekit", version, data: {}, exportedAt: 1 });
+      expect(result.ok, `version ${String(version)} should be rejected`).toBe(false);
+    }
+    expect(validateBackup({ app: "onekit", version: 1, data: {}, exportedAt: 1 }).ok).toBe(true);
+  });
+
+  it("rejects absurdly large backups", () => {
+    const big = { app: "onekit", version: 1, data: { "ok.history": new Array(1_000_000).fill("x") } };
+    expect(validateBackup(big).ok).toBe(false);
+  });
+
   it("restores only the keys present in the backup", async () => {
     const source = storage();
     const target = storage();

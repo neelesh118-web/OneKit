@@ -6,7 +6,9 @@
   "description": "OneKit — a 100% local browser toolbox: memory, safety, speed, typing, and utility tools in one extension.",
   "scripts": {
     "dev": "wxt",
+    "prebuild": "node scripts/copy-ocr-assets.mjs",
     "build": "wxt build",
+    "prezip": "node scripts/copy-ocr-assets.mjs",
     "zip": "wxt zip",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -25,6 +27,8 @@
   },
   "dependencies": {
     "@breezystack/lamejs": "^1.2.7",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "an-array-of-english-words": "^2.0.0",
     "fast-xml-parser": "^5.10.1",
     "fflate": "^0.7.5",
     "fonteditor-core": "^2.6.3",
@@ -36,7 +40,7 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.2.108",
     "qrcode-generator": "^1.4.4",
-    "turndown": "^7.2.4",
-    "xlsx": "^0.18.5"
+    "tesseract.js": "^7.0.0",
+    "turndown": "^7.2.4"
   }
 }

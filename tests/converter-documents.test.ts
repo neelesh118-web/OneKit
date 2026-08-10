@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { strToU8, zipSync } from "fflate";
-import * as XLSX from "xlsx";
+import XLSX from "../src/vendor/xlsx.mjs";
 import {
   csvToJson,
   docxToHtml,
@@ -99,7 +99,7 @@ function makeXlsx(): Uint8Array {
     "People"
   );
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-  return new Uint8Array(out);
+  return new Uint8Array(out as unknown as ArrayLike<number>);
 }
 
 describe("converter documents — PDF", () => {

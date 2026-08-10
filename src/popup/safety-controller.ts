@@ -27,6 +27,15 @@ import {
   type TotpAccount
 } from "../core/totp";
 import {
+  backupEntryToAccountInput,
+  clearStoredTotpAccounts,
+  exportTotpBackup,
+  importTotpBackup,
+  parseTotpBackupFile,
+  serializeTotpBackup,
+  totpBackupFilename
+} from "../core/totp-backup";
+import {
   buildSweepPlan,
   filterSweepHosts,
   hasSweepWork,
@@ -462,6 +471,117 @@ export function createSafetyController(caps: OneKitCapabilities): () => void {
         totpStatus.textContent = err instanceof Error ? err.message : "Wrong passphrase.";
       }
     })();
+  });
+
+  /* Backup / restore / delete-all ------------------------------------------ */
+  const totpExport = $("totp-export") as HTMLButtonElement;
+  const totpImport = $("totp-import") as HTMLButtonElement;
+  const totpImportFile = $("totp-import-file") as HTMLInputElement;
+  const totpDeleteAll = $("totp-delete-all") as HTMLButtonElement;
+
+  function readTextFile(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") resolve(reader.result);
+        else reject(new Error("Could not read that file."));
+      };
+      reader.onerror = () => reject(new Error("Could not read that file."));
+      reader.readAsText(file);
+    });
+  }
+
+  totpExport.addEventListener("click", () => {
+    void (async () => {
+      if (totpLockState(await hasTotpPassphrase(caps.storage), totpKey !== null) === "locked") {
+        totpStatus.textContent = "Unlock the vault first — a backup must contain real secrets, not the encrypted blobs.";
+        return;
+      }
+      if (totpAccounts.length === 0) {
+        totpStatus.textContent = "Nothing to export yet — add an account first.";
+        return;
+      }
+      const passphrase = window.prompt(
+        "Backup passphrase (min 4 characters). Use the same passphrase as your vault for one-passphrase simplicity. Keep it safe — it's the only way to open this backup.",
+        ""
+      );
+      if (passphrase === null) return; // cancelled
+      const blob = await exportTotpBackup(totpAccounts, passphrase);
+      caps.saveFile(
+        new TextEncoder().encode(serializeTotpBackup(blob)),
+        totpBackupFilename(),
+        "application/json"
+      );
+      totpStatus.textContent =
+        `Exported ${totpAccounts.length} account${totpAccounts.length === 1 ? "" : "s"} to an encrypted backup — keep the file and passphrase safe.`;
+    })().catch((err) => {
+      totpStatus.textContent = err instanceof Error ? err.message : "Could not export.";
+    });
+  });
+
+  totpImport.addEventListener("click", () => totpImportFile.click());
+
+  totpImportFile.addEventListener("change", () => {
+    void (async () => {
+      const file = totpImportFile.files?.[0];
+      if (!file) return;
+      try {
+        const text = await readTextFile(file);
+        const blob = parseTotpBackupFile(text);
+        const passphrase = window.prompt("Passphrase for this backup file:", "");
+        if (passphrase === null) return;
+        const entries = await importTotpBackup(blob, passphrase);
+        if (entries.length === 0) {
+          totpStatus.textContent = "That backup contains no accounts.";
+          return;
+        }
+        const current = totpAccounts.length;
+        if (
+          !window.confirm(
+            `Restore ${entries.length} account${entries.length === 1 ? "" : "s"} from this backup? This replaces your ${current} current account${current === 1 ? "" : "s"}.`
+          )
+        ) {
+          return;
+        }
+        if (totpLockState(await hasTotpPassphrase(caps.storage), totpKey !== null) === "locked") {
+          totpStatus.textContent = "Unlock the vault first so the restored accounts can be encrypted.";
+          return;
+        }
+        await clearStoredTotpAccounts(caps.storage);
+        for (const entry of entries) {
+          await addTotpAccount(backupEntryToAccountInput(entry), caps.storage, totpKey ?? undefined);
+        }
+        totpStatus.textContent = `Restored ${entries.length} account${entries.length === 1 ? "" : "s"} from the backup.`;
+        await renderTotpList();
+      } catch (err) {
+        totpStatus.textContent = err instanceof Error ? err.message : "Could not restore that backup.";
+      } finally {
+        totpImportFile.value = "";
+      }
+    })();
+  });
+
+  totpDeleteAll.addEventListener("click", () => {
+    void (async () => {
+      const count = totpAccounts.length;
+      if (count === 0) {
+        totpStatus.textContent = "No accounts to delete.";
+        return;
+      }
+      if (
+        !window.confirm(
+          `Delete all ${count} account${count === 1 ? "" : "s"}? This cannot be undone — export a backup first.`
+        )
+      ) {
+        return;
+      }
+      await clearStoredTotpAccounts(caps.storage);
+      totpAccounts = [];
+      totpStatus.textContent = `Deleted all ${count} account${count === 1 ? "" : "s"}.`;
+      await renderTotpList();
+    })().catch((err) => {
+      totpStatus.textContent = err instanceof Error ? err.message : "Could not delete accounts.";
+    });
   });
 
   /* QR scan — jsQR is imported lazily so it never touches the boot chunk. */

@@ -9,7 +9,7 @@ import { localStorageArea, type KvStorage } from "./storage-utils";
  */
 
 export const VAULT_CRYPTO_STORAGE_KEY = "ok.vaultCrypto";
-const PBKDF2_ITERATIONS = 150_000;
+export const PBKDF2_ITERATIONS = 150_000;
 
 export interface VaultCryptoBlob {
   kdf: "pbkdf2";
@@ -49,7 +49,16 @@ function toBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
+/**
+ * Derives an AES-GCM key from a passphrase + salt (PBKDF2-SHA256).
+ * `iterations` defaults to the current constant and is stored alongside
+ * the verifier so future KDF upgrades stay backward-compatible.
+ */
+export async function deriveVaultKey(
+  passphrase: string,
+  salt: Uint8Array,
+  iterations: number = PBKDF2_ITERATIONS
+): Promise<CryptoKey> {
   const base = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(passphrase),
@@ -58,7 +67,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: toBuffer(salt), iterations: PBKDF2_ITERATIONS, hash: "SHA-256" },
+    { name: "PBKDF2", salt: toBuffer(salt), iterations, hash: "SHA-256" },
     base,
     { name: "AES-GCM", length: 256 },
     false,
@@ -66,15 +75,17 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
   );
 }
 
-/** Encrypts a JSON string into a self-contained blob (salt + iv + ciphertext). */
-export async function encryptVaultJson(json: string, passphrase: string): Promise<VaultCryptoBlob> {
-  const salt = crypto.getRandomValues(new Uint8Array(16));
+/** Encrypts a string with an already-derived key into a blob (fresh IV). */
+export async function encryptBlobWithKey(
+  key: CryptoKey,
+  plaintext: string,
+  salt: Uint8Array
+): Promise<VaultCryptoBlob> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(passphrase, salt);
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv: toBuffer(iv) },
     key,
-    new TextEncoder().encode(json)
+    new TextEncoder().encode(plaintext)
   );
   return {
     kdf: "pbkdf2",
@@ -85,15 +96,27 @@ export async function encryptVaultJson(json: string, passphrase: string): Promis
   };
 }
 
-/** Decrypts a blob. Throws on a wrong passphrase or corrupt data. */
-export async function decryptVaultJson(blob: VaultCryptoBlob, passphrase: string): Promise<string> {
-  const key = await deriveKey(passphrase, base64ToBytes(blob.salt));
+/** Decrypts a blob with an already-derived key. Throws on wrong key or corruption. */
+export async function decryptBlobWithKey(blob: VaultCryptoBlob, key: CryptoKey): Promise<string> {
   const plain = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: toBuffer(base64ToBytes(blob.iv)) },
     key,
     toBuffer(base64ToBytes(blob.ciphertext))
   );
   return new TextDecoder().decode(plain);
+}
+
+/** Encrypts a JSON string into a self-contained blob (salt + iv + ciphertext). */
+export async function encryptVaultJson(json: string, passphrase: string): Promise<VaultCryptoBlob> {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const key = await deriveVaultKey(passphrase, salt);
+  return encryptBlobWithKey(key, json, salt);
+}
+
+/** Decrypts a blob. Throws on a wrong passphrase or corrupt data. */
+export async function decryptVaultJson(blob: VaultCryptoBlob, passphrase: string): Promise<string> {
+  const key = await deriveVaultKey(passphrase, base64ToBytes(blob.salt));
+  return decryptBlobWithKey(blob, key);
 }
 
 export async function readVaultCrypto(storage: KvStorage): Promise<VaultCryptoBlob | null> {

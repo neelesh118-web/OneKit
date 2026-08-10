@@ -20,8 +20,19 @@ import {
 import { loadSettings, type OneKitSettings } from "../src/core/settings";
 import { countWords, countChars, countCharsNoSpaces } from "../src/core/text-utils";
 import { replaceAllMatches, replaceSummary } from "../src/core/find-replace";
+import { fillTargets, findCredentialFields } from "../src/core/vault-fill";
 import { readingMetrics } from "../src/core/readability";
 import { cleanLink } from "../src/core/clean-links";
+import {
+  applySpeedToVideo,
+  clearSiteSpeed,
+  getSiteSpeed,
+  nextSpeed,
+  normalizeHost,
+  setSiteSpeed,
+  speedLabel
+} from "../src/core/video-speed";
+import { canUseDocumentPip, canUseNativePip, pickVideoForPip } from "../src/core/video-pip";
 import {
   draftIdentityForKey,
   draftKeyFor,
@@ -1236,6 +1247,18 @@ browser.runtime.onMessage.addListener(
     void renderPomodoroChip();
     return;
   }
+  if (msg.type === "ok:vault-fill") {
+    const { username, password, site } = msg as { username?: string; password?: string; site?: string };
+    const targets = findCredentialFields(document);
+    const filled = fillTargets(targets, username ?? "", password ?? "");
+    const label = site || "entry";
+    if (filled > 0) {
+      showToast(`Filled ${label} — check the fields before submitting.`, "ok");
+    } else {
+      showToast("No login fields found on this page.", "info");
+    }
+    return { filled };
+  }
   if (msg.type === "ok:find-replace") {
     const { query, replacement, caseSensitive } = msg as {
       query?: string;
@@ -1249,6 +1272,39 @@ browser.runtime.onMessage.addListener(
         return { replaced };
       }
     );
+  }
+  if (msg.type === "ok:video-speed-get") {
+    void (async () => {
+      const host = normalizeHost(window.location.href);
+      const speed = await getSiteSpeed(videoSpeedStore, host);
+      sendResponse({ host, speed });
+    })();
+    return true;
+  }
+  if (msg.type === "ok:video-speed-set" && typeof (msg as { speed?: unknown }).speed === "number") {
+    void (async () => {
+      const host = normalizeHost(window.location.href);
+      const speed = await setSiteSpeed(videoSpeedStore, host, (msg as { speed: number }).speed);
+      await applyVideoSpeeds(true);
+      sendResponse({ speed });
+    })();
+    return true;
+  }
+  if (msg.type === "ok:video-speed-reset") {
+    void (async () => {
+      const host = normalizeHost(window.location.href);
+      await clearSiteSpeed(videoSpeedStore, host);
+      await applyVideoSpeeds(true);
+      sendResponse({ speed: 1 });
+    })();
+    return true;
+  }
+  if (msg.type === "ok:video-pip") {
+    void (async () => {
+      const result = await openVideoPip();
+      sendResponse(result);
+    })();
+    return true;
   }
   }
 );
@@ -1689,6 +1745,111 @@ async function collectAndDownloadImages(): Promise<number> {
 }
 
 /* ------------------------------------------------------------------ */
+/* Video speed + floating video (PiP)                                 */
+/* ------------------------------------------------------------------ */
+
+const videoSpeedStore = localStorageArea();
+const appliedVideoSpeeds = new WeakSet<HTMLVideoElement>();
+let speedApplyPending = false;
+
+async function applyVideoSpeeds(force = false): Promise<void> {
+  const host = normalizeHost(window.location.href);
+  const speed = await getSiteSpeed(videoSpeedStore, host);
+  for (const video of document.querySelectorAll<HTMLVideoElement>("video")) {
+    if (force || !appliedVideoSpeeds.has(video)) {
+      applySpeedToVideo(video, speed);
+      appliedVideoSpeeds.add(video);
+    }
+  }
+}
+
+function scheduleVideoSpeedApply(): void {
+  if (speedApplyPending) return;
+  speedApplyPending = true;
+  requestAnimationFrame(() => {
+    speedApplyPending = false;
+    void applyVideoSpeeds();
+  });
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
+    target.isContentEditable
+  );
+}
+
+async function onVideoSpeedShortcut(event: KeyboardEvent): Promise<void> {
+  const settings = await loadSettings();
+  if (!settings.tools.videoSpeed) return;
+  if (isEditableTarget(event.target)) return;
+  const videos = document.querySelectorAll<HTMLVideoElement>("video");
+  if (videos.length === 0) return;
+  const host = normalizeHost(window.location.href);
+  if (event.key === "[" || event.key === "]" || event.key === "\\") {
+    event.preventDefault();
+    if (event.key === "\\") {
+      await clearSiteSpeed(videoSpeedStore, host);
+      await applyVideoSpeeds(true);
+      showToast(`Playback speed ${speedLabel(1)}`, "ok");
+      return;
+    }
+    const current = await getSiteSpeed(videoSpeedStore, host);
+    const next = nextSpeed(current, event.key === "]" ? 1 : -1);
+    await setSiteSpeed(videoSpeedStore, host, next);
+    await applyVideoSpeeds(true);
+    showToast(`Playback speed ${speedLabel(next)}`, "ok");
+  }
+}
+
+function initVideoSpeed(): void {
+  void applyVideoSpeeds();
+  const observer = new MutationObserver((records) => {
+    const hasVideo = records.some((r) =>
+      [...r.addedNodes].some(
+        (n) => n instanceof HTMLVideoElement || (n instanceof Element && n.querySelector?.("video") !== null)
+      )
+    );
+    if (hasVideo) scheduleVideoSpeedApply();
+  });
+  observer.observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener("keydown", (e) => void onVideoSpeedShortcut(e), true);
+}
+
+async function openVideoPip(): Promise<{ ok: boolean; reason?: "no-video" | "unsupported" | "rejected" }> {
+  const videos = [...document.querySelectorAll<HTMLVideoElement>("video")];
+  const picked = pickVideoForPip(videos);
+  if (!picked) return { ok: false, reason: "no-video" };
+  if (canUseDocumentPip(window as unknown as { documentPictureInPicture?: unknown })) {
+    try {
+      const win = (window as unknown as {
+        documentPictureInPicture: { requestWindow(opts?: { width?: number; height?: number }): Promise<Window> };
+      }).documentPictureInPicture;
+      const pipWindow = await win.requestWindow({ width: 480, height: 270 });
+      pipWindow.document.body.append(picked);
+      pipWindow.addEventListener("pagehide", () => {
+        document.body.append(picked);
+      });
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: "rejected" };
+    }
+  }
+  if (canUseNativePip(picked)) {
+    try {
+      await picked.requestPictureInPicture();
+      return { ok: true };
+    } catch {
+      return { ok: false, reason: "rejected" };
+    }
+  }
+  return { ok: false, reason: "unsupported" };
+}
+
+/* ------------------------------------------------------------------ */
 /* Boot                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -1723,6 +1884,9 @@ function boot(): void {
 
   // Read-aloud chip watcher while speech is running.
   window.setInterval(updateReadAloudChip, 2000);
+
+  // Video speed controller (per-site speeds + [ ] \\ shortcuts).
+  initVideoSpeed();
 
   // Clipboard capture.
   document.addEventListener("copy", captureCopy, true);

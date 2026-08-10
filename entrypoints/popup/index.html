@@ -11,22 +11,22 @@
       <header class="app-header">
         <div class="brand">
           <strong>OneKit</strong>
-          <span>68 tools · 100% local · free forever</span>
+          <span>77 tools · 100% local · free forever</span>
         </div>
       </header>
 
       <nav class="tab-nav" aria-label="OneKit tools">
-        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory</button>
-        <button type="button" class="tab-btn" data-tab="vault">💬 Vault</button>
-        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety</button>
-        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed</button>
-        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus</button>
-        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing</button>
-        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools</button>
-        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev</button>
-        <button type="button" class="tab-btn" data-tab="convert">🔄 Convert</button>
-        <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads</button>
-        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings</button>
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">9</span></button>
+        <button type="button" class="tab-btn" data-tab="vault">💬 Vault <span class="tab-count">2</span></button>
+        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">8</span></button>
+        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">8</span></button>
+        <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">8</span></button>
+        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">7</span></button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">14</span></button>
+        <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">3</span></button>
+        <button type="button" class="tab-btn" data-tab="convert">🔄 Convert <span class="tab-count">4</span></button>
+        <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">2</span></button>
+        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">5</span></button>
       </nav>
 
       <!-- ============================================================ -->
@@ -182,11 +182,40 @@
             <p id="vault-status" class="status"></p>
           </div>
         </div>
+
+                  <p id="sn-state" class="status"></p>
+                  <div class="btn-row">
+                    <input id="sn-pass" type="password" placeholder="Passphrase" autocomplete="off" />
+                    <button id="sn-unlock" type="button" class="mini-btn">🔓 Unlock</button>
+                    <button id="sn-set" type="button" class="mini-btn">🔒 Set passphrase</button>
+                    <button id="sn-lock" type="button" class="mini-btn">🔐 Lock now</button>
+                    <button id="sn-remove-enc" type="button" class="mini-btn danger">Remove encryption</button>
+                  </div>
+                  <p id="sn-status" class="status"></p>
+                  <div id="sn-add-wrap">
+                    <input id="sn-title" type="text" placeholder="Note title" autocomplete="off" />
+                    <textarea id="sn-body" rows="3" placeholder="Note body…"></textarea>
+                    <div class="btn-row">
+                      <button id="sn-add" type="button" class="mini-btn">Add note</button>
+                      <button id="sn-clear" type="button" class="mini-btn danger">Delete all notes</button>
+                    </div>
+                  </div>
+                  <div id="sn-list-wrap">
+                    <div id="sn-list" class="results"></div>
+                  </div>
+                </div>
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Safety                                                        -->
       <!-- ============================================================ -->
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📓 Encrypted secure notes</span>
+          </div>
+          <p class="hint">Private notes encrypted at rest with a passphrase (PBKDF2 + AES-GCM, key held in memory only). No recovery — a lost passphrase means lost notes.</p>
+
       <section class="tab-panel" id="panel-safety" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -288,8 +317,52 @@
             <button id="totp-qr-btn" type="button" class="mini-btn">📷 Scan QR from image</button>
             <input id="totp-qr-file" type="file" accept="image/*" hidden />
           </div>
+          <div class="btn-row">
+            <button id="totp-export" type="button" class="mini-btn">⬇ Export backup</button>
+            <button id="totp-import" type="button" class="mini-btn">⬆ Restore backup</button>
+            <input id="totp-import-file" type="file" accept=".json,.onekit,application/json" hidden />
+            <button id="totp-delete-all" type="button" class="mini-btn danger">🗑 Delete all</button>
+          </div>
           <div id="totp-list" class="results"></div>
           <p id="totp-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔑 Local password vault</span>
+          </div>
+          <p class="hint">Save logins locally, encrypted at rest with a master password. Fill is one click from here and never auto-submits.</p>
+          <div class="btn-row">
+            <input id="pwv-passphrase-input" type="password" placeholder="Master password (min 4)" />
+            <button id="pwv-passphrase-set" type="button" class="mini-btn">Set master password</button>
+            <button id="pwv-passphrase-clear" type="button" class="mini-btn danger" hidden>Remove</button>
+          </div>
+          <div class="btn-row" id="pwv-unlock-wrap" hidden>
+            <input id="pwv-unlock-input" type="password" placeholder="Enter master password to unlock" />
+            <button id="pwv-unlock-btn" type="button" class="mini-btn primary">Unlock</button>
+          </div>
+          <div class="btn-row">
+            <input id="pwv-change-input" type="password" placeholder="New master password" hidden />
+            <button id="pwv-change-btn" type="button" class="mini-btn" hidden>Change</button>
+          </div>
+          <div class="btn-row">
+            <input id="pwv-site" type="text" placeholder="Site (e.g. github.com)" />
+            <input id="pwv-username" type="text" placeholder="Username / email" />
+          </div>
+          <div class="btn-row">
+            <input id="pwv-password" type="password" placeholder="Password" />
+            <button id="pwv-generate" type="button" class="mini-btn">Generate</button>
+            <input id="pwv-notes" type="text" placeholder="Notes (optional)" />
+            <button id="pwv-add" type="button" class="mini-btn primary">Save login</button>
+          </div>
+          <div class="btn-row">
+            <button id="pwv-export" type="button" class="mini-btn">⬇ Export backup</button>
+            <button id="pwv-import" type="button" class="mini-btn">⬆ Restore backup</button>
+            <input id="pwv-import-file" type="file" accept=".json,.onekit,application/json" hidden />
+            <button id="pwv-delete-all" type="button" class="mini-btn danger">🗑 Delete all</button>
+          </div>
+          <div id="pwv-list" class="results"></div>
+          <p id="pwv-status" class="status"></p>
         </div>
 
         <div class="tool-block">
@@ -532,11 +605,45 @@
           <div id="habit-list" class="results"></div>
           <p id="habit-status" class="status"></p>
         </div>
+
+                  <div class="tool-heading">
+                    <span class="tool-label">☑️ Todo list</span>
+                  </div>
+                  <p class="hint">Local tasks with priorities and due dates — sorted open-first, then priority, then due date.</p>
+                  <div class="btn-row">
+                    <input id="todo-input" type="text" placeholder="What needs doing?" autocomplete="off" />
+                    <select id="todo-priority" aria-label="Priority">
+                      <option value="high">High</option>
+                      <option value="medium" selected>Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                    <input id="todo-due" type="date" aria-label="Due date" />
+                    <button id="todo-add" type="button" class="mini-btn">Add</button>
+                  </div>
+                  <p id="todo-stats" class="status"></p>
+                  <div id="todo-list" class="results"></div>
+                </div>
+
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">🌊 Focus sounds</span>
+                  </div>
+                  <p class="hint">Ambient noise generated locally with Web Audio — nothing streams, nothing leaves the device. Audio stops when the popup closes.</p>
+                  <div id="sounds-buttons" class="btn-row"></div>
+                  <div class="btn-row">
+                    <label>Volume <input id="sounds-volume" type="range" min="0" max="100" value="35" /></label>
+                    <button id="sounds-stop" type="button" class="mini-btn">Stop</button>
+                  </div>
+                  <p id="sounds-status" class="status"></p>
+                </div>
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Typing                                                        -->
       <!-- ============================================================ -->
+        <div class="tool-block">
+
       <section class="tab-panel" id="panel-typing" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -615,11 +722,25 @@
           </div>
           <p id="fr-status" class="status"></p>
         </div>
+
+                  <div class="tool-heading">
+                    <span class="tool-label">✍️ Local spell-checker</span>
+                  </div>
+                  <p class="hint">Check pasted text against a bundled 274k-word dictionary with correction suggestions — no network. Proper nouns and jargon aren't in the dictionary, so they're never flagged.</p>
+                  <textarea id="sc-input" rows="5" placeholder="Paste text to check…" spellcheck="false"></textarea>
+                  <div class="btn-row">
+                    <button id="sc-check" type="button" class="mini-btn">Check spelling</button>
+                  </div>
+                  <div id="sc-result" class="results"></div>
+                </div>
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Tools                                                         -->
       <!-- ============================================================ -->
+        <div class="tool-block">
+
       <section class="tab-panel" id="panel-tools" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -776,11 +897,68 @@
           <strong id="date-tz-result" class="unit-result"></strong>
           <p class="status">Leave the date-time blank to use right now.</p>
         </div>
+
+                  <div class="tool-heading">
+                    <span class="tool-label">⏩ Video speed controller</span>
+                  </div>
+                  <p class="hint">Set a playback speed for this site — it applies to every video here. While watching, <b>[</b> and <b>]</b> slow / speed up, <b>\</b> resets (enable in Settings).</p>
+                  <div class="btn-row">
+                    <label class="speed-label">Speed for <span id="vs-host">this page</span></label>
+                    <input id="vs-slider" type="range" min="0.25" max="4" step="0.25" value="1" />
+                    <span id="vs-value" class="speed-value">1×</span>
+                  </div>
+                  <div class="btn-row">
+                    <button id="vs-apply" type="button" class="mini-btn">Apply</button>
+                    <button id="vs-reset" type="button" class="mini-btn">Reset to 1×</button>
+                  </div>
+                </div>
+
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">🎬 Tab recorder</span>
+                  </div>
+                  <p class="hint">Record this tab (video + audio) to a WebM file in Downloads. Keep the OneKit popup open while recording — closing it saves what was captured.</p>
+                  <div class="btn-row">
+                    <button id="rec-toggle" type="button" class="mini-btn">⏺ Record this tab</button>
+                  </div>
+                  <p id="rec-status" class="status"></p>
+                </div>
+
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">📺 Floating video (PiP)</span>
+                  </div>
+                  <p class="hint">Pop the page's video into a draggable always-on-top window.</p>
+                  <div class="btn-row">
+                    <button id="pip-btn" type="button" class="mini-btn">Float current video</button>
+                  </div>
+                  <p id="pip-status" class="status"></p>
+                </div>
+
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">🔍 Image &amp; screenshot OCR</span>
+                  </div>
+                  <p class="hint">Extract text from an image file or the visible tab — the OCR engine runs fully offline in your browser.</p>
+                  <div class="btn-row">
+                    <button id="ocr-tab" type="button" class="mini-btn">Use visible tab</button>
+                    <label class="mini-btn file-btn">Pick image… <input id="ocr-file" type="file" accept="image/*" hidden /></label>
+                  </div>
+                  <p id="ocr-status" class="status"></p>
+                  <textarea id="ocr-output" rows="5" placeholder="Recognized text appears here…" spellcheck="false"></textarea>
+                  <div class="btn-row">
+                    <button id="ocr-copy" type="button" class="mini-btn">Copy text</button>
+                    <button id="ocr-save" type="button" class="mini-btn">Save .txt</button>
+                  </div>
+                </div>
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Dev                                                           -->
       <!-- ============================================================ -->
+        <div class="tool-block">
+
       <section class="tab-panel" id="panel-dev" hidden>
         <div class="tool-block">
           <div class="tool-heading">
@@ -790,7 +968,7 @@
 
           <div class="dev-tool">
             <strong>JSON</strong>
-            <textarea id="dev-json-input" rows="3" placeholder="{ \"a\": 1 }"></textarea>
+            <textarea id="dev-json-input" rows="3" placeholder="{ &quot;a&quot;: 1 }"></textarea>
             <div class="btn-row">
               <button id="dev-json-format" type="button" class="mini-btn">Format</button>
               <button id="dev-json-minify" type="button" class="mini-btn">Minify</button>

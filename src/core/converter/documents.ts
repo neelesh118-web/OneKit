@@ -15,7 +15,7 @@ import * as pdfjsWorkerModule from "pdfjs-dist/legacy/build/pdf.worker.mjs";
 import mammoth from "mammoth";
 import TurndownService from "turndown";
 import { marked } from "marked";
-import * as XLSX from "xlsx";
+import XLSX from "../../vendor/xlsx.mjs";
 import * as yaml from "js-yaml";
 import { XMLParser } from "fast-xml-parser";
 import { strFromU8, unzipSync } from "fflate/browser";

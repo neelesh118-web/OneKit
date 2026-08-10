@@ -14,6 +14,8 @@ import { createTypingController } from "../../src/popup/typing-controller";
 import { createToolsController } from "../../src/popup/tools-controller";
 import { createDownloadsController } from "../../src/popup/downloads-controller";
 import { createDevController } from "../../src/popup/dev-controller";
+import { createPasswordVaultController } from "../../src/popup/password-vault-controller";
+import { createMediaController } from "../../src/popup/media-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 
@@ -207,6 +209,64 @@ const caps: OneKitCapabilities = {
     if (tab?.id === undefined) return 0;
     const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:collect-images" })) as { saved?: number } | undefined;
     return result?.saved ?? 0;
+  },
+  videoSpeedGet: async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return { host: "", speed: 1 };
+    const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:video-speed-get" })) as
+      | { host?: string; speed?: number }
+      | undefined;
+    return { host: result?.host ?? "", speed: result?.speed ?? 1 };
+  },
+  videoSpeedSet: async (speed) => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return speed;
+    const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:video-speed-set", speed })) as
+      | { speed?: number }
+      | undefined;
+    return result?.speed ?? speed;
+  },
+  videoSpeedReset: async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return 1;
+    const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:video-speed-reset" })) as
+      | { speed?: number }
+      | undefined;
+    return result?.speed ?? 1;
+  },
+  captureTabStream: async () => {
+    const tabCapture = (browser as unknown as { tabCapture: { capture(options: { audio: boolean; video: boolean }): Promise<MediaStream> } }).tabCapture;
+    return tabCapture.capture({ audio: true, video: true });
+  },
+  saveBlob: (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    void browser.downloads.download({ url, filename, saveAs: false });
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  },
+  openVideoPip: async () => {
+    const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id === undefined) return { ok: false, reason: "no-video" as const };
+    const result = (await browser.tabs.sendMessage(tab.id, { type: "ok:video-pip" })) as
+      | { ok?: boolean; reason?: "no-video" | "unsupported" | "rejected" }
+      | undefined;
+    const ok = result?.ok ?? false;
+    const reason = result?.reason;
+    return reason === undefined ? { ok } : { ok, reason };
+  },
+  ocrImage: async (dataUrl) => {
+    const mod = await import("../../src/core/ocr");
+    const getUrl = browser.runtime.getURL as (path: string) => string;
+    return mod.ocrImageDataUrl(dataUrl, getUrl);
+  },
+  fileToDataUrl: async (file) => {
+    const mod = await import("../../src/core/ocr");
+    return mod.imageDataUrlFromFile(file);
+  },
+  loadWordlist: async () => {
+    const getUrl = browser.runtime.getURL as (path: string) => string;
+    const res = await fetch(getUrl("dictionary/words.json"));
+    if (!res.ok) throw new Error("The dictionary file is missing from this install.");
+    return (await res.json()) as string[];
   }
 };
 
@@ -312,10 +372,12 @@ void (async () => {
   createMemoryController(caps);
   createVaultController(caps);
   createSafetyController(caps);
+  createPasswordVaultController(caps);
   createSpeedController(caps);
   createFocusController(caps);
   createTypingController(caps);
   createToolsController(caps);
+  createMediaController(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);

@@ -539,6 +539,71 @@ export const TOOLS: ToolDef[] = [
     icon: "🗂",
     tab: "speed",
     description: "A tree view of every open tab grouped by site in the side panel — switch, suspend or close tabs without losing your place."
+  },
+  {
+    id: "passwordVault",
+    name: "Local password vault",
+    icon: "🔑",
+    tab: "safety",
+    description: "Save logins locally, encrypted at rest with a master password (AES-GCM, key in memory only). Fill is one click from the popup and never auto-submits; encrypted backup export/restore included."
+  },
+  {
+    id: "videoSpeed",
+    name: "Video speed controller",
+    icon: "⏩",
+    tab: "tools",
+    description: "Set a playback speed per site and apply it to every video — plus [ ] \\ keyboard shortcuts while watching. All local.",
+    toggleKey: "videoSpeed",
+    settingLabel: "Apply saved playback speeds to videos ([ ] \\ shortcuts)"
+  },
+  {
+    id: "tabRecorder",
+    name: "Tab recorder",
+    icon: "🎬",
+    tab: "tools",
+    description: "Record the current tab (video + audio) to a WebM file saved to Downloads. Keep the OneKit popup open while recording; closing it saves what was captured."
+  },
+  {
+    id: "ocr",
+    name: "Image & screenshot OCR",
+    icon: "🔍",
+    tab: "tools",
+    description: "Extract text from an image file or the visible tab, fully offline with a bundled OCR engine."
+  },
+  {
+    id: "spellcheck",
+    name: "Local spell-checker",
+    icon: "✍️",
+    tab: "typing",
+    description: "Check pasted text against a bundled 274k-word dictionary with correction suggestions — no network. Proper nouns and jargon will be flagged."
+  },
+  {
+    id: "todo",
+    name: "Todo list",
+    icon: "☑️",
+    tab: "focus",
+    description: "Local tasks with priorities and due dates, sorted the way you'd do it by hand — open first, then priority, then due date."
+  },
+  {
+    id: "secureNotes",
+    name: "Encrypted secure notes",
+    icon: "📓",
+    tab: "vault",
+    description: "Private notes encrypted at rest with a passphrase (PBKDF2 + AES-GCM, key in memory only). No recovery — a lost passphrase means lost notes."
+  },
+  {
+    id: "focusSounds",
+    name: "Focus sounds",
+    icon: "🌊",
+    tab: "focus",
+    description: "White, pink, brown noise or rain generated locally with Web Audio — no streaming, nothing leaves the device."
+  },
+  {
+    id: "videoPip",
+    name: "Floating video (PiP)",
+    icon: "📺",
+    tab: "tools",
+    description: "Pop the current page's video into a draggable always-on-top window with one click."
   }
 ];
 

@@ -137,6 +137,25 @@ Plus: **first-run onboarding** (a 4-choice picker that switches on only the tool
 | ✅ Habit tracker | Daily check-offs with streaks, stored locally, also shown on the new-tab dashboard | Popup → Focus + New tab |
 | 🗂 Tab outline (side panel) | Tree view of every open tab grouped by site in the side panel — switch, suspend or close tabs | Side panel |
 
+### Phase 12 (1 feature — 69 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🔑 Local password vault | Save logins locally, encrypted at rest with a master password (whole-blob AES-GCM via the same vault-crypto format as the AI chat vault; key derived with PBKDF2 and held in memory for the session — popup close = locked). Popup-only one-click fill (never auto-fill, never auto-submit; the content script fills the first username + last password field and toasts “check the fields before submitting”), per-site subdomain matching, encrypted backup export/restore, change-master-password, and delete-all with confirm | Popup → Safety |
+
+### Phase 13 (8 features — 77 tools total)
+
+| Feature | What it does | Where |
+|---|---|---|
+| ⏩ Video speed controller | Per-site playback speeds applied to every video on a site, with a popup slider and `[` / `]` / `\` keyboard shortcuts while watching (enable in Settings). All local | Popup → Tools + on-page |
+| 🎬 Tab recorder | Records the current tab (video + audio) to a WebM file in Downloads via `chrome.tabCapture` + MediaRecorder. Keep the popup open while recording — closing it saves what was captured; nothing is uploaded | Popup → Tools |
+| 🔍 Image & screenshot OCR | Extracts text from an image file or the visible tab, 100% offline — tesseract.js WASM core + English traineddata bundled (lazy-loaded, ~3 MB, no network) | Popup → Tools |
+| ✍️ Local spell-checker | Checks pasted text against a bundled 274k-word dictionary with edit-distance ≤ 2 correction suggestions. Proper nouns and jargon aren't in the dictionary, so they're never flagged (honest scope) | Popup → Typing |
+| ☑️ Todo list | Local tasks with priorities and due dates, sorted open-first then priority then due date, with a stats line. No account, no cloud | Popup → Focus |
+| 📓 Encrypted secure notes | Private notes encrypted at rest with a passphrase (PBKDF2 + AES-GCM, the same vault-crypto scheme as the chat vault; key held in memory only). Lock/unlock, remove encryption, delete-all. No recovery — a lost passphrase means lost notes | Popup → Vault |
+| 🌊 Focus sounds | White, pink, brown noise or rain generated locally with Web Audio — nothing streams, nothing leaves the device; volume control, stops on popup close | Popup → Focus |
+| 📺 Floating video (PiP) | Pops the page's best video (playing + visible wins) into Chrome's Document Picture-in-Picture window; falls back to native PiP | Popup → Tools + on-page |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

@@ -69,6 +69,24 @@ export interface OneKitCapabilities {
   deleteHistoryForHost(host: string): Promise<number>;
   /** Clears the browser's cached files (browsingData.removeCache). */
   clearCacheAll(): Promise<void>;
+  /** Video speed: current site's saved speed (content script answers). */
+  videoSpeedGet(): Promise<{ host: string; speed: number }>;
+  /** Video speed: saves + applies a speed for the current site. */
+  videoSpeedSet(speed: number): Promise<number>;
+  /** Video speed: clears the current site's saved speed. */
+  videoSpeedReset(): Promise<number>;
+  /** Tab recorder: a MediaStream of the active tab (tabCapture). */
+  captureTabStream(): Promise<MediaStream>;
+  /** Tab recorder: saves a blob (WebM) to Downloads. */
+  saveBlob(blob: Blob, filename: string): void;
+  /** Floating video: asks the active tab to open Document/native PiP. */
+  openVideoPip(): Promise<{ ok: boolean; reason?: "no-video" | "unsupported" | "rejected" }>;
+  /** OCR: recognizes text in an image data URL with the offline engine. */
+  ocrImage(dataUrl: string): Promise<string>;
+  /** OCR: reads a picked file into a data URL. */
+  fileToDataUrl(file: Blob): Promise<string>;
+  /** Spell-check: the bundled 274k-word list, fetched on demand. */
+  loadWordlist(): Promise<string[]>;
 }
 
 import type { CookieLike } from "../core/cookie-manager";

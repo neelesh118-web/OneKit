@@ -355,3 +355,8 @@ export async function removeTotpAccount(id: string, storage: KvStorage): Promise
     accounts.filter((a) => a.id !== id)
   );
 }
+
+/** Removes every account (restore-replace and delete-all). */
+export async function clearTotpAccounts(storage: KvStorage): Promise<void> {
+  await writeAccounts(storage, []);
+}

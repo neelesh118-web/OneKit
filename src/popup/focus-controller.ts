@@ -42,6 +42,22 @@ import {
   toggleHabitDay,
   weekdayLabel
 } from "../core/habits";
+import {
+  addTodo,
+  dueLabel,
+  loadTodos,
+  removeTodo,
+  sortTodos,
+  todoStats,
+  toggleTodo,
+  type TodoPriority
+} from "../core/todo-store";
+import {
+  createNoisePlayer,
+  DEFAULT_SOUND_VOLUME,
+  SOUND_OPTIONS,
+  type NoisePlayerDeps
+} from "../core/focus-sounds";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -508,8 +524,147 @@ export function createFocusController(caps: OneKitCapabilities): () => void {
   void renderBudgets();
   void renderScreenTime();
   void renderHabits();
+  wireTodos();
+  wireFocusSounds();
   return () => {
     if (sessionTimer !== undefined) window.clearInterval(sessionTimer);
     if (pomodoroTimer !== undefined) window.clearInterval(pomodoroTimer);
+    stopSounds();
   };
+
+  /* Todo list --------------------------------------------------------- */
+  const PRIORITY_LABEL: Record<TodoPriority, string> = { high: "High", medium: "Medium", low: "Low" };
+
+  function wireTodos(): void {
+    const todoInput = $("todo-input") as HTMLInputElement;
+    const todoPriority = $("todo-priority") as HTMLSelectElement;
+    const todoDue = $("todo-due") as HTMLInputElement;
+    const todoAdd = $("todo-add") as HTMLButtonElement;
+    const todoList = $("todo-list");
+    const todoStatsEl = $("todo-stats");
+
+    async function renderTodos(): Promise<void> {
+      const todos = sortTodos(await loadTodos(caps.storage));
+      const stats = todoStats(todos);
+      todoStatsEl.textContent =
+        stats.total === 0 ? "No tasks yet — add one below." : `${stats.open} open · ${stats.done} done of ${stats.total}`;
+      todoList.textContent = "";
+      for (const todo of todos) {
+        const row = document.createElement("div");
+        row.className = "todo-row" + (todo.done ? " done" : "");
+        const label = document.createElement("label");
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        check.checked = todo.done;
+        check.addEventListener("change", () => {
+          void toggleTodo(caps.storage, todo.id, caps.now()).then(renderTodos);
+        });
+        const title = document.createElement("span");
+        title.className = "todo-title";
+        title.textContent = todo.title;
+        const meta = document.createElement("span");
+        meta.className = "todo-meta";
+        const due = dueLabel(todo.due, caps.now());
+        meta.textContent = `${PRIORITY_LABEL[todo.priority]}${due ? " · " + due : ""}`;
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "link-btn";
+        del.textContent = "✕";
+        del.title = "Delete";
+        del.addEventListener("click", () => {
+          void removeTodo(caps.storage, todo.id).then(renderTodos);
+        });
+        label.append(check, title, meta);
+        row.append(label, del);
+        todoList.appendChild(row);
+      }
+    }
+
+    todoAdd.addEventListener("click", () => {
+      void (async () => {
+        const title = todoInput.value.trim();
+        if (!title) return;
+        const due = todoDue.value ? new Date(`${todoDue.value}T00:00:00`).getTime() : null;
+        await addTodo(caps.storage, { title, priority: todoPriority.value as TodoPriority, due }, caps.now());
+        todoInput.value = "";
+        todoDue.value = "";
+        await renderTodos();
+      })();
+    });
+    todoInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") todoAdd.click();
+    });
+    void renderTodos();
+  }
+
+  /* Focus sounds ------------------------------------------------------ */
+  let audioCtx: AudioContext | null = null;
+  let noisePlayer: ReturnType<typeof createNoisePlayer> | null = null;
+
+  function stopSounds(): void {
+    noisePlayer?.stop();
+    noisePlayer = null;
+  }
+
+  function ensureAudio(): AudioContext | null {
+    if (audioCtx) return audioCtx;
+    const Ctor =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctor) return null;
+    audioCtx = new Ctor();
+    return audioCtx;
+  }
+
+  function wireFocusSounds(): void {
+    const soundsHost = $("sounds-buttons");
+    const soundsVolume = $("sounds-volume") as HTMLInputElement;
+    const soundsStop = $("sounds-stop") as HTMLButtonElement;
+    const soundsStatus = $("sounds-status");
+
+    for (const option of SOUND_OPTIONS) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn";
+      btn.textContent = `${option.emoji} ${option.name}`;
+      btn.addEventListener("click", () => {
+        const ctx = ensureAudio();
+        if (!ctx) {
+          soundsStatus.textContent = "Audio isn't available in this browser.";
+          return;
+        }
+        stopSounds();
+        const deps: NoisePlayerDeps = {
+          sampleRate: ctx.sampleRate,
+          createBuffer: (length) => {
+            const buf = ctx.createBuffer(1, length, ctx.sampleRate);
+            return {
+              setData: (d) => buf.getChannelData(0).set(d)
+            } as { setData(data: Float32Array): void } & { _b: AudioBuffer };
+          },
+          createBufferSource: (buffer) => {
+            const src = ctx.createBufferSource();
+            src.buffer = (buffer as unknown as { _b: AudioBuffer })._b;
+            return src as unknown as ReturnType<NoisePlayerDeps["createBufferSource"]>;
+          },
+          createGain: () => ctx.createGain(),
+          destination: ctx.destination
+        };
+        noisePlayer = createNoisePlayer(deps, option.id, 120);
+        noisePlayer.setVolume(Number(soundsVolume.value) / 100);
+        noisePlayer.play();
+        soundsStatus.textContent = `Playing ${option.name} — generated locally, nothing streams.`;
+      });
+      soundsHost.appendChild(btn);
+    }
+
+    soundsVolume.value = String(Math.round(DEFAULT_SOUND_VOLUME * 100));
+    soundsVolume.addEventListener("input", () => {
+      noisePlayer?.setVolume(Number(soundsVolume.value) / 100);
+    });
+    soundsStop.addEventListener("click", () => {
+      stopSounds();
+      soundsStatus.textContent = "";
+    });
+  }
 }

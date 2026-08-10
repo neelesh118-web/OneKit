@@ -26,6 +26,7 @@ const SAFETY_IDS = [
   "totp-passphrase-input", "totp-passphrase-set", "totp-passphrase-clear",
   "totp-unlock-wrap", "totp-unlock-input", "totp-unlock-btn",
   "totp-add-label", "totp-add-secret", "totp-add-btn", "totp-qr-btn", "totp-qr-file",
+  "totp-export", "totp-import", "totp-import-file", "totp-delete-all",
   "totp-list", "totp-status",
   "sweep-scan", "sweep-filter", "sweep-list", "sweep-status", "sweep-clear-cache"
 ];
@@ -71,7 +72,16 @@ function fakeCaps(storage: ReturnType<typeof createMemoryStorage>): OneKitCapabi
     getHistoryDomains: async () => [],
     deleteHistoryForHost: async () => 0,
     clearCacheAll: async () => {},
-    getAllCookieHosts: async () => []
+    getAllCookieHosts: async () => [],
+    videoSpeedGet: async () => ({ host: "", speed: 1 }),
+    videoSpeedSet: async (speed) => speed,
+    videoSpeedReset: async () => 1,
+    captureTabStream: async () => new MediaStream(),
+    saveBlob: () => {},
+    openVideoPip: async () => ({ ok: false, reason: "unsupported" }),
+    ocrImage: async () => "",
+    fileToDataUrl: async () => "data:image/png;base64,",
+    loadWordlist: async () => []
   };
 }
 

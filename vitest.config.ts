@@ -16,6 +16,10 @@ export default defineConfig({
       forks: {
         isolate: true
       }
-    }
+    },
+    // Bounded per-test/hook timeouts so a genuine hang fails fast instead of
+    // blocking the whole suite forever (audit F-04).
+    testTimeout: 30_000,
+    hookTimeout: 30_000
   }
 });

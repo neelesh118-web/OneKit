@@ -9,7 +9,17 @@ import { localStorageArea, type KvStorage } from "./storage-utils";
 
 export const BACKUP_VERSION = 1;
 
-/** Every OneKit storage key that holds user data. */
+/**
+ * Every OneKit storage key that holds user data. This is the single
+ * registry for backup, restore, and erase-all — a user-data key that is
+ * not listed here will be silently missed by a backup, so when a new
+ * store is added it MUST be added here (tests enforce this by scanning
+ * the source for `ok.*` key constants).
+ *
+ * Secret stores (passwords, TOTP, secure notes, chat vault) are exported
+ * as their encrypted-at-rest blobs when a passphrase is set — the backup
+ * protects the ciphertext, and the passphrase stays with the user.
+ */
 export const BACKUP_KEYS = [
   "ok.settings",
   "ok.history",
@@ -22,6 +32,8 @@ export const BACKUP_KEYS = [
   "ok.readLater",
   "ok.workspaces",
   "ok.focusRules",
+  "ok.focusPause",
+  "ok.focusAllowToday",
   "ok.budgets",
   "ok.focusSession",
   "ok.screenTime",
@@ -33,7 +45,15 @@ export const BACKUP_KEYS = [
   "ok.snoozedTabs",
   "ok.webNotes",
   "ok.readingProgress",
-  "ok.pomodoro"
+  "ok.pomodoro",
+  "ok.habits",
+  "ok.todos",
+  "ok.videoSpeeds",
+  "ok.passwords",
+  "ok.passwordsMeta",
+  "ok.totp.accounts",
+  "ok.totp.meta",
+  "ok.secureNotes"
 ] as const;
 
 export interface OneKitBackup {
@@ -48,30 +68,44 @@ export function isBackupKey(key: string): key is (typeof BACKUP_KEYS)[number] {
 }
 
 /** Shape guard per key — keeps restore honest even if the file is edited. */
+const isObject = (v: unknown): boolean => !!v && typeof v === "object";
+const isArray = (v: unknown): boolean => Array.isArray(v);
+
+/** Shape guard per key — keeps restore honest even if the file is edited. */
 const KEY_VALIDATORS: Record<(typeof BACKUP_KEYS)[number], (value: unknown) => boolean> = {
-  "ok.settings": (v) => !!v && typeof v === "object",
-  "ok.history": (v) => Array.isArray(v),
-  "ok.clipboard": (v) => Array.isArray(v),
-  "ok.drafts": (v) => Array.isArray(v),
-  "ok.snippets": (v) => Array.isArray(v),
-  "ok.chatVault": (v) => Array.isArray(v),
-  "ok.vaultCrypto": (v) => !!v && typeof v === "object",
-  "ok.highlights": (v) => Array.isArray(v),
-  "ok.readLater": (v) => Array.isArray(v),
-  "ok.workspaces": (v) => Array.isArray(v),
-  "ok.focusRules": (v) => Array.isArray(v),
-  "ok.budgets": (v) => Array.isArray(v),
-  "ok.focusSession": (v) => !!v && typeof v === "object",
-  "ok.screenTime": (v) => !!v && typeof v === "object",
-  "ok.sessionBackup": (v) => !!v && typeof v === "object",
-  "ok.downloads": (v) => Array.isArray(v),
-  "ok.contactCard": (v) => !!v && typeof v === "object",
-  "ok.archive": (v) => Array.isArray(v),
-  "ok.darkMode": (v) => !!v && typeof v === "object",
-  "ok.snoozedTabs": (v) => Array.isArray(v),
-  "ok.webNotes": (v) => Array.isArray(v),
-  "ok.readingProgress": (v) => Array.isArray(v),
-  "ok.pomodoro": (v) => !!v && typeof v === "object"
+  "ok.settings": isObject,
+  "ok.history": isArray,
+  "ok.clipboard": isArray,
+  "ok.drafts": isArray,
+  "ok.snippets": isArray,
+  "ok.chatVault": isArray,
+  "ok.vaultCrypto": isObject,
+  "ok.highlights": isArray,
+  "ok.readLater": isArray,
+  "ok.workspaces": isArray,
+  "ok.focusRules": isArray,
+  "ok.focusPause": isObject,
+  "ok.focusAllowToday": isObject,
+  "ok.budgets": isArray,
+  "ok.focusSession": isObject,
+  "ok.screenTime": isObject,
+  "ok.sessionBackup": isObject,
+  "ok.downloads": isArray,
+  "ok.contactCard": isObject,
+  "ok.archive": isArray,
+  "ok.darkMode": isObject,
+  "ok.snoozedTabs": isArray,
+  "ok.webNotes": isArray,
+  "ok.readingProgress": isArray,
+  "ok.pomodoro": isObject,
+  "ok.habits": isArray,
+  "ok.todos": isArray,
+  "ok.videoSpeeds": isObject,
+  "ok.passwords": isObject,
+  "ok.passwordsMeta": isObject,
+  "ok.totp.accounts": isObject,
+  "ok.totp.meta": isObject,
+  "ok.secureNotes": isObject
 };
 
 export async function createBackup(storage: KvStorage, now: number = Date.now()): Promise<OneKitBackup> {
@@ -87,6 +121,9 @@ export function serializeBackup(backup: OneKitBackup): string {
   return JSON.stringify(backup, null, 2);
 }
 
+/** Upper bound on a restored backup — rejects absurd/malicious files early. */
+export const MAX_BACKUP_BYTES = 25 * 1024 * 1024;
+
 /** Parses + validates an untrusted backup payload. */
 export function validateBackup(raw: unknown): { ok: true; backup: OneKitBackup } | { ok: false; error: string } {
   if (!raw || typeof raw !== "object") {
@@ -96,7 +133,7 @@ export function validateBackup(raw: unknown): { ok: true; backup: OneKitBackup }
   if (candidate.app !== "onekit") {
     return { ok: false, error: "This file is not an OneKit backup." };
   }
-  if (typeof candidate.version !== "number" || candidate.version > BACKUP_VERSION) {
+  if (typeof candidate.version !== "number" || !Number.isInteger(candidate.version) || candidate.version !== BACKUP_VERSION) {
     return { ok: false, error: `Unsupported backup version ${String(candidate.version)}.` };
   }
   if (typeof candidate.exportedAt !== "number") {
@@ -104,6 +141,13 @@ export function validateBackup(raw: unknown): { ok: true; backup: OneKitBackup }
   }
   if (!candidate.data || typeof candidate.data !== "object") {
     return { ok: false, error: "The backup contains no data." };
+  }
+  try {
+    if (JSON.stringify(candidate).length > MAX_BACKUP_BYTES) {
+      return { ok: false, error: "The backup is too large to restore." };
+    }
+  } catch {
+    return { ok: false, error: "The backup could not be read." };
   }
   const data = candidate.data as Record<string, unknown>;
   for (const key of Object.keys(data)) {

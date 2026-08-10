@@ -12,6 +12,7 @@ import { tabsToMarkdown } from "../core/markdown";
 import { EMOJI_GROUPS, searchEmoji } from "../core/emoji";
 import { CASE_STYLES, convertCase, type CaseStyle } from "../core/case-convert";
 import { replaceSummary } from "../core/find-replace";
+import { createSpellChecker, type SpellChecker } from "../core/spellcheck";
 import type { OneKitCapabilities } from "./capabilities";
 
 /**
@@ -262,5 +263,71 @@ export function createTypingController(caps: OneKitCapabilities): () => void {
   });
 
   void renderSnippets();
+  wireSpellCheck();
   return () => {};
+
+  /* Spell-check ------------------------------------------------------- */
+  function wireSpellCheck(): void {
+    const scInput = $("sc-input") as HTMLTextAreaElement;
+    const scCheck = $("sc-check") as HTMLButtonElement;
+    const scResult = $("sc-result");
+    let scChecker: SpellChecker | null = null;
+
+    async function ensureSpellChecker(): Promise<SpellChecker> {
+      if (scChecker) return scChecker;
+      const words = await caps.loadWordlist();
+      scChecker = createSpellChecker(words);
+      return scChecker;
+    }
+
+    scCheck.addEventListener("click", () => {
+      void (async () => {
+        const text = scInput.value;
+        if (!text.trim()) {
+          scResult.textContent = "Paste some text to check first.";
+          return;
+        }
+        scResult.textContent = "Checking against the local dictionary…";
+        const checker = await ensureSpellChecker();
+        const miss = checker.check(text);
+        scResult.textContent = "";
+        if (miss.length === 0) {
+          const ok = document.createElement("p");
+          ok.textContent = "No misspellings found. (Proper nouns aren't in the dictionary, so they're never flagged.)";
+          scResult.appendChild(ok);
+          return;
+        }
+        const head = document.createElement("p");
+        head.textContent = `${miss.length} possible misspelling${miss.length === 1 ? "" : "s"} — click a suggestion to copy it.`;
+        scResult.appendChild(head);
+        for (const m of miss) {
+          const row = document.createElement("div");
+          row.className = "sc-row";
+          const word = document.createElement("span");
+          word.className = "sc-word";
+          word.textContent = m.word;
+          const sugg = document.createElement("span");
+          sugg.className = "sc-sugg";
+          if (m.suggestions.length === 0) {
+            sugg.textContent = "no suggestions";
+          } else {
+            for (const s of m.suggestions) {
+              const btn = document.createElement("button");
+              btn.type = "button";
+              btn.className = "chip-btn";
+              btn.textContent = s;
+              btn.addEventListener("click", () => {
+                void caps.copyText(s).then(() => {
+                  btn.textContent = "✓ copied";
+                });
+              });
+              sugg.appendChild(btn);
+            }
+          }
+          row.append(word, sugg);
+          scResult.appendChild(row);
+        }
+      })();
+    });
+  }
 }

@@ -47,6 +47,8 @@ export interface ToolToggles {
   mouseGestures: boolean;
   /** Thin reading-progress bar on article-like pages (default OFF). */
   readingProgress: boolean;
+  /** Apply saved playback speeds to videos + [ ] \\ shortcuts (default OFF). */
+  videoSpeed: boolean;
 }
 
 export interface OneKitSettings {
@@ -83,7 +85,8 @@ export const DEFAULT_SETTINGS: OneKitSettings = {
     darkMode: false,
     webNotes: false,
     mouseGestures: false,
-    readingProgress: false
+    readingProgress: false,
+    videoSpeed: false
   },
   textExpanderEnabled: true,
   onboarded: false
