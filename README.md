@@ -249,6 +249,23 @@ Built from the "close tabs to the right" / "merge windows" / "recently closed ta
 | 🔎 Page meta inspector | Title, meta description, OG tags, canonical, H1s — the SEO quick-check | Popup → Dev |
 | 🧪 Bulk link checker | Paste a URL list, get status per link — broken links flagged in seconds | Popup → Dev |
 
+### Phase 19 (10 features — 139 tools total)
+
+Built from the Chrome Goldmine 2026 idea list, the "100+ low-star reviews" lessons, and the Alt+Tab-for-tabs threads — ten gap-fillers that were the most-requested things we didn't have. All 100% local; three new stores are in the backup catalog.
+
+| Feature | What it does | Where |
+|---|---|---|
+| 🙈 Element hider | Right-click → “Hide element”, click anything; per-site hide list with show-again in the popup | Popup → Safety + right-click |
+| 🧩 Selected-text summarizer | Select text → 5-point summary card; or paste text to summarize | Popup → Tools + right-click |
+| 🔄 Quick tab switcher | Alt+Tab-style switcher — Ctrl+Shift+Space, type to filter, Enter to jump | Popup → Speed + shortcut |
+| 📸 Video frame grab | Save the current video frame as a PNG | Popup → Tools + right-click |
+| 🗂️ Bookmark auto-sorter | One click: bookmarks into domain folders, duplicates + empty folders found | Popup → Tools |
+| ✍️ Smart-text cleaner | Curly quotes, dashes, double spaces, invisible unicode — fixed and copyable | Popup → Typing |
+| 🐛 Micro QA capture | URL + timestamp + note (+ screenshot) into a copyable bug report | Popup → Dev |
+| 🔑 Page keyword analyzer | Word frequencies, repeated phrases, reading time for the current page | Popup → Dev |
+| 🧲 Affiliate link inspector | Flags missing rel=nofollow, missing UTM, tracking bloat, redirect wrappers | Popup → Dev |
+| 🔍 SERP notes | Jot context beside Google results; the note returns with the query | Popup → Memory + on-page |
+
 ## Defaults & privacy posture
 
 - **On by default (passive memory + stats):** history indexing, clipboard

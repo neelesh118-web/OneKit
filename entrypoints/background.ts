@@ -39,6 +39,7 @@ import {
   snoozeBreakReminder
 } from "../src/core/break-reminders";
 import { windowSizeForPreset, presetById } from "../src/core/window-resizer";
+import { addHidden, localStorageHiddenElements } from "../src/core/element-hider";
 
 /**
  * OneKit background — owns right-click quick actions, install-time defaults,
@@ -69,6 +70,9 @@ const SEARCH_GOOGLE_MENU_ID = "onekit-search-google";
 const SEARCH_YOUTUBE_MENU_ID = "onekit-search-youtube";
 const SEARCH_WIKIPEDIA_MENU_ID = "onekit-search-wikipedia";
 const SEARCH_PERPLEXITY_MENU_ID = "onekit-search-perplexity";
+const HIDE_ELEMENT_MENU_ID = "onekit-hide-element";
+const SUMMARIZE_SELECTION_MENU_ID = "onekit-summarize-selection";
+const VIDEO_FRAME_MENU_ID = "onekit-video-frame";
 
 export default defineBackground(() => {
   /* Install / update -------------------------------------------------- */
@@ -127,6 +131,21 @@ export default defineBackground(() => {
         id: ARCHIVE_PAGE_MENU_ID,
         title: "OneKit — Save page to local archive",
         contexts: ["page"]
+      });
+      browser.contextMenus.create({
+        id: HIDE_ELEMENT_MENU_ID,
+        title: "OneKit — Hide element (click to pick)",
+        contexts: ["page", "selection", "image", "link", "editable", "video", "audio"]
+      });
+      browser.contextMenus.create({
+        id: SUMMARIZE_SELECTION_MENU_ID,
+        title: "OneKit — Summarize selection",
+        contexts: ["selection"]
+      });
+      browser.contextMenus.create({
+        id: VIDEO_FRAME_MENU_ID,
+        title: "OneKit — Save video frame as PNG",
+        contexts: ["video", "page"]
       });
       browser.contextMenus.create({
         id: COPY_SELECTION_MD_MENU_ID,
@@ -402,6 +421,17 @@ export default defineBackground(() => {
           }
         })();
       }
+      if (msg.type === "ok:hide-commit") {
+        return (async () => {
+          const m = msg as { hostname?: unknown; selector?: unknown; label?: unknown };
+          if (typeof m.hostname === "string" && typeof m.selector === "string" && typeof m.label === "string") {
+            await addHidden(localStorageHiddenElements(), { hostname: m.hostname, selector: m.selector, label: m.label });
+          }
+        })();
+      }
+      if (msg.type === "ok:open-tab-switcher") {
+        return openTabSwitcher();
+      }
       if (msg.type === "ok:open-sidepanel") {
         return (async () => {
           try {
@@ -491,6 +521,38 @@ export default defineBackground(() => {
     // No runtime messaging in this environment.
   }
 
+  /* Quick tab switcher (Ctrl+Shift+Space) ------------------------------ */
+  async function openTabSwitcher(): Promise<void> {
+    try {
+      // Toggle: if a switcher popup is already open and focused, close it.
+      const windows = await browser.windows.getAll({ windowTypes: ["popup"] });
+      for (const w of windows) {
+        if (w.id === undefined || !w.focused) continue;
+        const tab = (await browser.tabs.query({ windowId: w.id }))[0];
+        if (tab?.url?.includes("tab-switcher.html")) {
+          await browser.windows.remove(w.id);
+          return;
+        }
+      }
+      await browser.windows.create({
+        url: browser.runtime.getURL("/tab-switcher.html"),
+        type: "popup",
+        width: 480,
+        height: 560,
+        focused: true
+      });
+    } catch {
+      // No windows API in this environment.
+    }
+  }
+  try {
+    browser.commands.onCommand.addListener((command) => {
+      if (command === "quick-tab-switch") void openTabSwitcher();
+    });
+  } catch {
+    // No commands API in this environment.
+  }
+
   /* Context menus ----------------------------------------------------- */
   try {
     browser.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -542,6 +604,18 @@ export default defineBackground(() => {
       } else if (info.menuItemId === ARCHIVE_PAGE_MENU_ID) {
         if (tabId !== undefined) {
           await sendToTab(tabId, { type: "ok:archive-page" });
+        }
+      } else if (info.menuItemId === HIDE_ELEMENT_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, { type: "ok:hide-arm" });
+        }
+      } else if (info.menuItemId === SUMMARIZE_SELECTION_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, { type: "ok:summarize-selection" });
+        }
+      } else if (info.menuItemId === VIDEO_FRAME_MENU_ID) {
+        if (tabId !== undefined) {
+          await sendToTab(tabId, { type: "ok:video-frame-grab" });
         }
       } else if (info.menuItemId === COPY_SELECTION_MD_MENU_ID) {
         if (tabId !== undefined) {

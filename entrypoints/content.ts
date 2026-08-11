@@ -136,6 +136,16 @@ import { extractToc, tocIndent, tocStats, tocToMarkdown } from "../src/core/page
 import { pageMetaFromDocument } from "../src/core/page-meta";
 import { faviconUrlFromDocument } from "../src/core/favicon";
 import { normalizeThickness, readingLineCss } from "../src/core/reading-line";
+import {
+  addHidden,
+  hiddenForHost,
+  hideRuleFor,
+  labelFor,
+  localStorageHiddenElements,
+  selectorFor
+} from "../src/core/element-hider";
+import { analyzeKeywords } from "../src/core/keyword-analysis";
+import { getSerpNote, localStorageSerpNotes, setSerpNote } from "../src/core/serp-notes";
 
 /**
  * OneKit content script — runs on every page and powers the on-page tools:
@@ -1532,6 +1542,305 @@ async function renderVideoNoteChip(): Promise<void> {
   videoNoteChip = chip;
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Element hider (pick-to-hide)                                       */
+/* ------------------------------------------------------------------ */
+
+let hideArmActive = false;
+let hideArmOverlay: HTMLElement | null = null;
+let hideHighlight: HTMLElement | null = null;
+let onHideMove: ((e: MouseEvent) => void) | null = null;
+let onHideClick: ((e: MouseEvent) => void) | null = null;
+let onHideKey: ((e: KeyboardEvent) => void) | null = null;
+
+function disarmHideMode(): void {
+  hideArmActive = false;
+  hideArmOverlay?.remove();
+  hideArmOverlay = null;
+  if (hideHighlight) {
+    hideHighlight.style.outline = "";
+    hideHighlight.style.cursor = "";
+    hideHighlight = null;
+  }
+  if (onHideMove) document.removeEventListener("mousemove", onHideMove, true);
+  if (onHideClick) document.removeEventListener("click", onHideClick, true);
+  if (onHideKey) document.removeEventListener("keydown", onHideKey, true);
+  onHideMove = null;
+  onHideClick = null;
+  onHideKey = null;
+}
+
+function armHideMode(): void {
+  if (hideArmActive) return;
+  hideArmActive = true;
+  const overlay = document.createElement("div");
+  overlay.id = "onekit-hide-overlay";
+  overlay.textContent = "OneKit — click any element to hide it (Esc cancels)";
+  Object.assign(overlay.style, {
+    position: "fixed",
+    top: "12px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    zIndex: "2147483647",
+    background: "#111",
+    color: "#fff",
+    padding: "9px 16px",
+    borderRadius: "8px",
+    font: "13px/1.4 system-ui, sans-serif",
+    boxShadow: "0 4px 16px rgba(0,0,0,.35)",
+    pointerEvents: "none"
+  } as CSSStyleDeclaration);
+  document.documentElement.appendChild(overlay);
+  hideArmOverlay = overlay;
+
+  onHideMove = (e) => {
+    if (!hideArmActive) return;
+    const target = e.target as HTMLElement | null;
+    if (!target || target === document.body || target === document.documentElement) return;
+    if (hideHighlight) {
+      hideHighlight.style.outline = "";
+      hideHighlight.style.cursor = "";
+    }
+    hideHighlight = target;
+    target.style.outline = "3px solid #ff5252";
+    target.style.outlineOffset = "2px";
+    target.style.cursor = "crosshair";
+  };
+  onHideClick = (e) => {
+    if (!hideArmActive) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const target = e.target as HTMLElement | null;
+    if (!target || target === document.body || target === document.documentElement) return;
+    const selector = selectorFor(target);
+    const label = labelFor(target);
+    const hostname = hostnameOf(window.location.href);
+    disarmHideMode();
+    void (async () => {
+      await addHidden(localStorageHiddenElements(), { hostname, selector, label });
+      applyHiddenStyle([{ selector }]);
+      showToast("Hidden — manage it in the OneKit popup.", "ok");
+    })();
+  };
+  onHideKey = (e) => {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      disarmHideMode();
+    }
+  };
+  document.addEventListener("mousemove", onHideMove, true);
+  document.addEventListener("click", onHideClick, true);
+  document.addEventListener("keydown", onHideKey, true);
+}
+
+function applyHiddenStyle(entries: Array<{ selector: string }>): void {
+  if (entries.length === 0) return;
+  const existing = document.getElementById("onekit-hide-style");
+  const style = existing ?? document.createElement("style");
+  style.id = "onekit-hide-style";
+  style.textContent = entries.map((h) => hideRuleFor(h.selector)).join("\n");
+  if (!existing) document.documentElement.appendChild(style);
+}
+
+/* ------------------------------------------------------------------ */
+/* Selection summarizer (floating card)                               */
+/* ------------------------------------------------------------------ */
+
+let summaryCard: HTMLElement | null = null;
+
+function showSummaryCard(summary: string, sourceChars: number): void {
+  summaryCard?.remove();
+  const card = document.createElement("div");
+  card.id = "onekit-summary-card";
+  Object.assign(card.style, {
+    position: "fixed",
+    right: "16px",
+    bottom: "16px",
+    width: "340px",
+    maxWidth: "calc(100vw - 32px)",
+    maxHeight: "60vh",
+    overflow: "auto",
+    zIndex: "2147483647",
+    background: "#16181d",
+    color: "#e8eaed",
+    border: "1px solid #3c4043",
+    borderRadius: "10px",
+    padding: "14px 16px",
+    font: "13px/1.55 system-ui, sans-serif",
+    boxShadow: "0 8px 28px rgba(0,0,0,.4)"
+  } as CSSStyleDeclaration);
+
+  const head = document.createElement("div");
+  head.style.cssText = "font-weight:600;margin-bottom:8px;color:#8ab4f8";
+  head.textContent = "OneKit summary";
+  const meta = document.createElement("div");
+  meta.style.cssText = "color:#9aa0a6;font-size:11px;margin-bottom:8px";
+  meta.textContent = `${sourceChars.toLocaleString()} characters → ${summary.length.toLocaleString()} of summary`;
+  const body = document.createElement("div");
+  body.textContent = summary;
+  body.style.cssText = "white-space:pre-wrap;margin-bottom:10px";
+
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:8px";
+  const copyBtn = document.createElement("button");
+  copyBtn.textContent = "Copy summary";
+  copyBtn.className = "onekit-card-btn";
+  copyBtn.style.cssText = "flex:1;background:#1a73e8;color:#fff;border:0;border-radius:6px;padding:7px 10px;cursor:pointer;font:600 12px system-ui";
+  copyBtn.addEventListener("click", () => {
+    void (async () => {
+      try {
+        await navigator.clipboard.writeText(summary);
+        copyBtn.textContent = "Copied ✓";
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = summary;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        copyBtn.textContent = "Copied ✓";
+      }
+    })();
+  });
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  closeBtn.style.cssText = "background:#3c4043;color:#fff;border:0;border-radius:6px;padding:7px 10px;cursor:pointer;font:600 12px system-ui";
+  closeBtn.addEventListener("click", () => {
+    card.remove();
+    summaryCard = null;
+  });
+  row.append(copyBtn, closeBtn);
+
+  card.append(head, meta, body, row);
+  document.documentElement.appendChild(card);
+  summaryCard = card;
+}
+
+/* ------------------------------------------------------------------ */
+/* Video frame grab                                                   */
+/* ------------------------------------------------------------------ */
+
+function pickVideoForFrame(): HTMLVideoElement | null {
+  const videos = Array.from(document.querySelectorAll<HTMLVideoElement>("video")).filter(
+    (v) => v.readyState >= 2 && v.videoWidth > 0 && !v.hasAttribute("data-onekit-skip")
+  );
+  if (videos.length === 0) return null;
+  const area = (v: HTMLVideoElement) => v.videoWidth * v.videoHeight;
+  videos.sort((a, b) => area(b) - area(a));
+  return videos[0] ?? null;
+}
+
+async function grabVideoFrame(): Promise<{ ok: boolean; reason?: string }> {
+  const video = pickVideoForFrame();
+  if (!video) return { ok: false, reason: "no-video" };
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return { ok: false, reason: "unsupported" };
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL("image/png");
+    const slug = (document.title || "video").replace(/[^a-z0-9]+/gi, "-").slice(0, 40) || "video";
+    await browser.runtime.sendMessage({ type: "ok:download-dataurl", dataUrl, filename: `${slug}-frame.png` });
+    showToast("Video frame saved to Downloads ✓", "ok");
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "tainted" };
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* SERP notes panel (Google results)                                  */
+/* ------------------------------------------------------------------ */
+
+let serpPanel: HTMLElement | null = null;
+
+function currentSearchQuery(): string | null {
+  if (!/^https?:\/\/(www\.)?google\.[a-z.]+\//.test(location.href)) return null;
+  const q = new URLSearchParams(location.search).get("q");
+  return q ? q.replace(/\s+/g, " ").trim() : null;
+}
+
+async function toggleSerpPanel(): Promise<void> {
+  if (serpPanel) {
+    serpPanel.remove();
+    serpPanel = null;
+    return;
+  }
+  const query = currentSearchQuery();
+  if (!query) {
+    showToast("Open a Google results page first, then try again.", "info");
+    return;
+  }
+  const saved = await getSerpNote(localStorageSerpNotes(), query);
+
+  const panel = document.createElement("div");
+  panel.id = "onekit-serp-panel";
+  Object.assign(panel.style, {
+    position: "fixed",
+    right: "16px",
+    top: "16px",
+    width: "300px",
+    zIndex: "2147483647",
+    background: "#16181d",
+    color: "#e8eaed",
+    border: "1px solid #3c4043",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    font: "13px/1.5 system-ui, sans-serif",
+    boxShadow: "0 8px 28px rgba(0,0,0,.4)"
+  } as CSSStyleDeclaration);
+
+  const head = document.createElement("div");
+  head.style.cssText = "font-weight:600;color:#8ab4f8;margin-bottom:4px";
+  head.textContent = "SERP note";
+  const qLabel = document.createElement("div");
+  qLabel.style.cssText = "color:#9aa0a6;font-size:11px;margin-bottom:8px;word-break:break-word";
+  qLabel.textContent = `"\${query}"`;
+  const ta = document.createElement("textarea");
+  ta.rows = 5;
+  ta.placeholder = "Why are you searching this? Context for next time…";
+  ta.value = saved?.note ?? "";
+  Object.assign(ta.style, {
+    width: "100%",
+    boxSizing: "border-box",
+    background: "#202124",
+    color: "#e8eaed",
+    border: "1px solid #3c4043",
+    borderRadius: "6px",
+    padding: "8px",
+    font: "12px/1.5 system-ui",
+    resize: "vertical"
+  } as CSSStyleDeclaration);
+
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:8px;margin-top:8px";
+  const saveBtn = document.createElement("button");
+  saveBtn.textContent = "Save";
+  saveBtn.style.cssText = "flex:1;background:#1a73e8;color:#fff;border:0;border-radius:6px;padding:7px;cursor:pointer;font:600 12px system-ui";
+  saveBtn.addEventListener("click", () => {
+    void (async () => {
+      await setSerpNote(localStorageSerpNotes(), query, ta.value);
+      saveBtn.textContent = "Saved ✓";
+      window.setTimeout(() => saveBtn.textContent = "Save", 1200);
+    })();
+  });
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "Close";
+  closeBtn.style.cssText = "background:#3c4043;color:#fff;border:0;border-radius:6px;padding:7px;cursor:pointer;font:600 12px system-ui";
+  closeBtn.addEventListener("click", () => {
+    panel.remove();
+    serpPanel = null;
+  });
+  row.append(saveBtn, closeBtn);
+  panel.append(head, qLabel, ta, row);
+  document.documentElement.appendChild(panel);
+  serpPanel = panel;
+  ta.focus();
+}
+
 /* ------------------------------------------------------------------ */
 /* Messages from background (right-click actions)                     */
 /* ------------------------------------------------------------------ */
@@ -1585,10 +1894,12 @@ browser.runtime.onMessage.addListener(
     return;
   }
   if (msg.type === "ok:page-links") {
-    const hrefs = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"))
-      .map((a) => a.href)
-      .filter((h) => /^https?:\/\//.test(h));
-    sendResponse({ hrefs, pageUrl: window.location.href });
+    const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>("a[href]"));
+    const hrefs = anchors.map((a) => a.href).filter((h) => /^https?:\/\//.test(h));
+    const links = anchors
+      .map((a) => ({ url: a.href, rel: a.rel || "" }))
+      .filter((l) => /^https?:\/\//.test(l.url));
+    sendResponse({ hrefs, links, pageUrl: window.location.href });
     return;
   }
   if (msg.type === "ok:page-favicon") {
@@ -1855,13 +2166,52 @@ browser.runtime.onMessage.addListener(
     void renderVideoNoteChip();
     return;
   }
-  if (msg.type === "ok:stop-auto-refresh") {
-    if (refreshTimer !== undefined) {
-      window.clearTimeout(refreshTimer);
-      refreshTimer = undefined;
-      refreshIntervalSeconds = 0;
-      void clearAutoRefresh(localStorageAutoRefresh(), window.location.href).catch(() => {});
+
+  if (msg.type === "ok:hide-arm") {
+    armHideMode();
+    return;
+  }
+  if (msg.type === "ok:hide-disarm") {
+    disarmHideMode();
+    return;
+  }
+  if (msg.type === "ok:summarize-selection") {
+    const sel = window.getSelection()?.toString() ?? "";
+    if (!sel.trim()) {
+      showToast("Select some text on this page first.", "info");
+      return;
     }
+    const summary = summarizeText(sel, { maxSentences: 5, maxChars: 1100 });
+    showSummaryCard(summary, sel.length);
+    return;
+  }
+  if (msg.type === "ok:video-frame-grab") {
+    void (async () => {
+      const result = await grabVideoFrame();
+      if (!result.ok) {
+        const reason =
+          result.reason === "no-video"
+            ? "No playable video found on this page."
+            : result.reason === "tainted"
+              ? "This video is cross-origin protected — its frame can't be captured."
+              : "Could not capture this frame.";
+        showToast(reason, "info");
+      }
+      sendResponse(result);
+    })();
+    return true;
+  }
+  if (msg.type === "ok:keyword-analysis") {
+    const text = pageReadableText();
+    if (!text) {
+      sendResponse({ ok: false, reason: "Nothing readable found on this page." });
+      return;
+    }
+    sendResponse({ ok: true, analysis: analyzeKeywords(text) });
+    return;
+  }
+  if (msg.type === "ok:serp-notes-toggle") {
+    void toggleSerpPanel();
     return;
   }
   }
@@ -2416,6 +2766,15 @@ function boot(): void {
 
   // Re-apply saved highlights when revisiting a page.
   void reapplyHighlights().catch(() => {
+    // Best-effort.
+  });
+
+  // Re-apply saved hidden elements for this site (element hider).
+  void (async () => {
+    const host = hostnameOf(window.location.href);
+    const hidden = await hiddenForHost(localStorageHiddenElements(), host);
+    applyHiddenStyle(hidden);
+  })().catch(() => {
     // Best-effort.
   });
 

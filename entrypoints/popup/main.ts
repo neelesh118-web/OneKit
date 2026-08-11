@@ -22,6 +22,7 @@ import { createSessionToolsController } from "../../src/popup/session-tools-cont
 import { createPowerToolsController } from "../../src/popup/power-tools-controller";
 import { createReadingToolsController } from "../../src/popup/reading-tools-controller";
 import { createToolsUtilitiesController } from "../../src/popup/tools-utilities-controller";
+import { createRound2Controller } from "../../src/popup/round2-controller";
 import { createSettingsController, applyTheme } from "../../src/popup/settings-controller";
 import { loadSettings, saveSettings, updateSettings, type OneKitSettings } from "../../src/core/settings";
 import { recentClosedTabs, type SessionLike } from "../../src/core/recent-closed";
@@ -138,6 +139,18 @@ const caps: OneKitCapabilities = {
         // A bookmark may vanish mid-loop; keep going.
       });
     }
+  },
+  createBookmarkFolder: async (title, parentId) => {
+    const node = (await browser.bookmarks.create(
+      parentId ? { title, parentId } : { title }
+    )) as { id: string };
+    return node.id;
+  },
+  moveBookmark: async (id, parentId) => {
+    await browser.bookmarks.move(id, { parentId });
+  },
+  openTabSwitcher: async () => {
+    await browser.runtime.sendMessage({ type: "ok:open-tab-switcher" }).catch(() => {});
   },
   downloadBytes: (bytes, filename) => {
     const blob = new Blob([bytes as unknown as BlobPart], { type: "application/pdf" });
@@ -428,6 +441,7 @@ void (async () => {
   createPowerToolsController(caps);
   createReadingToolsController(caps);
   createToolsUtilitiesController(caps);
+  createRound2Controller(caps);
   createDownloadsController(caps);
   createDevController(caps);
   createSettingsController(caps);

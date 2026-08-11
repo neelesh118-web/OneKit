@@ -64,7 +64,10 @@ export const BACKUP_KEYS = [
   "ok.meetingLinks",
   "ok.videoNotes",
   "ok.customCss",
-  "ok.breakReminders"
+  "ok.breakReminders",
+  "ok.hiddenElements",
+  "ok.qaNotes",
+  "ok.serpNotes"
 ] as const;
 
 export interface OneKitBackup {
@@ -127,7 +130,10 @@ const KEY_VALIDATORS: Record<(typeof BACKUP_KEYS)[number], (value: unknown) => b
   "ok.meetingLinks": isArray,
   "ok.videoNotes": isArray,
   "ok.customCss": isArray,
-  "ok.breakReminders": isObject
+  "ok.breakReminders": isObject,
+  "ok.hiddenElements": isArray,
+  "ok.qaNotes": isArray,
+  "ok.serpNotes": isObject
 };
 
 export async function createBackup(storage: KvStorage, now: number = Date.now()): Promise<OneKitBackup> {

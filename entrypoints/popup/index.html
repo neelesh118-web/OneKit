@@ -81,6 +81,17 @@
           </div>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔍 SERP notes</span>
+          </div>
+          <p class="hint">Jot context beside Google results — open a results page, hit the button, and the note comes back next time you run the same search. All stored locally.</p>
+          <div class="btn-row">
+            <button id="sn-open" type="button" class="mini-btn primary">📝 Open SERP note panel</button>
+          </div>
+          <div id="sn-list" class="results"></div>
+          <p id="sn-status" class="status"></p>
+        </div>
         <div class="tool-group">⭐ Saved content</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -391,6 +402,18 @@
           <p id="cookie-status" class="status"></p>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🙈 Element hider</span>
+          </div>
+          <p class="hint">Right-click → “Hide element”, then click anything on the page to hide it for good. Unhide from this list — nothing is deleted, it's just hidden with CSS.</p>
+          <div class="btn-row">
+            <button id="eh-arm" type="button" class="mini-btn primary">🎯 Pick an element to hide</button>
+            <button id="eh-clear" type="button" class="mini-btn danger">Clear this site</button>
+          </div>
+          <div id="eh-list" class="results"></div>
+          <p id="eh-status" class="status"></p>
+        </div>
         <div class="tool-group">🚨 Threat radar</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -698,6 +721,16 @@
           <p id="pk-status" class="status"></p>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔄 Quick tab switcher</span>
+          </div>
+          <p class="hint">Alt+Tab-style tab switching: press <code>Ctrl+Shift+Space</code> anywhere, type to filter, Enter to jump. Faster than the tab bar when you have many tabs open.</p>
+          <div class="btn-row">
+            <button id="ts-open" type="button" class="mini-btn primary">🗂 Open tab switcher</button>
+          </div>
+          <p id="ts-status" class="status"></p>
+        </div>
         <div class="tool-group">🧭 Sessions & playback</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1073,6 +1106,19 @@
                   <div id="sc-result" class="results"></div>
                 </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">✍️ Smart-text cleaner</span>
+          </div>
+          <p class="hint">The typography scrub you keep doing by hand: curly quotes, em-dashes, double spaces, invisible unicode characters, trailing whitespace. Paste → Fix → Copy.</p>
+          <textarea id="st-input" rows="4" placeholder="Paste messy text here…"></textarea>
+          <div class="btn-row">
+            <button id="st-fix" type="button" class="mini-btn primary">🧹 Fix text</button>
+            <button id="st-copy" type="button" class="mini-btn">Copy result</button>
+          </div>
+          <textarea id="st-output" rows="6" readonly placeholder="Clean text appears here"></textarea>
+          <p id="st-status" class="status"></p>
+        </div>
         <div class="tool-group">🔎 Find & replace</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1429,6 +1475,16 @@
                   </div>
                 </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📸 Video frame grab</span>
+          </div>
+          <p class="hint">Save the current frame of the biggest video on this page as a PNG — quotes, memes, bug reports. One click, saved to Downloads.</p>
+          <div class="btn-row">
+            <button id="vf-grab" type="button" class="mini-btn primary">📸 Grab video frame</button>
+          </div>
+          <p id="vf-status" class="status"></p>
+        </div>
         <div class="tool-group">🧰 Browser helpers</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1518,6 +1574,18 @@
           <p id="fv-status" class="status"></p>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗂️ Bookmark auto-sorter</span>
+          </div>
+          <p class="hint">Organize your bookmarks into per-domain folders (News — nytimes.com, Social — reddit.com…), find exact duplicates and list empty folders. Preview first — nothing moves until you apply.</p>
+          <div class="btn-row">
+            <button id="bs-analyze" type="button" class="mini-btn primary">🔎 Analyze bookmarks</button>
+            <button id="bs-apply" type="button" class="mini-btn">Apply plan</button>
+          </div>
+          <div id="bs-preview" class="results"></div>
+          <p id="bs-status" class="status"></p>
+        </div>
         <div class="tool-group">📄 Page content</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1660,6 +1728,21 @@
           <p id="clk-status" class="status"></p>
         </div>
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧩 Selected-text summarizer</span>
+          </div>
+          <p class="hint">Summarize text two ways, both 100% local: select text on any page and get a floating summary card, or paste text here.</p>
+          <div class="btn-row">
+            <button id="ss-page" type="button" class="mini-btn primary">🧩 Summarize selection on page</button>
+          </div>
+          <textarea id="ss-input" rows="4" placeholder="Or paste text to summarize here…"></textarea>
+          <div class="btn-row">
+            <button id="ss-paste" type="button" class="mini-btn">Summarize pasted text</button>
+          </div>
+          <textarea id="ss-output" rows="6" readonly placeholder="Summary appears here"></textarea>
+          <p id="ss-status" class="status"></p>
+        </div>
         <div class="tool-group">🔑 Password tools</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1889,6 +1972,51 @@
 
 
 
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🐛 Micro QA capture</span>
+          </div>
+          <p class="hint">Capture URL + title + timestamp + a one-line note (plus an optional screenshot) into a copyable bug report. Perfect for reporting issues mid-browse.</p>
+          <div class="btn-row">
+            <input id="qa-note" type="text" placeholder="What's wrong? One line…" />
+          </div>
+          <div class="btn-row">
+            <button id="qa-capture" type="button" class="mini-btn primary">📌 Capture note</button>
+            <button id="qa-shot" type="button" class="mini-btn">📷 With screenshot</button>
+            <button id="qa-clear" type="button" class="mini-btn danger">Clear all</button>
+          </div>
+          <div id="qa-list" class="results"></div>
+          <p id="qa-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔑 Page keyword analyzer</span>
+          </div>
+          <p class="hint">Word frequencies, repeated phrases and reading time for the current page — a fast local look at what a page is really about.</p>
+          <div class="btn-row">
+            <button id="ka-analyze" type="button" class="mini-btn primary">🔎 Analyze this page</button>
+            <button id="ka-copy" type="button" class="mini-btn">Copy report</button>
+          </div>
+          <div id="ka-results" class="results"></div>
+          <p id="ka-status" class="status"></p>
+        </div>
+
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🧲 Affiliate link inspector</span>
+          </div>
+          <p class="hint">Flags links that hurt when shared: affiliate/storefront links missing rel=nofollow, missing UTM attribution, tracking-param bloat and redirect wrappers. Paste links or scan the current page.</p>
+          <div class="btn-row">
+            <button id="ac-page" type="button" class="mini-btn primary">🔎 Check links on this page</button>
+          </div>
+          <textarea id="ac-input" rows="3" placeholder="…or paste links here, one per line"></textarea>
+          <div class="btn-row">
+            <button id="ac-check" type="button" class="mini-btn">Check pasted links</button>
+          </div>
+          <div id="ac-results" class="results"></div>
+          <p id="ac-status" class="status"></p>
+        </div>
         <div class="tool-group">🖱️ On-page tools</div>
         <div class="tool-block">
           <div class="tool-heading">

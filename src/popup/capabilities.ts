@@ -49,6 +49,12 @@ export interface OneKitCapabilities {
   getBookmarks(): Promise<BookmarkNodeLike[]>;
   /** Removes bookmarks by id (browser.bookmarks.remove). */
   removeBookmarks(ids: string[]): Promise<void>;
+  /** Creates a bookmark folder; returns the new folder's id. */
+  createBookmarkFolder(title: string, parentId?: string): Promise<string>;
+  /** Moves a bookmark into a folder. */
+  moveBookmark(id: string, parentId: string): Promise<void>;
+  /** Opens the quick tab switcher window (background command). */
+  openTabSwitcher(): Promise<void>;
   /** Saves raw bytes as a file (PDF merge/split results). */
   downloadBytes(bytes: Uint8Array, filename: string): void;
   /** Saves raw bytes as a file with an explicit MIME type (converter output). */

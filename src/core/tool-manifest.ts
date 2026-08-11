@@ -1034,6 +1034,76 @@ export const TOOLS: ToolDef[] = [
     icon: "🧪",
     tab: "dev",
     description: "Paste a list of URLs and check each one — broken links flagged in seconds."
+  },
+  {
+    id: "elementHider",
+    name: "Element hider",
+    icon: "🙈",
+    tab: "safety",
+    description: "Right-click → hide any page element for good; manage the per-site hide list in the popup."
+  },
+  {
+    id: "selectionSummarizer",
+    name: "Selected-text summarizer",
+    icon: "🧩",
+    tab: "tools",
+    description: "Select any text and get a 5-point local summary card — no AI, no network."
+  },
+  {
+    id: "tabSwitcher",
+    name: "Quick tab switcher",
+    icon: "🔄",
+    tab: "speed",
+    description: "Alt+Tab-style tab switcher — Ctrl+Shift+Space, type to filter, Enter to jump."
+  },
+  {
+    id: "videoFrame",
+    name: "Video frame grab",
+    icon: "📸",
+    tab: "tools",
+    description: "Save the current video frame as a PNG — perfect for quotes, memes and bug reports."
+  },
+  {
+    id: "bookmarkSorter",
+    name: "Bookmark auto-sorter",
+    icon: "🗂️",
+    tab: "tools",
+    description: "One click organizes bookmarks into domain folders, finds duplicates and empty folders."
+  },
+  {
+    id: "smartText",
+    name: "Smart-text cleaner",
+    icon: "✍️",
+    tab: "typing",
+    description: "Fix curly quotes, dashes, double spaces and invisible unicode in pasted text."
+  },
+  {
+    id: "qaCapture",
+    name: "Micro QA capture",
+    icon: "🐛",
+    tab: "dev",
+    description: "Capture URL + timestamp + note (+ screenshot) into one copyable bug report."
+  },
+  {
+    id: "keywordAnalyzer",
+    name: "Page keyword analyzer",
+    icon: "🔑",
+    tab: "dev",
+    description: "Word frequencies, repeated phrases and reading time for the current page — local."
+  },
+  {
+    id: "affiliateCheck",
+    name: "Affiliate link inspector",
+    icon: "🧲",
+    tab: "dev",
+    description: "Flags missing rel=nofollow, missing UTM params and redirect wrappers on links."
+  },
+  {
+    id: "serpNotes",
+    name: "SERP notes",
+    icon: "🔍",
+    tab: "memory",
+    description: "Jot context beside Google results — the note returns next time you search."
   }
 ];
 

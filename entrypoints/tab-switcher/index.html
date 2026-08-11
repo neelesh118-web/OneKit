@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OneKit — Tab switcher</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f5f6f8;
+        --panel: #ffffff;
+        --text: #1b1e24;
+        --muted: #6b7280;
+        --border: #e4e7ec;
+        --active: #6366f1;
+        --active-soft: rgba(99, 102, 241, 0.12);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #101318;
+          --panel: #1a1e26;
+          --text: #e7e9ee;
+          --muted: #9aa1ad;
+          --border: #2a2f3a;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--panel);
+        color: var(--text);
+      }
+      header {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        background: var(--panel);
+        z-index: 2;
+      }
+      header b {
+        font-size: 12px;
+      }
+      header .hint {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      input {
+        width: calc(100% - 24px);
+        margin: 10px 12px 4px;
+        padding: 7px 10px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--bg);
+        color: var(--text);
+        font: 13px system-ui;
+        outline: none;
+      }
+      input:focus {
+        border-color: var(--active);
+      }
+      #list {
+        padding: 4px 8px 12px;
+      }
+      .win {
+        color: var(--muted);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 10px 6px 2px;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 8px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid transparent;
+      }
+      .row.active {
+        background: var(--active-soft);
+        border-color: var(--active);
+      }
+      .row .ico {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        border-radius: 3px;
+        background: var(--border);
+        font-size: 11px;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+      }
+      .row .t {
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .row .u {
+        color: var(--muted);
+        font-size: 11px;
+        max-width: 45%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .row .pin {
+        color: var(--muted);
+        font-size: 10px;
+      }
+      footer {
+        padding: 8px 12px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 11px;
+      }
+      #empty {
+        padding: 24px 12px;
+        text-align: center;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <b>Switch tab</b>
+      <span class="hint">↑↓ navigate · Enter switch · Esc close</span>
+    </header>
+    <input id="filter" type="text" placeholder="Filter tabs…" autocomplete="off" spellcheck="false" />
+    <div id="list"></div>
+    <footer id="status">Loading tabs…</footer>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
