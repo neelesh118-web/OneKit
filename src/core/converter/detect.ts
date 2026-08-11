@@ -19,6 +19,7 @@ export type FileType =
   | "text-base64" | "text-hex" | "text-url"
   | "vcf" | "ics" | "srt" | "vtt" | "gpx" | "lrc" | "sitemap" | "rss" | "kml" | "bookmarks"
   | "bibtex" | "jsonl" | "m3u" | "eml" | "torrent" | "qif" | "toml" | "ofx" | "gedcom"
+  | "mbox" | "ldif" | "cue"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -40,6 +41,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   lrc: "LRC lyrics", sitemap: "Sitemap XML", rss: "RSS/Atom feed", kml: "KML map data", bookmarks: "Browser bookmarks",
   bibtex: "BibTeX citations", jsonl: "JSON Lines data", m3u: "M3U playlist", eml: "EML email", torrent: "Torrent metadata",
   qif: "QIF transactions", toml: "TOML config", ofx: "OFX statements", gedcom: "GEDCOM family tree",
+  mbox: "mbox email archive", ldif: "LDIF directory data", cue: "CUE sheet",
   unknown: "Unknown format"
 };
 
@@ -66,6 +68,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   sitemap: [], rss: ["rss", "atom"], kml: ["kml"],
   bibtex: ["bib"], jsonl: ["jsonl", "ndjson"], m3u: ["m3u", "m3u8"], eml: ["eml"], torrent: ["torrent"],
   qif: ["qif"], toml: ["toml"], ofx: ["ofx", "qfx"], gedcom: ["ged", "gedcom"],
+  mbox: ["mbox"], ldif: ["ldif"], cue: ["cue"],
   // bookmarks files are HTML with a NETSCAPE-Bookmark header — no own extension,
   // resolved by content sniffing.
   bookmarks: [],
@@ -182,17 +185,22 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // Text-ish formats: sniff the first chunk. XML-family names (.xml) fall
   // through so content can promote them to gpx/sitemap/rss/kml; an .html name
   // falls through only when it carries the Netscape bookmarks header; a .txt
-  // name falls through only when it clearly looks like BibTeX. Other known
-  // names are trusted as-is.
+  // name falls through only when its content clearly matches one of the
+  // structured-text sniffers below. Other known names are trusted as-is.
   const head = textWindow(bytes, 0, 2000).toLowerCase();
+  const structuredText = (h: string): boolean =>
+    /@\w+\s*\{/.test(h) || // BibTeX
+    h.startsWith("!type:") || // QIF
+    h.startsWith("<ofx") || // OFX
+    /^0\s+@\w+@\s+(indi|fam)/im.test(h) || // GEDCOM
+    /^from\s+\S+\s+\w{3}\s+\w{3}\s+\d+/im.test(h) || // mbox
+    /^dn:\s+/im.test(h) || // LDIF
+    (/^file\s+".+"\s+\w+/im.test(h) && /^track\s+\d+/im.test(h)); // CUE
   if (
     fallback !== "unknown" &&
     fallback !== "xml" &&
     !(fallback === "html" && head.includes("netscape-bookmark")) &&
-    !(fallback === "text" && /@\w+\s*\{/.test(head)) &&
-    !(fallback === "text" && head.startsWith("!type:")) &&
-    !(fallback === "text" && head.startsWith("<ofx")) &&
-    !(fallback === "text" && /^0\s+@\w+@\s+(indi|fam)/im.test(head))
+    !(fallback === "text" && structuredText(head))
   ) {
     return fallback;
   }
@@ -218,6 +226,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (trimmed.startsWith("!type:")) return "qif";
   if (trimmed.startsWith("<ofx")) return "ofx";
   if (/^0\s+@\w+@\s+(indi|fam)/im.test(trimmed)) return "gedcom";
+  if (/^from\s+\S+\s+\w{3}\s+\w{3}\s+\d+/im.test(trimmed)) return "mbox";
+  if (/^dn:\s+/im.test(trimmed)) return "ldif";
+  if (/^file\s+".+"\s+\w+/im.test(trimmed) && /^track\s+\d+/im.test(trimmed)) return "cue";
   if (/@\w+\s*\{/.test(trimmed)) return "bibtex";
   if (trimmed.startsWith("{") && head.includes("\n{")) return "jsonl";
   if (trimmed.startsWith("{")) return "json";

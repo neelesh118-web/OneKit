@@ -899,4 +899,38 @@ describe("new detection + matrix", () => {
     expect(parsed[0].deathDate).toBe("2 FEB 1970");
     expect(parsed[1].surname).toBe("Jones");
   });
+
+  it("detects mbox/LDIF/CUE by content sniff on .txt names", () => {
+    const mbox = "From alice@example.com Mon Jan  1 12:00:00 2026\nFrom: alice@example.com\nSubject: Hello\n\nBody one\nFrom bob@example.com Tue Jan  2 09:00:00 2026\nFrom: bob@example.com\nSubject: Re: Hello\n\nBody two\n";
+    expect(detectFile(toBytes(mbox), "mail.txt").type).toBe("mbox");
+    const ldif = "version: 1\ndn: cn=Ana Smith,ou=People,dc=example,dc=com\ncn: Ana Smith\nmail: ana@example.com\n\ndn: cn=Ben,ou=People,dc=example,dc=com\ncn: Ben\nmail: ben@example.com\n";
+    expect(detectFile(toBytes(ldif), "dir.txt").type).toBe("ldif");
+    const cue = 'FILE "song.mp3" MP3\nTRACK 01 AUDIO\nTITLE "First"\nPERFORMER "Band"\nINDEX 01 00:00:00';
+    expect(detectFile(toBytes(cue), "disc.txt").type).toBe("cue");
+  });
+
+  it("mbox → CSV/JSON extracts per-message records", async () => {
+    const mbox = "From alice@example.com Mon Jan  1 12:00:00 2026\nFrom: alice@example.com\nTo: bob@example.com\nSubject: Hello\nDate: Mon, 1 Jan 2026\n\nBody one\nFrom bob@example.com Tue Jan  2 09:00:00 2026\nFrom: bob@example.com\nSubject: Re: Hello\n\nBody two\n";
+    const json = await convertFile({ bytes: toBytes(mbox), name: "mail.mbox" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(json.bytes));
+    expect(parsed.length).toBe(2);
+    expect(parsed[0].subject).toBe("Hello");
+    expect(parsed[0].from).toBe("alice@example.com");
+    expect(parsed[1].body).toContain("Body two");
+  });
+
+  it("LDIF → CSV/JSON and CUE → CSV/JSON extract entries", async () => {
+    const ldif = "version: 1\ndn: cn=Ana,ou=People\ncn: Ana Smith\nmail: ana@example.com\n\ndn: cn=Ben,ou=People\ncn: Ben\nmail: ben@example.com\n";
+    const json = await convertFile({ bytes: toBytes(ldif), name: "dir.ldif" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(json.bytes));
+    expect(parsed.length).toBe(2);
+    expect(parsed[0].cn).toBe("Ana Smith");
+    expect(parsed[1].mail).toBe("ben@example.com");
+    const cue = 'FILE "song.mp3" MP3\nTRACK 01 AUDIO\nTITLE "First"\nPERFORMER "Band"\nINDEX 01 00:00:00';
+    const cueJson = await convertFile({ bytes: toBytes(cue), name: "disc.cue" }, "json");
+    const cueParsed = JSON.parse(new TextDecoder().decode(cueJson.bytes));
+    expect(cueParsed.length).toBe(1);
+    expect(cueParsed[0].track).toBe("01");
+    expect(cueParsed[0].title).toBe("First");
+  });
 });

@@ -1437,6 +1437,135 @@ export function gedcomToRecords(gedcom: string): Record<string, string>[] {
   return records;
 }
 
+/* mbox / LDIF / CUE ---------------------------------------------------- */
+
+const MBOX_SEPARATOR = /^from\s+\S+\s+\w{3}\s+\w{3}\s+\d+/im;
+
+/**
+ * Parses an mbox email archive into per-message records (from/to/subject/
+ * date from the headers, plus the first 2 KB of the plain-text body).
+ */
+export function mboxToRecords(mbox: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  const lines = mbox.split(/\r?\n/);
+  let current: Record<string, string> | null = null;
+  let inBody = false;
+  let bodyLines: string[] = [];
+  const finish = (): void => {
+    if (!current) return;
+    current.body = bodyLines.join(" ").replace(/\s+/g, " ").trim().slice(0, 2000);
+    records.push(current);
+  };
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (MBOX_SEPARATOR.test(line)) {
+      finish();
+      current = {};
+      inBody = false;
+      bodyLines = [];
+      continue;
+    }
+    if (!current) continue;
+    if (!inBody) {
+      // Header section: blank line ends it, everything after is body.
+      if (line.trim() === "") {
+        inBody = true;
+        continue;
+      }
+      const header = line.match(/^([\w-]+):\s*(.*)$/);
+      if (header) {
+        const key = header[1]!.toLowerCase();
+        if (key === "from" || key === "to" || key === "subject" || key === "date") {
+          current[key] = header[2]!.trim();
+        }
+        continue;
+      }
+      inBody = true; // malformed header line — treat the rest as body
+    }
+    if (line.trim()) bodyLines.push(line);
+  }
+  finish();
+  return records;
+}
+
+/**
+ * Parses an LDIF (LDAP data interchange) export into per-entry records.
+ * Records are blank-line separated `attribute: value` blocks; the version
+ * header and comment lines are skipped.
+ */
+export function ldifToRecords(ldif: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  let current: Record<string, string> | null = null;
+  for (const line of ldif.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || t.startsWith("#")) {
+      if (!t && current) {
+        records.push(current);
+        current = null;
+      }
+      continue;
+    }
+    if (/^version:/i.test(t)) continue;
+    const m = t.match(/^([\w-]+):\s*(.*)$/);
+    if (!m) continue;
+    if (!current) current = {};
+    const key = m[1]!.toLowerCase();
+    const value = m[2]!.trim();
+    if (current[key]) current[key] = `${current[key]}; ${value}`;
+    else current[key] = value;
+  }
+  if (current) records.push(current);
+  return records;
+}
+
+/**
+ * Parses a CUE sheet into per-track records (number, title, performer,
+ * index time, file). A leading disc-level TITLE/PERFORMER is carried over.
+ */
+export function cueToRecords(cue: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  let discTitle = "";
+  let discPerformer = "";
+  let currentFile = "";
+  let current: Record<string, string> | null = null;
+  const quote = (s: string): string => (s.match(/"([^"]*)"/) ?? [])[1] ?? s;
+  for (const line of cue.split(/\r?\n/)) {
+    const t = line.trim();
+    const file = t.match(/^FILE\s+"([^"]+)"/i);
+    if (file) {
+      // A FILE line just names the source audio; tracks below it own it.
+      currentFile = file[1]!;
+      continue;
+    }
+    const track = t.match(/^TRACK\s+(\d+)\s+\w+/i);
+    if (track) {
+      if (current) records.push(current);
+      current = { track: track[1]!, file: currentFile };
+      continue;
+    }
+    const title = t.match(/^TITLE\s+(.+)$/i);
+    if (title) {
+      if (current) current.title = quote(title[1]!);
+      else discTitle = quote(title[1]!);
+      continue;
+    }
+    const performer = t.match(/^PERFORMER\s+(.+)$/i);
+    if (performer) {
+      if (current) current.performer = quote(performer[1]!);
+      else discPerformer = quote(performer[1]!);
+      continue;
+    }
+    const index = t.match(/^INDEX\s+\d+\s+(.+)$/i);
+    if (index && current) current.index = index[1]!.trim();
+  }
+  if (current) records.push(current);
+  for (const r of records) {
+    if (!r.title) r.title = discTitle;
+    if (!r.performer) r.performer = discPerformer;
+  }
+  return records;
+}
+
 /* TOML ---------------------------------------------------------------- */
 
 /** Parses a TOML scalar/array/inline-table into a JSON-compatible value. */
