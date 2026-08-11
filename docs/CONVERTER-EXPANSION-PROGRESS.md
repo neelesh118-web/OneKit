@@ -10,9 +10,9 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **80** |
+| Source formats | **82** |
 | Target formats | **49** |
-| Working pairs | **837** |
+| Working pairs | **859** |
 
 The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
@@ -36,6 +36,15 @@ the matrix is without a code path.**
 - Added 36 working pairs, taking the matrix from **801 to 837 pairs**.
 - All three variants are ZIP-based PresentationML packages and use the existing slide XML reader. Each exposes 12 document, presentation, and raw-encoding targets, including a clean `pptx` output rebuilt without macros.
 - Added 40 parameterized tests covering every new pair, source detection, output signatures/containers, retained slide text, and corrupt input. Focused verification: 40/40 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 3 - 2026-08-12 02:52 IST - publishing markup
+
+- Added sources: `rst`, `tex` / `.latex`.
+- Added 22 working pairs, taking the matrix from **837 to 859 pairs**.
+- Added a local text-based publishing reader for reStructuredText headings, lists, literal blocks, links and emphasis, plus a TeX/LaTeX reader for document bodies, section hierarchy, lists, common inline commands and readable math content.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Inputs containing binary NUL data fail honestly.
+- Added 26 parameterized tests covering every new pair, semantic parsing, detection, output signatures/containers, retained content, and corrupt binary input. Focused verification: 26/26 tests passing; TypeScript clean.
 - Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families

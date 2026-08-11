@@ -10,7 +10,7 @@ export type FileType =
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "audio-aiff" | "audio-aac" | "audio-midi"
-  | "html" | "markdown" | "text"
+  | "html" | "markdown" | "rst" | "tex" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -33,7 +33,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
   fb2: "FictionBook (FB2)", mobi: "MOBI ebook", "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
-  html: "HTML page", markdown: "Markdown", text: "Plain text",
+  html: "HTML page", markdown: "Markdown", rst: "reStructuredText", tex: "TeX/LaTeX", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
   "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font", "font-otf": "OpenType font",
@@ -58,7 +58,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
   fb2: ["fb2"], mobi: ["mobi", "azw", "prc"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
-  html: ["html", "htm"], markdown: ["md", "markdown"], text: ["txt"],
+  html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
   "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"], "font-otf": ["otf"],

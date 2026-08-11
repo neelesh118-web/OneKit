@@ -41,6 +41,7 @@ import { fb2ToHtml, fb2Title, mobiToHtml } from "./ebooks";
 import { odpToSlides, odtToHtml } from "./odf";
 import { pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
+import { rstToHtml, texToHtml } from "./markup";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
@@ -333,6 +334,10 @@ async function runConversion(
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
+    case "rst":
+      return renderDocument(rstToHtml(toText(bytes)), "Document", target);
+    case "tex":
+      return renderDocument(texToHtml(toText(bytes)), "Document", target);
     case "html": {
       const html = toText(bytes);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
