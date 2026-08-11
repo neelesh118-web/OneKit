@@ -11,9 +11,15 @@ export default defineConfig({
     },
     // Run files sequentially to avoid shared-jsdom pollution between files.
     fileParallelism: false,
-    pool: "forks",
+    // Threads pool: the forks pool intermittently hit the Windows
+    // child-process teardown flake (tinypool "Channel closed" /
+    // ERR_IPC_CHANNEL_CLOSED) that made a full run hang after all tests had
+    // passed — the root cause of audit F-04's non-terminating suite. Threads
+    // avoids child-process IPC entirely and completes the full suite
+    // reliably. Files still run sequentially and isolated.
+    pool: "threads",
     poolOptions: {
-      forks: {
+      threads: {
         isolate: true
       }
     },
