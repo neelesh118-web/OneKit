@@ -226,12 +226,12 @@ export function createReadingToolsController(caps: OneKitCapabilities): () => vo
   });
 
   /* Encrypted text locker ------------------------------------------------------ */
-  const tlMode = $("tl-mode") as HTMLSelectElement;
-  const tlPass = $("tl-pass") as HTMLInputElement;
-  const tlInput = $("tl-input") as HTMLTextAreaElement;
-  const tlOutput = $("tl-output") as HTMLTextAreaElement;
-  const tlRun = $("tl-run") as HTMLButtonElement;
-  const tlStatus = $("tl-status");
+  const tlMode = $("tlk-mode") as HTMLSelectElement;
+  const tlPass = $("tlk-pass") as HTMLInputElement;
+  const tlInput = $("tlk-input") as HTMLTextAreaElement;
+  const tlOutput = $("tlk-output") as HTMLTextAreaElement;
+  const tlRun = $("tlk-run") as HTMLButtonElement;
+  const tlStatus = $("tlk-status");
 
   tlRun.addEventListener("click", () => {
     void (async () => {
@@ -342,10 +342,10 @@ export function createReadingToolsController(caps: OneKitCapabilities): () => vo
   });
 
   /* QR scanner -------------------------------------------------------------------- */
-  const qrFile = $("qr-file") as HTMLInputElement;
-  const qrTab = $("qr-tab") as HTMLButtonElement;
-  const qrResult = $("qr-result");
-  const qrStatus = $("qr-status");
+  const qrFile = $("qrs-file") as HTMLInputElement;
+  const qrTab = $("qrs-tab") as HTMLButtonElement;
+  const qrResult = $("qrs-result");
+  const qrStatus = $("qrs-status");
 
   function renderQr(decode: QrDecode): void {
     qrResult.innerHTML = "";
@@ -439,10 +439,10 @@ export function createReadingToolsController(caps: OneKitCapabilities): () => vo
   });
 
   /* Contact extractor ---------------------------------------------------------------- */
-  const ceCopy = $("ce-copy") as HTMLButtonElement;
-  const ceCsv = $("ce-csv") as HTMLButtonElement;
-  const ceList = $("ce-list");
-  const ceStatus = $("ce-status");
+  const ceCopy = $("cx-copy") as HTMLButtonElement;
+  const ceCsv = $("cx-csv") as HTMLButtonElement;
+  const ceList = $("cx-list");
+  const ceStatus = $("cx-status");
 
   async function contactsFromActiveTab(): Promise<ReturnType<typeof extractContacts> | null> {
     const tab = await caps.getActiveTab();

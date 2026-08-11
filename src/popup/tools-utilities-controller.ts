@@ -403,11 +403,11 @@ export function createToolsUtilitiesController(caps: OneKitCapabilities): () => 
   });
 
   /* Bulk link checker ---------------------------------------------------------------------------------- */
-  const lcInput = $("lc-input") as HTMLTextAreaElement;
-  const lcList = $("lc-list");
-  const lcStatus = $("lc-status");
+  const lcInput = $("blc-input") as HTMLTextAreaElement;
+  const lcList = $("blc-list");
+  const lcStatus = $("blc-status");
 
-  $("lc-run").addEventListener("click", () => {
+  $("blc-run").addEventListener("click", () => {
     void (async () => {
       const urls = urlsFromList(lcInput.value);
       if (urls.length === 0) {

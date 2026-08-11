@@ -16,24 +16,23 @@
       </header>
 
       <nav class="tab-nav" aria-label="OneKit tools">
-        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">20</span></button>
-        <button type="button" class="tab-btn" data-tab="vault">💬 Vault <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">12</span></button>
-        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">13</span></button>
+        <button type="button" class="tab-btn" data-tab="memory">🧠 Memory <span class="tab-count">15</span></button>
+        <button type="button" class="tab-btn" data-tab="vault">💬 Vault & notes <span class="tab-count">4</span></button>
+        <button type="button" class="tab-btn" data-tab="safety">🛡️ Safety <span class="tab-count">11</span></button>
+        <button type="button" class="tab-btn" data-tab="speed">⚡ Speed <span class="tab-count">16</span></button>
         <button type="button" class="tab-btn" data-tab="focus">🧘 Focus <span class="tab-count">13</span></button>
-        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">11</span></button>
-        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">35</span></button>
+        <button type="button" class="tab-btn" data-tab="typing">⌨️ Typing <span class="tab-count">8</span></button>
+        <button type="button" class="tab-btn" data-tab="tools">🧰 Tools <span class="tab-count">39</span></button>
         <button type="button" class="tab-btn" data-tab="dev">🛠️ Dev <span class="tab-count">10</span></button>
         <button type="button" class="tab-btn" data-tab="convert">🔄 Convert <span class="tab-count">4</span></button>
-        <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">2</span></button>
-        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">7</span></button>
+        <button type="button" class="tab-btn" data-tab="downloads">⬇️ Downloads <span class="tab-count">4</span></button>
+        <button type="button" class="tab-btn" data-tab="settings">⚙️ Settings <span class="tab-count">5</span></button>
       </nav>
 
       <!-- ============================================================ -->
       <!-- Memory                                                        -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-memory">
-
         <div class="tool-group">🔎 Search & clipboard</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -49,7 +48,6 @@
             <button id="history-clear" type="button" class="mini-btn danger">Clear history</button>
           </div>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📋 Clipboard history</span>
@@ -60,7 +58,6 @@
             <button id="clipboard-clear" type="button" class="mini-btn danger">Clear clipboard history</button>
           </div>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📎 Clipboard export</span>
@@ -73,7 +70,6 @@
           <div id="ce-list" class="results"></div>
           <p id="ce-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📝 Form draft vault</span>
@@ -84,7 +80,6 @@
             <button id="drafts-clear" type="button" class="mini-btn danger">Clear drafts</button>
           </div>
         </div>
-
 
         <div class="tool-group">⭐ Saved content</div>
         <div class="tool-block">
@@ -97,7 +92,6 @@
             <button id="highlights-clear" type="button" class="mini-btn danger">Clear highlights</button>
           </div>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🧹 Highlight exporter</span>
@@ -108,7 +102,6 @@
           </div>
           <p id="he-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📚 Read later</span>
@@ -119,7 +112,6 @@
             <button id="readlater-clear" type="button" class="mini-btn danger">Clear read-later list</button>
           </div>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🎲 Random revisit</span>
@@ -139,18 +131,19 @@
           <div id="at-list" class="results"></div>
           <p id="at-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
-            <span class="tool-label">⏱️ Reading time &amp; grade level</span>
+            <span class="tool-label">🔗 Link collector</span>
           </div>
-          <p class="hint">How long the current page takes to read (200 wpm) and its Flesch–Kincaid grade level — computed locally from the visible text.</p>
+          <p class="hint">Right-click any link or page → OneKit — “Collect link (export later)”. Stash links while you research, then export them as Markdown or CSV.</p>
+          <div id="lc-list" class="results"></div>
           <div class="btn-row">
-            <button id="reading-time-btn" type="button" class="mini-btn">Analyze this page</button>
+            <button id="lc-export-md" type="button" class="mini-btn">Export Markdown</button>
+            <button id="lc-export-csv" type="button" class="mini-btn">Export CSV</button>
+            <button id="lc-clear" type="button" class="mini-btn danger">Clear all</button>
           </div>
-          <p id="reading-time-status" class="status"></p>
+          <p id="lc-status" class="status"></p>
         </div>
-
 
         <div class="tool-group">📦 Archives & autofill</div>
         <div class="tool-block">
@@ -163,18 +156,6 @@
           <div class="btn-row">
             <button id="archive-clear" type="button" class="mini-btn danger">Clear archive</button>
           </div>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🗒️ Sticky web notes</span>
-          </div>
-          <p class="hint">Notes pinned to pages (turn on in Settings → Tools, then right-click a page → OneKit → or use the + button on the page). Listed here for editing and deleting.</p>
-          <div id="notes-list" class="results"></div>
-          <div class="btn-row">
-            <button id="notes-clear" type="button" class="mini-btn danger">Clear all notes</button>
-          </div>
-          <p id="notes-status" class="status"></p>
         </div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -193,8 +174,7 @@
           <p id="card-status" class="status"></p>
         </div>
 
-
-        <div class="tool-group">⏰ Sessions & reminders</div>
+        <div class="tool-group">⏰ Reminders & meetings</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">⏰ Local reminders</span>
@@ -211,66 +191,6 @@
           </div>
           <p id="rem-status" class="status"></p>
         </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🅿️ Tab parking</span>
-          </div>
-          <p class="hint">OneTab-style memory saving, done safely: parking closes this window's inactive web tabs and keeps them here — restore any time, nothing is ever deleted.</p>
-          <div class="btn-row">
-            <button id="pk-park" type="button" class="mini-btn primary">🅿️ Park inactive tabs</button>
-            <button id="pk-restore-all" type="button" class="mini-btn">Restore all</button>
-            <button id="pk-clear" type="button" class="mini-btn danger">Clear parked list</button>
-          </div>
-          <div id="pk-list" class="results"></div>
-          <p id="pk-status" class="status"></p>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">⏰ Scheduled session opens</span>
-          </div>
-          <p class="hint">Auto-open a set of tabs at a set time — your work tabs every weekday morning, your reading list on Sundays. Runs in the background even with the popup closed.</p>
-          <div class="btn-row">
-            <input id="ss-name" type="text" placeholder="Session name (optional)" autocomplete="off" />
-            <input id="ss-time" type="time" value="09:00" aria-label="Time" />
-            <select id="ss-freq" aria-label="Frequency"></select>
-            <select id="ss-day" aria-label="Day of week"></select>
-            <button id="ss-add" type="button" class="mini-btn primary">Schedule</button>
-          </div>
-          <div id="ss-list" class="results"></div>
-          <p id="ss-status" class="status"></p>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🗂 Session export / import</span>
-          </div>
-          <p class="hint">Take your workspaces, parked tabs and session backup with you in one portable JSON file — or bring them back on another machine. Your tabs, your file.</p>
-          <div class="btn-row">
-            <button id="si-export" type="button" class="mini-btn">⬇ Export sessions</button>
-            <button id="si-import" type="button" class="mini-btn">⬆ Import sessions</button>
-            <input id="si-file" type="file" accept=".json,application/json" hidden />
-          </div>
-          <p id="si-status" class="status"></p>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🔗 Link collector</span>
-          </div>
-          <p class="hint">Right-click any link or page → OneKit — “Collect link (export later)”. Stash links while you research, then export them as Markdown or CSV.</p>
-          <div id="lc-list" class="results"></div>
-          <div class="btn-row">
-            <button id="lc-export-md" type="button" class="mini-btn">Export Markdown</button>
-            <button id="lc-export-csv" type="button" class="mini-btn">Export CSV</button>
-            <button id="lc-clear" type="button" class="mini-btn danger">Clear all</button>
-          </div>
-          <p id="lc-status" class="status"></p>
-        </div>
-
-
-        <div class="tool-group">🎙 Meetings & activity</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🎙 Meeting link launcher</span>
@@ -282,7 +202,6 @@
           </div>
           <p id="ml-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🧹 Activity log</span>
@@ -296,12 +215,36 @@
         </div>
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Vault (AI Chat Vault)                                        -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-vault" hidden>
+        <div class="tool-group">💬 Vault</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">💬 AI Chat Vault</span>
@@ -336,7 +279,6 @@
             <p id="vault-status" class="status"></p>
           </div>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📓 Encrypted secure notes</span>
@@ -364,13 +306,44 @@
                   </div>
                 </div>
 
+        <div class="tool-group">🗒 Notes</div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔐 Encrypted text locker</span>
+          </div>
+          <p class="hint">AES-GCM encrypt or decrypt any text with a passphrase — the blob is self-contained, nothing is stored or sent. Wrong passphrase means no recovery, so keep it safe.</p>
+          <div class="btn-row">
+            <select id="tlk-mode">
+              <option value="lock">Encrypt</option>
+              <option value="unlock">Decrypt</option>
+            </select>
+            <input id="tlk-pass" type="password" placeholder="Passphrase (min 6 chars)" autocomplete="off" />
+            <button id="tlk-run" type="button" class="mini-btn primary">Run</button>
+          </div>
+          <textarea id="tlk-input" rows="3" placeholder="Text to encrypt, or a OneKit blob to decrypt…"></textarea>
+          <textarea id="tlk-output" rows="3" readonly placeholder="Result appears here…"></textarea>
+          <p id="tlk-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗒️ Sticky web notes</span>
+          </div>
+          <p class="hint">Notes pinned to pages (turn on in Settings → Tools, then right-click a page → OneKit → or use the + button on the page). Listed here for editing and deleting.</p>
+          <div id="notes-list" class="results"></div>
+          <div class="btn-row">
+            <button id="notes-clear" type="button" class="mini-btn danger">Clear all notes</button>
+          </div>
+          <p id="notes-status" class="status"></p>
+        </div>
+
+
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Safety                                                        -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-safety" hidden>
-
         <div class="tool-group">🧼 Page cleaning</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -387,7 +360,6 @@
           </div>
           <p id="cleanlink-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🍪 Cookie banner auto-reject</span>
@@ -395,7 +367,6 @@
           <p class="hint">Auto-clicks "Reject / Decline" on consent banners. Never clicks "Accept". Turn it on in Settings → Tools.</p>
           <p class="status">Right-click any link → "OneKit — Copy clean link (no tracking)" also works on every page.</p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🍪 Cookie manager</span>
@@ -420,32 +391,6 @@
           <p id="cookie-status" class="status"></p>
         </div>
 
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🔒 PII redactor</span>
-          </div>
-          <p class="hint">Scan text for emails, phone numbers, card numbers, SSNs and API keys — get a copy-safe redacted version. Runs entirely on your device.</p>
-          <textarea id="pii-input" rows="3" placeholder="Paste text to scan…"></textarea>
-          <div class="btn-row">
-            <button id="pii-scan" type="button" class="mini-btn">Scan &amp; redact</button>
-          </div>
-          <div id="pii-findings" class="results"></div>
-          <textarea id="pii-output" rows="3" readonly placeholder="Redacted text appears here"></textarea>
-          <div class="btn-row">
-            <button id="pii-copy" type="button" class="mini-btn" disabled>Copy redacted</button>
-          </div>
-          <p id="pii-status" class="status"></p>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">📮 Email-signup blocker</span>
-          </div>
-          <p class="hint">Newsletter and signup forms get intercepted and OneKit asks before anything is submitted — the dark-pattern fight, done honestly. It never fabricates an email and never auto-submits.</p>
-          <p class="status">Turn it on in Settings → Tools → “Confirm before newsletter/signup forms submit”.</p>
-        </div>
-
-
         <div class="tool-group">🚨 Threat radar</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -458,7 +403,6 @@
           <div id="scam-result" class="scam-result"></div>
           <p id="scam-status" class="status"></p>
         </div>
-
 
         <div class="tool-group">🔐 Credentials</div>
         <div class="tool-block">
@@ -493,7 +437,6 @@
           <div id="totp-list" class="results"></div>
           <p id="totp-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔑 Local password vault</span>
@@ -531,7 +474,6 @@
           <div id="pwv-list" class="results"></div>
           <p id="pwv-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🛡 Vault health report</span>
@@ -546,6 +488,30 @@
           <p id="vh-status" class="status"></p>
         </div>
 
+        <div class="tool-group">🧘 Privacy</div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔒 PII redactor</span>
+          </div>
+          <p class="hint">Scan text for emails, phone numbers, card numbers, SSNs and API keys — get a copy-safe redacted version. Runs entirely on your device.</p>
+          <textarea id="pii-input" rows="3" placeholder="Paste text to scan…"></textarea>
+          <div class="btn-row">
+            <button id="pii-scan" type="button" class="mini-btn">Scan &amp; redact</button>
+          </div>
+          <div id="pii-findings" class="results"></div>
+          <textarea id="pii-output" rows="3" readonly placeholder="Redacted text appears here"></textarea>
+          <div class="btn-row">
+            <button id="pii-copy" type="button" class="mini-btn" disabled>Copy redacted</button>
+          </div>
+          <p id="pii-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">📮 Email-signup blocker</span>
+          </div>
+          <p class="hint">Newsletter and signup forms get intercepted and OneKit asks before anything is submitted — the dark-pattern fight, done honestly. It never fabricates an email and never auto-submits.</p>
+          <p class="status">Turn it on in Settings → Tools → “Confirm before newsletter/signup forms submit”.</p>
+        </div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🧽 Privacy sweep</span>
@@ -559,9 +525,6 @@
           <div id="sweep-list" class="results"></div>
           <p id="sweep-status" class="status"></p>
         </div>
-
-
-        <div class="tool-group">🧘 Privacy</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔐 Privacy score</span>
@@ -575,31 +538,28 @@
           <ul id="ps-tips" class="privacy-tips"></ul>
         </div>
 
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🔐 Encrypted text locker</span>
-          </div>
-          <p class="hint">AES-GCM encrypt or decrypt any text with a passphrase — the blob is self-contained, nothing is stored or sent. Wrong passphrase means no recovery, so keep it safe.</p>
-          <div class="btn-row">
-            <select id="tl-mode">
-              <option value="lock">Encrypt</option>
-              <option value="unlock">Decrypt</option>
-            </select>
-            <input id="tl-pass" type="password" placeholder="Passphrase (min 6 chars)" autocomplete="off" />
-            <button id="tl-run" type="button" class="mini-btn primary">Run</button>
-          </div>
-          <textarea id="tl-input" rows="3" placeholder="Text to encrypt, or a OneKit blob to decrypt…"></textarea>
-          <textarea id="tl-output" rows="3" readonly placeholder="Result appears here…"></textarea>
-          <p id="tl-status" class="status"></p>
-        </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Speed                                                         -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-speed" hidden>
-
         <div class="tool-group">🗂 Tab management</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -612,7 +572,6 @@
           <div id="dupes-results" class="results"></div>
           <p id="dupes-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔍 Tab finder</span>
@@ -622,7 +581,6 @@
           <div id="tab-results" class="results"></div>
           <p id="tab-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🛑 Tab limiter</span>
@@ -638,7 +596,6 @@
           </div>
           <p id="tl-status2" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">💾 Tab memory saver</span>
@@ -661,7 +618,6 @@
           </div>
           <p id="suspender-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">⏰ Tab snooze</span>
@@ -680,7 +636,6 @@
           <div id="snooze-list" class="results"></div>
           <p id="snooze-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🗃 Auto tab grouping</span>
@@ -691,7 +646,6 @@
           </div>
           <p id="group-tabs-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📋 Copy tab list</span>
@@ -719,7 +673,6 @@
           </div>
           <p id="tu-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🕘 Recently closed tabs</span>
@@ -731,8 +684,19 @@
           <div id="rc-list" class="results"></div>
           <p id="rc-status" class="status"></p>
         </div>
-
-
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🅿️ Tab parking</span>
+          </div>
+          <p class="hint">OneTab-style memory saving, done safely: parking closes this window's inactive web tabs and keeps them here — restore any time, nothing is ever deleted.</p>
+          <div class="btn-row">
+            <button id="pk-park" type="button" class="mini-btn primary">🅿️ Park inactive tabs</button>
+            <button id="pk-restore-all" type="button" class="mini-btn">Restore all</button>
+            <button id="pk-clear" type="button" class="mini-btn danger">Clear parked list</button>
+          </div>
+          <div id="pk-list" class="results"></div>
+          <p id="pk-status" class="status"></p>
+        </div>
 
         <div class="tool-group">🧭 Sessions & playback</div>
         <div class="tool-block">
@@ -747,7 +711,6 @@
           <div id="workspace-list" class="results"></div>
           <p id="workspace-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🛟 Automatic session backup</span>
@@ -760,7 +723,33 @@
             <button id="backup-clear" type="button" class="mini-btn danger">Clear backup</button>
           </div>
         </div>
-
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗂 Session export / import</span>
+          </div>
+          <p class="hint">Take your workspaces, parked tabs and session backup with you in one portable JSON file — or bring them back on another machine. Your tabs, your file.</p>
+          <div class="btn-row">
+            <button id="si-export" type="button" class="mini-btn">⬇ Export sessions</button>
+            <button id="si-import" type="button" class="mini-btn">⬆ Import sessions</button>
+            <input id="si-file" type="file" accept=".json,application/json" hidden />
+          </div>
+          <p id="si-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏰ Scheduled session opens</span>
+          </div>
+          <p class="hint">Auto-open a set of tabs at a set time — your work tabs every weekday morning, your reading list on Sundays. Runs in the background even with the popup closed.</p>
+          <div class="btn-row">
+            <input id="ss-name" type="text" placeholder="Session name (optional)" autocomplete="off" />
+            <input id="ss-time" type="time" value="09:00" aria-label="Time" />
+            <select id="ss-freq" aria-label="Frequency"></select>
+            <select id="ss-day" aria-label="Day of week"></select>
+            <button id="ss-add" type="button" class="mini-btn primary">Schedule</button>
+          </div>
+          <div id="ss-list" class="results"></div>
+          <p id="ss-status" class="status"></p>
+        </div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔇 Autoplay killer</span>
@@ -768,7 +757,6 @@
           <p class="hint">Pauses video/audio that starts on its own. Never touches playback you started.</p>
           <p class="status">Turn it on in Settings → Tools.</p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔄 Tab auto-refresh</span>
@@ -787,7 +775,22 @@
           <div id="ar-list" class="results"></div>
           <p id="ar-status" class="status"></p>
         </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
       
+
       </section>
 
       <!-- ============================================================ -->
@@ -1012,6 +1015,7 @@
       <!-- Typing                                                        -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-typing" hidden>
+        <div class="tool-group">⌨️ Typing & text</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">⚡ Text expander</span>
@@ -1027,7 +1031,6 @@
           <div id="snippet-list" class="results"></div>
           <p id="snippet-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🧮 Word counter</span>
@@ -1036,33 +1039,6 @@
           <textarea id="counter-input" rows="3" placeholder="Paste or type text to count…"></textarea>
           <p id="counter-stats" class="status">Start typing or paste text to count it.</p>
         </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">⬇️ Copy as Markdown</span>
-          </div>
-          <p class="hint">Turn tabs, pages and selections into Markdown — great for AI prompts and docs. Also on right-click.</p>
-          <div class="btn-row">
-            <button id="md-active-tab" type="button" class="mini-btn">Copy active tab as Markdown</button>
-            <button id="md-all-tabs" type="button" class="mini-btn">Copy all tabs as Markdown</button>
-            <button id="md-page-links" type="button" class="mini-btn">Copy all links on active page</button>
-          </div>
-          <p id="md-status" class="status"></p>
-        </div>
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🔗 Copy page link</span>
-          </div>
-          <p class="hint">This page's title + URL in the three formats you actually paste into: Markdown, HTML, and plain text.</p>
-          <div class="btn-row">
-            <button id="clk-md" type="button" class="mini-btn">Copy as Markdown</button>
-            <button id="clk-html" type="button" class="mini-btn">Copy as HTML</button>
-            <button id="clk-plain" type="button" class="mini-btn">Copy as plain text</button>
-          </div>
-          <p id="clk-status" class="status"></p>
-        </div>
-
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">😀 Emoji picker</span>
@@ -1072,7 +1048,6 @@
           <div id="emoji-grid" class="emoji-grid"></div>
           <p id="emoji-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔠 Text case converter</span>
@@ -1086,7 +1061,19 @@
           <input id="case-output" type="text" readonly placeholder="Converted text appears here" />
           <p id="case-status" class="status"></p>
         </div>
+                <div class="tool-block">
+                  <div class="tool-heading">
+                    <span class="tool-label">✍️ Local spell-checker</span>
+                  </div>
+                  <p class="hint">Check pasted text against a bundled 274k-word dictionary with correction suggestions — no network. Proper nouns and jargon aren't in the dictionary, so they're never flagged.</p>
+                  <textarea id="sc-input" rows="5" placeholder="Paste text to check…" spellcheck="false"></textarea>
+                  <div class="btn-row">
+                    <button id="sc-check" type="button" class="mini-btn">Check spelling</button>
+                  </div>
+                  <div id="sc-result" class="results"></div>
+                </div>
 
+        <div class="tool-group">🔎 Find & replace</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔎 Find &amp; replace on page</span>
@@ -1102,19 +1089,6 @@
           </div>
           <p id="fr-status" class="status"></p>
         </div>
-
-                <div class="tool-block">
-                  <div class="tool-heading">
-                    <span class="tool-label">✍️ Local spell-checker</span>
-                  </div>
-                  <p class="hint">Check pasted text against a bundled 274k-word dictionary with correction suggestions — no network. Proper nouns and jargon aren't in the dictionary, so they're never flagged.</p>
-                  <textarea id="sc-input" rows="5" placeholder="Paste text to check…" spellcheck="false"></textarea>
-                  <div class="btn-row">
-                    <button id="sc-check" type="button" class="mini-btn">Check spelling</button>
-                  </div>
-                  <div id="sc-result" class="results"></div>
-                </div>
-
                 <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">📑 Text → list tools</span>
@@ -1129,7 +1103,6 @@
                   <textarea id="tl-output" rows="5" readonly placeholder="Result appears here"></textarea>
                   <p id="tl-status" class="status"></p>
                 </div>
-
                 <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">🔀 Text find &amp; replace</span>
@@ -1147,13 +1120,22 @@
                   <textarea id="tr-output" rows="3" readonly placeholder="Result appears here"></textarea>
                   <p id="tr-status" class="status"></p>
                 </div>
+
+
+
+
+
+
+
+
+
+
       </section>
 
       <!-- ============================================================ -->
       <!-- Tools                                                         -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-tools" hidden>
-
         <div class="tool-group">🎨 Generators</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1179,8 +1161,6 @@
           <div id="dict-result" class="results"></div>
           <p id="dict-status" class="status"></p>
         </div>
-
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🔑 Password generator</span>
@@ -1201,7 +1181,6 @@
           </div>
           <p id="pw-strength" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🧩 Passphrase generator</span>
@@ -1220,7 +1199,6 @@
           </div>
           <p id="ph-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">〰️ Barcode generator</span>
@@ -1234,7 +1212,6 @@
           <div id="bc-output" class="bc-output"></div>
           <p id="bc-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📚 Citation generator</span>
@@ -1265,8 +1242,6 @@
           <p id="gen-status" class="status"></p>
         </div>
 
-
-
         <div class="tool-group">🧮 Math, units & color</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1280,7 +1255,6 @@
           <p id="calc-result" class="result-line"></p>
           <p id="calc-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📐 Unit &amp; date converter</span>
@@ -1299,7 +1273,6 @@
           <strong id="unit-result" class="unit-result"></strong>
           <p id="unit-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📅 Date &amp; time tools</span>
@@ -1325,7 +1298,6 @@
           <strong id="date-tz-result" class="unit-result"></strong>
           <p class="status">Leave the date-time blank to use right now.</p>
         </div>
-
                 <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🧾 Price-with-fees calculator</span>
@@ -1344,7 +1316,6 @@
           <div id="pf-result" class="results"></div>
           <p id="pf-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🎨 Color picker</span>
@@ -1361,7 +1332,6 @@
             <button id="palette-clear" type="button" class="mini-btn" hidden>Clear</button>
           </div>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🎨 WCAG contrast checker</span>
@@ -1375,7 +1345,6 @@
           <pre id="ct-result" class="contrast-result"></pre>
         </div>
 
-
         <div class="tool-group">🎬 Media</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1388,7 +1357,6 @@
           </div>
           <p id="screenshot-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">✏️ Screenshot annotate</span>
@@ -1399,7 +1367,6 @@
           </div>
           <p id="annotate-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🖼️ Download all images</span>
@@ -1410,7 +1377,6 @@
           </div>
           <p id="download-images-status" class="status"></p>
         </div>
-
         <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">⏩ Video speed controller</span>
@@ -1426,7 +1392,6 @@
                     <button id="vs-reset" type="button" class="mini-btn">Reset to 1×</button>
                   </div>
                 </div>
-
                 <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">🎬 Tab recorder</span>
@@ -1437,7 +1402,6 @@
                   </div>
                   <p id="rec-status" class="status"></p>
                 </div>
-
                 <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">📺 Floating video (PiP)</span>
@@ -1448,7 +1412,6 @@
                   </div>
                   <p id="pip-status" class="status"></p>
                 </div>
-
                 <div class="tool-block">
                   <div class="tool-heading">
                     <span class="tool-label">🔍 Image &amp; screenshot OCR</span>
@@ -1466,7 +1429,6 @@
                   </div>
                 </div>
 
-
         <div class="tool-group">🧰 Browser helpers</div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1480,7 +1442,6 @@
           <div id="bookmarks-results" class="results"></div>
           <p id="bookmarks-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🗃️ Bookmarks → Markdown</span>
@@ -1492,7 +1453,6 @@
           </div>
           <p id="bm-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📄 Page → PDF</span>
@@ -1503,7 +1463,6 @@
           </div>
           <p id="pp-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🗑️ Downloads cleaner</span>
@@ -1516,7 +1475,6 @@
           <div id="dc-list" class="results"></div>
           <p id="dc-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🌐 Multi-search</span>
@@ -1549,7 +1507,6 @@
           </div>
           <p id="utm-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🖼 Favicon extractor</span>
@@ -1560,8 +1517,6 @@
           </div>
           <p id="fv-status" class="status"></p>
         </div>
-
-
 
         <div class="tool-group">📄 Page content</div>
         <div class="tool-block">
@@ -1574,7 +1529,6 @@
           </div>
           <p id="tc-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📝 Local TL;DR</span>
@@ -1586,7 +1540,6 @@
           <div id="sum-output" class="results"></div>
           <p id="sum-stats" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📑 Page table of contents</span>
@@ -1598,7 +1551,6 @@
           </div>
           <p id="ptc-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📐 Size chart switcher</span>
@@ -1628,18 +1580,17 @@
           </div>
           <p id="sc-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📧 Contact extractor</span>
           </div>
           <p class="hint">Emails and phone numbers from the current page, deduplicated and ready to copy as a clean list or CSV.</p>
           <div class="btn-row">
-            <button id="ce-copy" type="button" class="mini-btn">Copy contacts from this page</button>
-            <button id="ce-csv" type="button" class="mini-btn">Copy as CSV</button>
+            <button id="cx-copy" type="button" class="mini-btn">Copy contacts from this page</button>
+            <button id="cx-csv" type="button" class="mini-btn">Copy as CSV</button>
           </div>
-          <div id="ce-list" class="results"></div>
-          <p id="ce-status" class="status"></p>
+          <div id="cx-list" class="results"></div>
+          <p id="cx-status" class="status"></p>
         </div>
         <div class="tool-block">
           <div class="tool-heading">
@@ -1651,20 +1602,18 @@
           </div>
           <p id="ol-status" class="status"></p>
         </div>
-
               <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🕵️ QR scanner</span>
           </div>
           <p class="hint">Decode a QR code from an image file or the visible tab — jsQR on-device, nothing is uploaded.</p>
           <div class="btn-row">
-            <input id="qr-file" type="file" accept="image/*" />
-            <button id="qr-tab" type="button" class="mini-btn">Scan visible tab</button>
+            <input id="qrs-file" type="file" accept="image/*" />
+            <button id="qrs-tab" type="button" class="mini-btn">Scan visible tab</button>
           </div>
-          <div id="qr-result" class="results"></div>
-          <p id="qr-status" class="status"></p>
+          <div id="qrs-result" class="results"></div>
+          <p id="qrs-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🖼 EXIF viewer</span>
@@ -1676,7 +1625,40 @@
           <div id="exif-result" class="results"></div>
           <p id="exif-status" class="status"></p>
         </div>
-
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⏱️ Reading time &amp; grade level</span>
+          </div>
+          <p class="hint">How long the current page takes to read (200 wpm) and its Flesch–Kincaid grade level — computed locally from the visible text.</p>
+          <div class="btn-row">
+            <button id="reading-time-btn" type="button" class="mini-btn">Analyze this page</button>
+          </div>
+          <p id="reading-time-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">⬇️ Copy as Markdown</span>
+          </div>
+          <p class="hint">Turn tabs, pages and selections into Markdown — great for AI prompts and docs. Also on right-click.</p>
+          <div class="btn-row">
+            <button id="md-active-tab" type="button" class="mini-btn">Copy active tab as Markdown</button>
+            <button id="md-all-tabs" type="button" class="mini-btn">Copy all tabs as Markdown</button>
+            <button id="md-page-links" type="button" class="mini-btn">Copy all links on active page</button>
+          </div>
+          <p id="md-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔗 Copy page link</span>
+          </div>
+          <p class="hint">This page's title + URL in the three formats you actually paste into: Markdown, HTML, and plain text.</p>
+          <div class="btn-row">
+            <button id="clk-md" type="button" class="mini-btn">Copy as Markdown</button>
+            <button id="clk-html" type="button" class="mini-btn">Copy as HTML</button>
+            <button id="clk-plain" type="button" class="mini-btn">Copy as plain text</button>
+          </div>
+          <p id="clk-status" class="status"></p>
+        </div>
 
         <div class="tool-group">🔑 Password tools</div>
         <div class="tool-block">
@@ -1688,6 +1670,47 @@
           <p id="ps-result" class="status strength"></p>
           <ul id="ps-issues" class="ps-issues"></ul>
         </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
       </section>
@@ -1856,12 +1879,12 @@
             <span class="tool-label">🧪 Bulk link checker</span>
           </div>
           <p class="hint">Paste a list of URLs (one per line) and check each one — broken and redirecting links flagged in seconds.</p>
-          <textarea id="lc-input" rows="4" placeholder="https://example.com&#10;https://example.org/page"></textarea>
+          <textarea id="blc-input" rows="4" placeholder="https://example.com&#10;https://example.org/page"></textarea>
           <div class="btn-row">
-            <button id="lc-run" type="button" class="mini-btn primary">Check links</button>
+            <button id="blc-run" type="button" class="mini-btn primary">Check links</button>
           </div>
-          <div id="lc-list" class="results"></div>
-          <p id="lc-status" class="status"></p>
+          <div id="blc-list" class="results"></div>
+          <p id="blc-status" class="status"></p>
         </div>
 
 
@@ -2024,6 +2047,7 @@
       <!-- Downloads                                                     -->
       <!-- ============================================================ -->
       <section class="tab-panel" id="panel-downloads" hidden>
+        <div class="tool-group">⬇️ Downloads</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">⬇️ Download organizer</span>
@@ -2036,7 +2060,6 @@
           <p class="status">Example: <code>photo.png</code> → <code>Images/photo.png</code>; <code>report.pdf</code> → <code>Documents/report.pdf</code></p>
           <p id="downloads-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🗂 Download history</span>
@@ -2047,73 +2070,8 @@
             <button id="downloads-clear" type="button" class="mini-btn danger">Clear history</button>
           </div>
         </div>
-      </section>
 
-      <!-- ============================================================ -->
-      <!-- Settings                                                      -->
-      <!-- ============================================================ -->
-      <section class="tab-panel" id="panel-settings" hidden>
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🎨 Theme</span>
-          </div>
-          <select id="theme-select">
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
-          </select>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🔧 Tools</span>
-          </div>
-          <p class="hint">Everything runs on your device. Memory tools are on by default; page-acting tools are off until you switch them on.</p>
-          <div id="tool-toggles"></div>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🗄 Your data</span>
-          </div>
-          <p id="data-stats" class="status"></p>
-          <div class="btn-row">
-            <button id="data-clear-history" type="button" class="mini-btn danger">Clear history</button>
-            <button id="data-clear-clipboard" type="button" class="mini-btn danger">Clear clipboard</button>
-            <button id="data-clear-drafts" type="button" class="mini-btn danger">Clear drafts</button>
-          </div>
-          <div class="btn-row">
-            <button id="data-clear-all" type="button" class="mini-btn danger">Erase all OneKit data</button>
-          </div>
-          <p id="data-status" class="status"></p>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🌙 Dark mode off-list</span>
-          </div>
-          <p class="hint">Sites where the dark filter should never apply (one per line, e.g. <code>youtube.com</code>).</p>
-          <textarea id="darkmode-offlist" rows="3" placeholder="youtube.com
-wikipedia.org"></textarea>
-          <div class="btn-row">
-            <button id="darkmode-save" type="button" class="mini-btn">Save off-list</button>
-          </div>
-          <p id="darkmode-status" class="status"></p>
-        </div>
-
-        <div class="tool-block">
-          <div class="tool-heading">
-            <span class="tool-label">🗄 Backup &amp; restore</span>
-          </div>
-          <p class="hint">Export every OneKit store to a JSON file, or restore from one. Restore only touches keys that exist in the backup — nothing else is overwritten.</p>
-          <div class="btn-row">
-            <button id="backup-export" type="button" class="mini-btn">⬇ Backup all data</button>
-            <button id="backup-restore" type="button" class="mini-btn">Restore backup</button>
-            <input id="backup-restore-file" type="file" accept="application/json,.json" hidden />
-          </div>
-          <p id="backup-status-settings" class="status"></p>
-        </div>
-
+        <div class="tool-group">🗄 Export & backup</div>
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">🗄️ Data export hub</span>
@@ -2125,7 +2083,6 @@ wikipedia.org"></textarea>
           </div>
           <p id="ex-status" class="status"></p>
         </div>
-
         <div class="tool-block">
           <div class="tool-heading">
             <span class="tool-label">📊 CSV export hub</span>
@@ -2143,7 +2100,83 @@ wikipedia.org"></textarea>
           <p id="csv-status" class="status"></p>
         </div>
 
+
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- Settings                                                      -->
+      <!-- ============================================================ -->
+      <section class="tab-panel" id="panel-settings" hidden>
+        <div class="tool-group">🎨 Appearance</div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🎨 Theme</span>
+          </div>
+          <select id="theme-select">
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+            <option value="system">System</option>
+          </select>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🌙 Dark mode off-list</span>
+          </div>
+          <p class="hint">Sites where the dark filter should never apply (one per line, e.g. <code>youtube.com</code>).</p>
+          <textarea id="darkmode-offlist" rows="3" placeholder="youtube.com
+wikipedia.org"></textarea>
+          <div class="btn-row">
+            <button id="darkmode-save" type="button" class="mini-btn">Save off-list</button>
+          </div>
+          <p id="darkmode-status" class="status"></p>
+        </div>
+
+        <div class="tool-group">🔧 Behavior</div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🔧 Tools</span>
+          </div>
+          <p class="hint">Everything runs on your device. Memory tools are on by default; page-acting tools are off until you switch them on.</p>
+          <div id="tool-toggles"></div>
+        </div>
+
+        <div class="tool-group">🗄 Data</div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗄 Your data</span>
+          </div>
+          <p id="data-stats" class="status"></p>
+          <div class="btn-row">
+            <button id="data-clear-history" type="button" class="mini-btn danger">Clear history</button>
+            <button id="data-clear-clipboard" type="button" class="mini-btn danger">Clear clipboard</button>
+            <button id="data-clear-drafts" type="button" class="mini-btn danger">Clear drafts</button>
+          </div>
+          <div class="btn-row">
+            <button id="data-clear-all" type="button" class="mini-btn danger">Erase all OneKit data</button>
+          </div>
+          <p id="data-status" class="status"></p>
+        </div>
+        <div class="tool-block">
+          <div class="tool-heading">
+            <span class="tool-label">🗄 Backup &amp; restore</span>
+          </div>
+          <p class="hint">Export every OneKit store to a JSON file, or restore from one. Restore only touches keys that exist in the backup — nothing else is overwritten.</p>
+          <div class="btn-row">
+            <button id="backup-export" type="button" class="mini-btn">⬇ Backup all data</button>
+            <button id="backup-restore" type="button" class="mini-btn">Restore backup</button>
+            <input id="backup-restore-file" type="file" accept="application/json,.json" hidden />
+          </div>
+          <p id="backup-status-settings" class="status"></p>
+        </div>
+
+
+
+
+
+
+
         <p class="footer-note">OneKit keeps everything on this device. No account, no cloud, no tracking. Uninstalling removes all OneKit data.</p>
+
       </section>
     </main>
 
