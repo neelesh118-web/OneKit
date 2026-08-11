@@ -1,4 +1,4 @@
-# OneKit — Local Browser Toolbox
+# OneKit — 100+ Tools Run Locally
 
 One extension, every boring browser problem, **100% on-device**. No account,
 no cloud, no tracking, free forever.

@@ -7,7 +7,7 @@ export default defineConfig({
   manifest: {
     // Chrome Web Store title limit is 75 chars; the first ~30 survive grid
     // truncation, so the brand + the core promise sit up front.
-    name: "OneKit — Local Browser Toolbox (139 tools, no cloud)",
+    name: "OneKit — 100+ Tools Run Locally",
     description:
       "139 on-device tools: tab manager, password vault + 2FA, AI chat vault, file converter, focus timers, privacy suite. No cloud, free.",
     // storage (settings + all local data), unlimitedStorage (large local
