@@ -12,6 +12,67 @@ function requireText(text: string, format: string): void {
   if (text.includes("\0")) throw new Error(`Could not read this ${format} file - it contains binary data.`);
 }
 
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'").replace(/&amp;/g, "&")
+    .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_m, n) => String.fromCodePoint(parseInt(n, 16)));
+}
+
+function xmlText(fragment: string): string {
+  return decodeEntities(fragment.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+}
+
+/** AbiWord XML -> semantic HTML paragraphs and headings. */
+export function abwToHtml(abw: string): string {
+  requireText(abw, "AbiWord");
+  if (!/<abiword[\s>]/i.test(abw)) throw new Error("This .abw file is not a valid AbiWord XML document.");
+  const blocks: string[] = [];
+  for (const match of abw.matchAll(/<p\b([^>]*)>([\s\S]*?)<\/p>/gi)) {
+    const text = xmlText(match[2]!);
+    if (!text) continue;
+    const props = match[1] ?? "";
+    const heading = /(?:style|props)=["'][^"']*(?:heading|title)[^"']*["']/i.test(props);
+    blocks.push(heading ? `<h2>${escapeHtml(text)}</h2>` : `<p>${escapeHtml(text)}</p>`);
+  }
+  if (!blocks.length) throw new Error("This .abw file contains no readable document text.");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>AbiWord document</title></head><body>\n${blocks.join("\n")}\n</body></html>`;
+}
+
+/** Open eBook source document -> HTML. Package manifests without embedded prose fail honestly. */
+export function oebToHtml(oeb: string): string {
+  requireText(oeb, "Open eBook");
+  if (/<!doctype\s+html|<html[\s>]/i.test(oeb)) return oeb;
+  if (!/<(?:package|oeb|body)[\s>]/i.test(oeb)) throw new Error("This .oeb file is not valid Open eBook markup.");
+  const body = /<body\b[^>]*>([\s\S]*?)<\/body>/i.exec(oeb)?.[1];
+  if (!body || !xmlText(body)) {
+    throw new Error("This .oeb package contains no embedded readable book content.");
+  }
+  const rendered = body
+    .replace(/<(?:title|h1)\b[^>]*>([\s\S]*?)<\/(?:title|h1)>/gi, (_m, text) => `<h1>${escapeHtml(xmlText(text))}</h1>`)
+    .replace(/<p\b[^>]*>([\s\S]*?)<\/p>/gi, (_m, text) => `<p>${escapeHtml(xmlText(text))}</p>`);
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Open eBook</title></head><body>\n${rendered}\n</body></html>`;
+}
+
+/** Palm Markup Language -> readable HTML for chapters, paragraphs and inline emphasis. */
+export function pmlToHtml(pml: string): string {
+  requireText(pml, "Palm Markup Language");
+  if (!/\\[xpnbir]/i.test(pml)) throw new Error("This .pml file contains no recognizable Palm markup.");
+  let body = escapeHtml(pml.replace(/\r\n/g, "\n"));
+  body = body
+    .replace(/\\x\s*([^\n]+)/g, "<h1>$1</h1>")
+    .replace(/\\p/g, "</p><p>")
+    .replace(/\\n/g, "<br>")
+    .replace(/\\b([\s\S]*?)\\b/g, "<strong>$1</strong>")
+    .replace(/\\i([\s\S]*?)\\i/g, "<em>$1</em>")
+    .replace(/\\c([\s\S]*?)\\c/g, '<div style="text-align:center">$1</div>')
+    .replace(/\\[a-z](?:=[^\\\s]+)?/gi, "")
+    .replace(/\n{2,}/g, "</p><p>")
+    .replace(/\n/g, "<br>");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Palm book</title></head><body><p>${body}</p></body></html>`;
+}
+
 function inlineRst(text: string): string {
   return escapeHtml(text)
     .replace(/``([^`]+)``/g, "<code>$1</code>")

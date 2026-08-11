@@ -41,7 +41,7 @@ import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./eboo
 import { odpToSlides, odtToHtml } from "./odf";
 import { pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
-import { rstToHtml, texToHtml } from "./markup";
+import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml } from "./markup";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
@@ -342,6 +342,12 @@ async function runConversion(
       return renderDocument(rstToHtml(toText(bytes)), "Document", target);
     case "tex":
       return renderDocument(texToHtml(toText(bytes)), "Document", target);
+    case "abw":
+      return renderDocument(abwToHtml(toText(bytes)), "Document", target);
+    case "oeb":
+      return renderDocument(oebToHtml(toText(bytes)), "Book", target);
+    case "pml":
+      return renderDocument(pmlToHtml(toText(bytes)), "Book", target);
     case "html": {
       const html = toText(bytes);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));

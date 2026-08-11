@@ -10,9 +10,9 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **84** |
+| Source formats | **87** |
 | Target formats | **49** |
-| Working pairs | **881** |
+| Working pairs | **914** |
 
 The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
@@ -54,6 +54,15 @@ the matrix is without a code path.**
 - HTMLZ reads the primary HTML document from the ZIP container. TXTZ finds text chapters, orders them by archive path, rejects binary entries, and renders them as structured HTML.
 - Each source exposes 11 document and raw-encoding targets through the shared document renderer. Missing or unreadable book payloads fail honestly.
 - Added 26 parameterized tests covering every new pair, detection versus generic ZIP, chapter ordering, output signatures/containers, retained content, and malformed archives. Focused verification: 26/26 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 5 - 2026-08-12 03:18 IST - open XML and Palm markup documents
+
+- Added sources: `abw`, `oeb`, `pml`.
+- Added 33 working pairs, taking the matrix from **881 to 914 pairs**.
+- AbiWord XML preserves separately styled headings and paragraphs. Open eBook reads embedded HTML/XML book bodies and rejects manifest-only packages that lack prose. Palm Markup Language preserves chapter headings, paragraphs, line breaks, centering and common emphasis codes.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Mislabeled, binary, or content-free input fails honestly.
+- Added 38 parameterized tests covering every new pair, detection, source structure, output signatures/containers, retained content, and malformed inputs. Focused verification: 38/38 tests passing; TypeScript clean.
 - Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families
