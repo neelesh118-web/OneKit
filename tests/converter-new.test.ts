@@ -867,4 +867,36 @@ describe("new detection + matrix", () => {
     const xmlXlsx = await convertFile({ bytes: toBytes(xml), name: "data.xml" }, "xlsx");
     expect(await import("../src/core/converter/documents").then((d) => d.xlsxToCsv(xmlXlsx.bytes))).toContain("3");
   });
+
+  it("detects OFX by header sniff and GEDCOM by record sniff", () => {
+    const ofx = '<OFX><BANKMSGSRSV1><STMTTRNRS><STMTTRN><TRNTYPE>DEBIT</TRNTYPE><TRNAMT>-12.5</TRNAMT></STMTTRN></STMTTRNRS></BANKMSGSRSV1></OFX>';
+    expect(detectFile(toBytes(ofx), "bank.ofx").type).toBe("ofx");
+    expect(detectFile(toBytes(ofx), "bank.txt").type).toBe("ofx");
+    const ged = "0 @I1@ INDI\n1 NAME John /Smith/\n1 SEX M\n1 BIRT\n2 DATE 1 JAN 1900";
+    expect(detectFile(toBytes(ged), "tree.ged").type).toBe("gedcom");
+    expect(detectFile(toBytes(ged), "tree.txt").type).toBe("gedcom");
+  });
+
+  it("OFX → CSV/JSON extracts transactions", async () => {
+    const ofx = '<OFX><STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260102</DTPOSTED><TRNAMT>-12.50</TRNAMT><NAME>Store</NAME><FITID>1001</FITID></STMTTRN><STMTTRN><TRNTYPE>CREDIT</TRNTYPE><DTPOSTED>20260103</DTPOSTED><TRNAMT>55.00</TRNAMT><NAME>Salary</NAME><FITID>1002</FITID></STMTTRN></OFX>';
+    const json = await convertFile({ bytes: toBytes(ofx), name: "bank.ofx" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(json.bytes));
+    expect(parsed.length).toBe(2);
+    expect(parsed[0].type).toBe("DEBIT");
+    expect(parsed[0].amount).toBe("-12.50");
+    const csv = await convertFile({ bytes: toBytes(ofx), name: "bank.ofx" }, "csv");
+    expect(new TextDecoder().decode(csv.bytes)).toContain("Salary");
+  });
+
+  it("GEDCOM → JSON keeps name and event dates", async () => {
+    const ged = "0 @I1@ INDI\n1 NAME John /Smith/\n1 SEX M\n1 BIRT\n2 DATE 1 JAN 1900\n1 DEAT\n2 DATE 2 FEB 1970\n0 @I2@ INDI\n1 NAME Mary /Jones/\n1 BIRT\n2 DATE 3 MAR 1905";
+    const json = await convertFile({ bytes: toBytes(ged), name: "tree.ged" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(json.bytes));
+    expect(parsed.length).toBe(2);
+    expect(parsed[0].given).toBe("John");
+    expect(parsed[0].surname).toBe("Smith");
+    expect(parsed[0].birthDate).toBe("1 JAN 1900");
+    expect(parsed[0].deathDate).toBe("2 FEB 1970");
+    expect(parsed[1].surname).toBe("Jones");
+  });
 });

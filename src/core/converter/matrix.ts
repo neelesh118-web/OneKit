@@ -117,6 +117,8 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   ini: ["json", "yaml", "xml", "text", "markdown", "toml", "txt-base64", "txt-hex"],
   toml: ["json", "yaml", "xml", "csv", "markdown", "text", "txt-base64", "txt-hex"],
   qif: ["csv", "json", "xlsx", "html", "markdown", "text", "txt-base64", "txt-hex"],
+  ofx: ["csv", "json", "xlsx", "html", "markdown", "text", "txt-base64", "txt-hex"],
+  gedcom: ["csv", "json", "xlsx", "html", "markdown", "text", "txt-base64", "txt-hex"],
   zip: ["tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
   tar: ["zip", "gzip", "text", "json", "txt-base64", "txt-hex"],
   gzip: ["zip", "tar", "text", "txt-base64", "txt-hex"],

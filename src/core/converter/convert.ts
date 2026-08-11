@@ -640,9 +640,25 @@ async function runConversion(
       if (target === "markdown") return toBytes(`\`\`\`toml\n${toml.trim()}\n\`\`\``);
       return toBytes(toml); // toml → text is a validated passthrough
     }
-    case "qif": {
-      const records = docs.qifToRecords(toText(bytes));
-      if (records.length === 0) throw new Error("No transactions found in this QIF file.");
+    case "qif":
+    case "ofx":
+    case "gedcom": {
+      const text = toText(bytes);
+      const records =
+        source === "qif"
+          ? docs.qifToRecords(text)
+          : source === "ofx"
+            ? docs.ofxToRecords(text)
+            : docs.gedcomToRecords(text);
+      if (records.length === 0) {
+        throw new Error(
+          source === "qif"
+            ? "No transactions found in this QIF file."
+            : source === "ofx"
+              ? "No <STMTTRN> transactions found in this OFX file."
+              : "No INDI person records found in this GEDCOM file."
+        );
+      }
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));

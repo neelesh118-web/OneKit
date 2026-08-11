@@ -1346,6 +1346,97 @@ export function csvToJsonl(csvText: string): string {
   return jsonToJsonl(JSON.stringify(csvToJson(csvText)));
 }
 
+/* OFX / GEDCOM -------------------------------------------------------- */
+
+/**
+ * Parses an OFX/QFX bank statement into per-transaction records. Each
+ * <STMTTRN> block becomes one record with the fields banks commonly export
+ * (type, date, amount, name/memo, FITID).
+ */
+export function ofxToRecords(ofx: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  const blocks = ofx.match(/<STMTTRN>[\s\S]*?<\/STMTTRN>/g) ?? [];
+  const clean = (s: string): string => s.replace(/<[^>]+>/g, "").trim();
+  for (const block of blocks) {
+    const record: Record<string, string> = {};
+    const fields: Array<[string, string]> = [
+      ["TRNTYPE", "type"], ["DTPOSTED", "date"], ["TRNAMT", "amount"],
+      ["NAME", "name"], ["MEMO", "memo"], ["FITID", "fitid"], ["CHECKNUM", "check"], ["CUR", "currency"]
+    ];
+    for (const [tag, key] of fields) {
+      const m = block.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+      if (m) record[key] = clean(m[1]!);
+    }
+    if (Object.keys(record).length > 0) records.push(record);
+  }
+  return records;
+}
+
+/**
+ * Parses a GEDCOM family-tree export into per-person records. Each
+ * `0 @id@ INDI` block becomes one record with name, sex, and the birth
+ * and death dates that appear under their BIRT/DEAT events.
+ */
+export function gedcomToRecords(gedcom: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  const lines = gedcom.split(/\r?\n/);
+  let current: Record<string, string> | null = null;
+  let birthNext = false;
+  let deathNext = false;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const indi = line.match(/^0\s+(@\w+@)\s+INDI\s*$/i);
+    if (indi) {
+      if (current) records.push(current);
+      current = { id: indi[1]! };
+      birthNext = false;
+      deathNext = false;
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith("0 ")) {
+      // A different top-level record ends this person's block.
+      records.push(current);
+      current = null;
+      continue;
+    }
+    const level = /^(\d)/.exec(line)?.[1];
+    if (level !== "1" && level !== "2") continue;
+    const name = line.match(/^1\s+NAME\s+(.+)$/i);
+    if (name) {
+      const parts = name[1]!.trim();
+      const m = parts.match(/^([^/]+)\s*\/([^/]*)\//);
+      current.given = (m?.[1] ?? parts).trim();
+      current.surname = (m?.[2] ?? "").trim();
+      continue;
+    }
+    if (/^1\s+SEX\s+(\w)/i.test(line)) {
+      current.sex = (line.match(/^1\s+SEX\s+(\w)/i) ?? [])[1]!;
+      continue;
+    }
+    if (/^1\s+BIRT\s*$/i.test(line)) {
+      birthNext = true;
+      continue;
+    }
+    if (/^1\s+DEAT\s*$/i.test(line)) {
+      deathNext = true;
+      continue;
+    }
+    const date = line.match(/^2\s+DATE\s+(.+)$/i);
+    if (date) {
+      if (birthNext) {
+        current.birthDate = date[1]!.trim();
+        birthNext = false;
+      } else if (deathNext) {
+        current.deathDate = date[1]!.trim();
+        deathNext = false;
+      }
+    }
+  }
+  if (current) records.push(current);
+  return records;
+}
+
 /* TOML ---------------------------------------------------------------- */
 
 /** Parses a TOML scalar/array/inline-table into a JSON-compatible value. */
