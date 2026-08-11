@@ -329,7 +329,10 @@ const caps: OneKitCapabilities = {
 
 /* Tab navigation ------------------------------------------------------ */
 
-const TAB_ORDER = ["memory", "vault", "safety", "speed", "focus", "typing", "tools", "dev", "convert", "downloads", "settings"];
+// Convert first — the file converter is the flagship tool. The heavy
+// converter chain still loads lazily on first open, so the popup itself
+// stays fast; only the default view changes.
+const TAB_ORDER = ["convert", "memory", "vault", "safety", "speed", "focus", "typing", "tools", "dev", "downloads", "settings"];
 
 function switchTab(name: string): void {
   for (const tabName of TAB_ORDER) {
@@ -451,5 +454,5 @@ void (async () => {
     document.getElementById("onboarding")!.hidden = false;
   }
 
-  switchTab("memory");
+  switchTab("convert");
 })();
