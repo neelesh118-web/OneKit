@@ -22,6 +22,7 @@ export type FileType =
   | "mbox" | "ldif" | "cue"
   | "raw-cr2" | "raw-nef" | "raw-arw" | "raw-dng" | "raw-orf" | "raw-pef" | "raw-rw2"
   | "raw-dcr" | "raw-erf" | "raw-3fr" | "raw-mos" | "raw-raf"
+  | "image-tga" | "image-ppm"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -49,6 +50,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "raw-dng": "Adobe DNG", "raw-orf": "Olympus RAW (ORF)", "raw-pef": "Pentax RAW (PEF)",
   "raw-rw2": "Panasonic RAW (RW2)", "raw-dcr": "Kodak RAW (DCR)", "raw-erf": "Epson RAW (ERF)",
   "raw-3fr": "Hasselblad RAW (3FR)", "raw-mos": "Leaf RAW (MOS)", "raw-raf": "Fujifilm RAW (RAF)",
+  "image-tga": "Targa (TGA) image", "image-ppm": "PPM image",
   unknown: "Unknown format"
 };
 
@@ -82,6 +84,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "raw-cr2": ["cr2"], "raw-nef": ["nef"], "raw-arw": ["arw"], "raw-dng": ["dng"],
   "raw-orf": ["orf"], "raw-pef": ["pef"], "raw-rw2": ["rw2"], "raw-dcr": ["dcr"],
   "raw-erf": ["erf"], "raw-3fr": ["3fr"], "raw-mos": ["mos"], "raw-raf": ["raf"],
+  "image-tga": ["tga"], "image-ppm": ["ppm"],
   unknown: []
 };
 
@@ -148,9 +151,18 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     if (RAW_TIFF_TYPES.has(fallback)) return fallback;
     return "image-tiff";
   }
-  // ICO/CUR directories start with a zero word then the resource type.
-  if (hasPrefix(bytes, [0x00, 0x00, 0x01, 0x00]) || hasPrefix(bytes, [0x00, 0x00, 0x02, 0x00])) return "image-ico";
+  // ICO/CUR directories start with a zero word then the resource type — but
+  // an uncompressed-truecolor TGA with no ID/colour-map field starts the
+  // same way ([0,0,2,0,...]) purely by coincidence, so trust the .tga
+  // extension over this magic when the two collide.
+  if (
+    fallback !== "image-tga" &&
+    (hasPrefix(bytes, [0x00, 0x00, 0x01, 0x00]) || hasPrefix(bytes, [0x00, 0x00, 0x02, 0x00]))
+  ) {
+    return "image-ico";
+  }
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";
+  if (hasPrefix(bytes, [0x50, 0x36]) || hasPrefix(bytes, [0x50, 0x33])) return "image-ppm"; // "P6"/"P3"
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   if (hasPrefix(bytes, [0x1f, 0x8b])) return "gzip";
@@ -178,6 +190,11 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) return "audio-mp3";
   // Raw AAC in an ADTS stream: FF F1 (MPEG-4) / FF F9 (MPEG-2).
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xf1 || bytes[1] === 0xf9)) return "audio-aac";
+  // TGA has no reliable header signature — old-style files carry no magic
+  // at all. Trust the optional TGA 2.0 footer when present; otherwise fall
+  // back to the extension, since nothing else in this list claims .tga.
+  if (bytes.length >= 18 && asciiAt(bytes, bytes.length - 18, "TRUEVISION-XFILE.")) return "image-tga";
+  if (fallback === "image-tga") return "image-tga";
   // OLE2 compound files hold .xls, .doc and .ppt alike — only the workbook
   // stream is readable here, so anything else stays unknown rather than
   // claiming a conversion that doesn't exist.

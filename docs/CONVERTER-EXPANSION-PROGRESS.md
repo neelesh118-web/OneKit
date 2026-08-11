@@ -61,3 +61,52 @@ with a real embeddable JPEG that pdf-lib actually decodes).
   logic wasn't built this batch. Candidate for a follow-up batch.
 - Generic **"raw"** backlog row: not a concrete file extension/format, can't
   be built honestly as its own source.
+
+## Batch 2 — 2026-08-12 — TGA and PPM raster codecs (read + write)
+
+**Added:** Targa (`.tga`) and Netpbm PPM (`.ppm`) as both a source *and* a
+write target — unlike the RAW formats, these are plain, fully-specified
+raster formats with no proprietary codec involved, so both directions are
+genuine, full-fidelity conversions (not previews).
+
+- **`raster.ts`**: `encodeTga`/`decodeTga` (uncompressed and RLE-compressed
+  24/32-bit true-color, top-left-origin write, honest rejection of
+  palette/greyscale TGA and truncated data) and `encodePpm`/`decodePpm`
+  (binary P6 write; P3 ASCII and P6 binary read, `#`-comment header
+  handling per the Netpbm spec, honest rejection of a bad header or an
+  unsupported >8-bit maxval).
+- **Detection** (`detect.ts`): PPM has a genuine magic ("P6"/"P3"). TGA has
+  none for old-style files — an optional TGA 2.0 footer
+  (`TRUEVISION-XFILE.`) is trusted when present, otherwise the `.tga`
+  extension is trusted, matching the RAW-format pattern from batch 1.
+- **Every existing raster source/target gained TGA and PPM automatically**
+  (they join `IMAGE_TARGETS`, which every image pipeline list is built
+  from) — this is the multiplier that makes format-family batches count
+  fast.
+- **Real bug found and fixed**: an uncompressed-truecolor TGA with no
+  ID/colour-map field starts with bytes `[0, 0, 2, 0, ...]` — which is
+  *exactly* the ICO/CUR magic-byte signature (`[0,0,1,0]`/`[0,0,2,0]`) this
+  codebase already checked for, unconditionally, earlier in
+  `detectFromBytes`. Any such TGA (a very common, unremarkable shape —
+  simplest possible uncompressed TGA) was silently misdetected as a broken
+  cursor file. Fixed by having the ICO/CUR magic check defer to the `.tga`
+  extension when they collide. This also exposed a second issue:
+  `convertImage()` re-detected the source format from raw bytes alone
+  (fallback `"unknown"`, no extension available), so even after fixing
+  `detectFromBytes`, a TGA routed through the shared image pipeline would
+  still misdetect internally. Fixed by threading the already-known source
+  type through as an optional `knownSource` parameter instead of
+  re-sniffing blind — `convert.ts` now passes it at every call site where
+  the source is already known (plain image sources, SVG, and the RAW
+  preview path with `"image-jpeg"`).
+
+**Tests:** `tests/converter-tga-ppm.test.ts` (12 tests) — encode/decode
+round-trips, RLE decoding, ASCII P3 decoding, honest rejections, the
+extension-vs-ICO collision fix (regression test), and two orchestrator
+round-trips (TGA → PNG through the fake canvas, PNG → TGA/PPM through the
+fake canvas encode path).
+
+**Pairs:** 919 → **991** (2 new targets × 22 existing image sources = 44,
+plus 2 new sources × 14 targets each = 28).
+**Tests:** 1,187 → **1,199** (171 → 172 files).
+**tsc:** clean. **vitest:** all green.

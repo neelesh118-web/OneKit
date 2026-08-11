@@ -84,6 +84,8 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-tiff": "image/tiff",
   "image-dds": "image/vnd-ms.dds",
   "image-svg": "image/svg+xml",
+  "image-tga": "image/x-tga",
+  "image-ppm": "image/x-portable-pixmap",
   pdf: "application/pdf",
   html: "text/html",
   markdown: "text/markdown",
@@ -235,21 +237,23 @@ async function runConversion(
     case "image-gif":
     case "image-bmp":
     case "image-avif":
-    // TIFF, ICO and DDS are decoded to pixels first, then take the same
-    // canvas path as every other raster format.
+    // TIFF, ICO, DDS, TGA and PPM are decoded to pixels first, then take
+    // the same canvas path as every other raster format.
     case "image-tiff":
     case "image-ico":
     case "image-dds":
+    case "image-tga":
+    case "image-ppm":
       if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
-      return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
+      return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
       if (target === "pdf") {
         // Rasterize to PNG first, then pack into a PDF (reuses both pipelines).
-        const png = await convertImage(bytes, "image-png", opts.canvas, opts.image);
+        const png = await convertImage(bytes, "image-png", opts.canvas, opts.image, source);
         return docs.imagesToPdf([{ bytes: png, name: "image" }]);
       }
-      return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
+      return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "raw-cr2":
     case "raw-nef":
     case "raw-arw":
@@ -267,7 +271,7 @@ async function runConversion(
       // pipeline as any other photo.
       const preview = extractRawPreviewJpeg(bytes);
       if (target === "pdf") return docs.imagesToPdf([{ bytes: preview, name: "image" }]);
-      return convertImage(preview, target as ImageTarget, opts.canvas, opts.image);
+      return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
     }
     case "pdf":
       if (target === "text") return toBytes(await docs.pdfToText(bytes));
