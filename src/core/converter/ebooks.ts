@@ -8,6 +8,7 @@
  * DRM-protected e-books can't be read — the honest answer is an error,
  * not a mangled file.
  */
+import { strFromU8, unzipSync } from "fflate/browser";
 import { decodeXmlText, escapeXml, xmlFragmentText } from "./xml-text";
 
 /* FB2 ------------------------------------------------------------------ */
@@ -261,4 +262,43 @@ export function mobiToHtml(bytes: Uint8Array): string {
     .trim();
   if (/<html[\s>]/i.test(body)) return body;
   return `<!doctype html>\n<html><head><meta charset="utf-8"><title>MOBI book</title></head>\n<body>\n${body}\n</body>\n</html>`;
+}
+
+function compressedBookFiles(bytes: Uint8Array, extension: string): Record<string, Uint8Array> {
+  try {
+    return unzipSync(bytes);
+  } catch {
+    throw new Error(`Could not read this .${extension} ebook - it may be corrupt or password-protected.`);
+  }
+}
+
+/** HTMLZ -> its primary HTML document. */
+export function htmlzToHtml(bytes: Uint8Array): string {
+  const files = compressedBookFiles(bytes, "htmlz");
+  const names = Object.keys(files).filter((name) => !name.endsWith("/"));
+  const name = names.find((entry) => /(^|\/)(index|book)\.x?html?$/i.test(entry)) ??
+    names.find((entry) => /\.x?html?$/i.test(entry));
+  if (!name) throw new Error("This .htmlz ebook contains no HTML document to read.");
+  const html = strFromU8(files[name]!);
+  if (!/<(?:html|body|h[1-6]|p)\b/i.test(html)) {
+    throw new Error("The HTML document inside this .htmlz ebook is not readable HTML.");
+  }
+  return html;
+}
+
+/** TXTZ -> readable HTML, joining text chapters in archive-name order. */
+export function txtzToHtml(bytes: Uint8Array): string {
+  const files = compressedBookFiles(bytes, "txtz");
+  const names = Object.keys(files).filter((name) => /\.txt$/i.test(name)).sort((a, b) => a.localeCompare(b));
+  if (!names.length) throw new Error("This .txtz ebook contains no text document to read.");
+  const escape = (text: string): string => text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const chapters = names.map((name) => {
+    const text = strFromU8(files[name]!);
+    if (text.includes("\0")) throw new Error(`The text entry ${name} contains binary data.`);
+    const paragraphs = text.trim().split(/\r?\n\s*\r?\n/)
+      .map((p) => `<p>${escape(p).replace(/\r?\n/g, "<br>")}</p>`).join("\n");
+    return `<section><h2>${escape(name.replace(/^.*\//, ""))}</h2>${paragraphs}</section>`;
+  }).join("\n");
+  return `<!doctype html><html><head><meta charset="utf-8"><title>TXTZ ebook</title></head><body>${chapters}</body></html>`;
 }

@@ -113,6 +113,8 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   ppsx: docTargetsExcept().concat("pptx"),
   fb2: docTargetsExcept(),
   mobi: docTargetsExcept(),
+  htmlz: docTargetsExcept(),
+  txtz: docTargetsExcept(),
   html: ["markdown", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
   markdown: ["html", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
   rst: docTargetsExcept(),

@@ -9,7 +9,7 @@ export type FileType =
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
-  | "fb2" | "mobi" | "audio-aiff" | "audio-aac" | "audio-midi"
+  | "fb2" | "mobi" | "htmlz" | "txtz" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
@@ -31,7 +31,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
   ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", pptm: "Macro-enabled PowerPoint deck",
   potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
-  fb2: "FictionBook (FB2)", mobi: "MOBI ebook", "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
+  fb2: "FictionBook (FB2)", mobi: "MOBI ebook", htmlz: "HTMLZ ebook", txtz: "TXTZ ebook",
+  "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
   html: "HTML page", markdown: "Markdown", rst: "reStructuredText", tex: "TeX/LaTeX", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
@@ -56,7 +57,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
   pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
-  fb2: ["fb2"], mobi: ["mobi", "azw", "prc"],
+  fb2: ["fb2"], mobi: ["mobi", "azw", "prc"], htmlz: ["htmlz"], txtz: ["txtz"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
@@ -182,6 +183,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       return "pptx";
     }
     if (window.includes("mimetypeapplication/epub")) return "epub";
+    if (fallback === "htmlz" || fallback === "txtz") return fallback;
     // OpenDocument packages name their flavour in the stored mimetype entry.
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.presentation")) return "odp";

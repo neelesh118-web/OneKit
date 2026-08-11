@@ -37,7 +37,7 @@ import {
 } from "./video";
 import { base64ToText, hexToText, urlToText } from "./text";
 import { encodeAiff, parseAiff } from "./aiff";
-import { fb2ToHtml, fb2Title, mobiToHtml } from "./ebooks";
+import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { odpToSlides, odtToHtml } from "./odf";
 import { pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
@@ -304,6 +304,10 @@ async function runConversion(
     }
     case "mobi":
       return renderDocument(mobiToHtml(bytes), "Book", target);
+    case "htmlz":
+      return renderDocument(htmlzToHtml(bytes), "Book", target);
+    case "txtz":
+      return renderDocument(txtzToHtml(bytes), "Book", target);
     case "xls":
     case "xlsm":
     case "ods":

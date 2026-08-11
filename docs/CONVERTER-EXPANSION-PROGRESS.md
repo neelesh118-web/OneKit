@@ -10,9 +10,9 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **82** |
+| Source formats | **84** |
 | Target formats | **49** |
-| Working pairs | **859** |
+| Working pairs | **881** |
 
 The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
@@ -45,6 +45,15 @@ the matrix is without a code path.**
 - Added a local text-based publishing reader for reStructuredText headings, lists, literal blocks, links and emphasis, plus a TeX/LaTeX reader for document bodies, section hierarchy, lists, common inline commands and readable math content.
 - Each source exposes 11 document and raw-encoding targets through the shared document renderer. Inputs containing binary NUL data fail honestly.
 - Added 26 parameterized tests covering every new pair, semantic parsing, detection, output signatures/containers, retained content, and corrupt binary input. Focused verification: 26/26 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 4 - 2026-08-12 03:04 IST - compressed text ebooks
+
+- Added sources: `htmlz`, `txtz`.
+- Added 22 working pairs, taking the matrix from **859 to 881 pairs**.
+- HTMLZ reads the primary HTML document from the ZIP container. TXTZ finds text chapters, orders them by archive path, rejects binary entries, and renders them as structured HTML.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Missing or unreadable book payloads fail honestly.
+- Added 26 parameterized tests covering every new pair, detection versus generic ZIP, chapter ordering, output signatures/containers, retained content, and malformed archives. Focused verification: 26/26 tests passing; TypeScript clean.
 - Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families
