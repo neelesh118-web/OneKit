@@ -1,4 +1,5 @@
 /** Lightweight, local readers for text-based publishing formats. */
+import { gunzipSync, strFromU8 } from "fflate/browser";
 
 function escapeHtml(text: string): string {
   return text
@@ -38,6 +39,17 @@ export function abwToHtml(abw: string): string {
   }
   if (!blocks.length) throw new Error("This .abw file contains no readable document text.");
   return `<!doctype html><html><head><meta charset="utf-8"><title>AbiWord document</title></head><body>\n${blocks.join("\n")}\n</body></html>`;
+}
+
+/** Compressed AbiWord (.zabw) -> semantic HTML. */
+export function zabwToHtml(bytes: Uint8Array): string {
+  let xml: string;
+  try {
+    xml = strFromU8(gunzipSync(bytes));
+  } catch {
+    throw new Error("Could not read this .zabw file - it is not a valid gzip-compressed AbiWord document.");
+  }
+  return abwToHtml(xml);
 }
 
 /** Open eBook source document -> HTML. Package manifests without embedded prose fail honestly. */

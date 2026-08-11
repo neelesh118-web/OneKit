@@ -41,7 +41,7 @@ import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./eboo
 import { odpToSlides, odtToHtml } from "./odf";
 import { pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
-import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml } from "./markup";
+import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
@@ -303,6 +303,8 @@ async function runConversion(
       return renderDocument(fb2ToHtml(xml), fb2Title(xml), target);
     }
     case "mobi":
+    case "azw":
+    case "prc":
       return renderDocument(mobiToHtml(bytes), "Book", target);
     case "htmlz":
       return renderDocument(htmlzToHtml(bytes), "Book", target);
@@ -344,6 +346,8 @@ async function runConversion(
       return renderDocument(texToHtml(toText(bytes)), "Document", target);
     case "abw":
       return renderDocument(abwToHtml(toText(bytes)), "Document", target);
+    case "zabw":
+      return renderDocument(zabwToHtml(bytes), "Document", target);
     case "oeb":
       return renderDocument(oebToHtml(toText(bytes)), "Book", target);
     case "pml":

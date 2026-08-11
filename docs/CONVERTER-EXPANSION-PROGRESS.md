@@ -10,9 +10,9 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **87** |
+| Source formats | **90** |
 | Target formats | **49** |
-| Working pairs | **914** |
+| Working pairs | **947** |
 
 The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
@@ -63,6 +63,15 @@ the matrix is without a code path.**
 - AbiWord XML preserves separately styled headings and paragraphs. Open eBook reads embedded HTML/XML book bodies and rejects manifest-only packages that lack prose. Palm Markup Language preserves chapter headings, paragraphs, line breaks, centering and common emphasis codes.
 - Each source exposes 11 document and raw-encoding targets through the shared document renderer. Mislabeled, binary, or content-free input fails honestly.
 - Added 38 parameterized tests covering every new pair, detection, source structure, output signatures/containers, retained content, and malformed inputs. Focused verification: 38/38 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 6 - 2026-08-12 03:30 IST - Palm ebook variants and compressed AbiWord
+
+- Added sources: `azw`, `prc`, `zabw`.
+- Added 33 working pairs, taking the matrix from **914 to 947 pairs**.
+- AZW and PRC retain their source identity while using the real Palm database/PalmDOC MOBI reader; encrypted DRM and unsupported compression continue to fail honestly. ZABW is gunzipped locally and then parsed as validated AbiWord XML.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer.
+- Added 38 parameterized tests covering every new pair, container-specific detection, real Palm database records, gzip decompression, output signatures/containers, retained content, and corrupt inputs. Focused verification: 38/38 tests passing; TypeScript clean.
 - Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families

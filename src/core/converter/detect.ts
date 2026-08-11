@@ -9,8 +9,8 @@ export type FileType =
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
-  | "fb2" | "mobi" | "htmlz" | "txtz" | "audio-aiff" | "audio-aac" | "audio-midi"
-  | "html" | "markdown" | "rst" | "tex" | "abw" | "oeb" | "pml" | "text"
+  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "audio-aiff" | "audio-aac" | "audio-midi"
+  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -31,11 +31,13 @@ export const TYPE_LABELS: Record<FileType, string> = {
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
   ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", pptm: "Macro-enabled PowerPoint deck",
   potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
-  fb2: "FictionBook (FB2)", mobi: "MOBI ebook", htmlz: "HTMLZ ebook", txtz: "TXTZ ebook",
+  fb2: "FictionBook (FB2)", mobi: "MOBI ebook", azw: "Kindle AZW ebook", prc: "Palm PRC ebook",
+  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook",
   "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
   html: "HTML page", markdown: "Markdown", rst: "reStructuredText", tex: "TeX/LaTeX",
-  abw: "AbiWord document", oeb: "Open eBook", pml: "Palm Markup Language ebook", text: "Plain text",
+  abw: "AbiWord document", zabw: "Compressed AbiWord document", oeb: "Open eBook",
+  pml: "Palm Markup Language ebook", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
   "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font", "font-otf": "OpenType font",
@@ -58,10 +60,10 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
   pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
-  fb2: ["fb2"], mobi: ["mobi", "azw", "prc"], htmlz: ["htmlz"], txtz: ["txtz"],
+  fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], htmlz: ["htmlz"], txtz: ["txtz"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
-  abw: ["abw"], oeb: ["oeb"], pml: ["pml"], text: ["txt"],
+  abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
   "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"], "font-otf": ["otf"],
@@ -133,7 +135,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
-  if (hasPrefix(bytes, [0x1f, 0x8b])) return "gzip";
+  if (hasPrefix(bytes, [0x1f, 0x8b])) return fallback === "zabw" ? "zabw" : "gzip";
   if (hasPrefix(bytes, [0x00, 0x01, 0x00, 0x00])) return "font-ttf";
   if (asciiAt(bytes, 0, "OTTO")) return "font-otf";
   if (asciiAt(bytes, 0, "wOFF")) return "font-woff";
@@ -146,7 +148,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // AIFF and AIFF-C share the IFF "FORM" wrapper.
   if (asciiAt(bytes, 0, "FORM") && (asciiAt(bytes, 8, "AIFF") || asciiAt(bytes, 8, "AIFC"))) return "audio-aiff";
   // MOBI/AZW e-books are Palm databases with a book type/creator pair.
-  if (asciiAt(bytes, 60, "BOOKMOBI") || asciiAt(bytes, 60, "TEXtREAd")) return "mobi";
+  if (asciiAt(bytes, 60, "BOOKMOBI") || asciiAt(bytes, 60, "TEXtREAd")) {
+    if (fallback === "azw" || fallback === "prc") return fallback;
+    return "mobi";
+  }
   // MP4/MOV/M4A share the ftyp box — the brand tells video from audio.
   if (asciiAt(bytes, 4, "ftypM4A")) return "audio-m4a";
   if (asciiAt(bytes, 4, "ftypisom") || asciiAt(bytes, 4, "ftypmp42") || asciiAt(bytes, 4, "ftypavc1") ||
