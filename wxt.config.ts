@@ -9,7 +9,7 @@ export default defineConfig({
     // truncation, so the brand + the core promise sit up front.
     name: "OneKit — Local Browser Toolbox (139 tools, no cloud)",
     description:
-      "139 local tools: history search, AI chat vault, session backup, tab snooze, focus sessions, TOTP 2FA authenticator, local password vault, video speed controller, tab recorder, OCR, spell-checker, todo list, secure notes, reminders, link collector, barcode generator, file converter, PDF tools, citation generator, API tester, new-tab dashboard, tab parking, CSV export hub, page-to-PDF, downloads cleaner, tab auto-refresh, window resizer, page ruler, meeting link launcher, privacy score, speed reader, local TL;DR, QR scanner, EXIF viewer, contact extractor, tab utilities, recently closed tabs, read aloud, UTM builder, generator pack, favicon extractor, bulk link checker — 100% on-device, free forever.",
+      "139 on-device tools: tab manager, password vault + 2FA, AI chat vault, file converter, focus timers, privacy suite. No cloud, free.",
     // storage (settings + all local data), unlimitedStorage (large local
     // history/clipboard vault), tabs (tab finder + duplicate killer),
     // contextMenus (right-click quick actions), clipboardWrite (copy from

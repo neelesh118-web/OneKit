@@ -1,6 +1,6 @@
 {
   "name": "onekit",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "OneKit — a 100% local browser toolbox: memory, safety, speed, typing, and utility tools in one extension.",
