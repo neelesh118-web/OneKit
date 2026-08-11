@@ -7,6 +7,7 @@
 // @breezystack/lamejs is the maintained fork — npm's `lamejs` 1.2.1 is
 // broken (Mp3Encoder throws "MPEGMode is not defined").
 import * as lamejsModule from "@breezystack/lamejs";
+import { encodeFlac } from "./flac";
 import { toArrayBuffer } from "./util";
 
 export interface ParsedWav {
@@ -130,6 +131,17 @@ export function normalizeWav(bytes: Uint8Array): Uint8Array {
   return samplesToWav(parsed.value.sampleRate, parsed.value.channels, parsed.value.samples);
 }
 
+/** WAV → lossless FLAC (verbatim subframes — valid, just uncompressed). */
+export function wavToFlac(bytes: Uint8Array): Uint8Array {
+  const parsed = parseWav(bytes);
+  if (!parsed.ok) throw new Error(parsed.error);
+  const { sampleRate, channels, samples } = parsed.value;
+  if (channels !== 1 && channels !== 2) {
+    throw new Error(`FLAC encoding supports mono or stereo (this WAV has ${channels} channels).`);
+  }
+  return encodeFlac({ sampleRate, channels, bitDepth: 16, samples });
+}
+
 type Mp3EncoderCtor = new (channels: number, sampleRate: number, kbps: number) => {
   encodeBuffer(left: Int16Array, right?: Int16Array): Int8Array;
   flush(): Int8Array;
@@ -211,6 +223,11 @@ export async function anyToMp3(bytes: Uint8Array, decode: AudioDecoder): Promise
   const mp3 = wavToMp3(wav);
   if (!mp3.ok) throw new Error(mp3.error);
   return mp3.value;
+}
+
+/** Decodes any supported audio and re-encodes it as lossless FLAC. */
+export async function anyToFlac(bytes: Uint8Array, decode: AudioDecoder): Promise<Uint8Array> {
+  return wavToFlac(await anyToWav(bytes, decode));
 }
 
 /** Browser decoder backed by the Web Audio API (OfflineAudioContext). */

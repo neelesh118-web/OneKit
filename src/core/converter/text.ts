@@ -32,6 +32,23 @@ export function textToHex(text: string): string {
   return out;
 }
 
+/** Binary-safe Base64 (chunked so huge files don't blow the call stack). */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(bin);
+}
+
+/** Hex of raw bytes (works for binary files, not just text). */
+export function bytesToHex(bytes: Uint8Array): string {
+  let out = "";
+  for (const b of bytes) out += b.toString(16).padStart(2, "0");
+  return out;
+}
+
 export function hexToText(hex: string): TextResult {
   const cleaned = hex.trim().toLowerCase();
   if (cleaned.length % 2 !== 0 || !/^[0-9a-f]*$/.test(cleaned)) {

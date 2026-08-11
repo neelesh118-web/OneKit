@@ -8,11 +8,14 @@ export type FileType =
   | "image-png" | "image-jpeg" | "image-webp" | "image-gif" | "image-bmp" | "image-avif" | "image-svg"
   | "pdf" | "docx" | "xlsx" | "epub"
   | "html" | "markdown" | "text"
-  | "csv" | "json" | "yaml" | "xml"
+  | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
-  | "font-ttf" | "font-woff" | "font-woff2"
+  | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
   | "audio-mp3" | "audio-wav" | "audio-ogg" | "audio-m4a" | "audio-flac"
   | "video-mp4" | "video-webm" | "video-mov"
+  | "text-base64" | "text-hex" | "text-url"
+  | "vcf" | "ics" | "srt" | "vtt" | "gpx" | "lrc" | "sitemap" | "rss" | "kml" | "bookmarks"
+  | "bibtex" | "jsonl"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -20,11 +23,15 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-gif": "GIF image", "image-bmp": "BMP image", "image-avif": "AVIF image", "image-svg": "SVG image",
   pdf: "PDF document", docx: "Word document", xlsx: "Excel workbook", epub: "EPUB ebook",
   html: "HTML page", markdown: "Markdown", text: "Plain text",
-  csv: "CSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data",
+  csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
-  "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font",
+  "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font", "font-otf": "OpenType font",
   "audio-mp3": "MP3 audio", "audio-wav": "WAV audio", "audio-ogg": "OGG audio", "audio-m4a": "M4A audio", "audio-flac": "FLAC audio",
   "video-mp4": "MP4 video", "video-webm": "WebM video", "video-mov": "MOV video",
+  "text-base64": "Base64 text", "text-hex": "Hex text", "text-url": "URL-encoded text",
+  vcf: "VCF contacts", ics: "ICS calendar", srt: "SRT subtitles", vtt: "VTT subtitles", gpx: "GPX GPS tracks",
+  lrc: "LRC lyrics", sitemap: "Sitemap XML", rss: "RSS/Atom feed", kml: "KML map data", bookmarks: "Browser bookmarks",
+  bibtex: "BibTeX citations", jsonl: "JSON Lines data",
   unknown: "Unknown format"
 };
 
@@ -33,11 +40,22 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-gif": ["gif"], "image-bmp": ["bmp"], "image-avif": ["avif"], "image-svg": ["svg"],
   pdf: ["pdf"], docx: ["docx"], xlsx: ["xlsx"], epub: ["epub"],
   html: ["html", "htm"], markdown: ["md", "markdown"], text: ["txt"],
-  csv: ["csv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"],
+  csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
-  "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"],
+  "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"], "font-otf": ["otf"],
   "audio-mp3": ["mp3"], "audio-wav": ["wav"], "audio-ogg": ["ogg", "oga"], "audio-m4a": ["m4a"],
   "audio-flac": ["flac"], "video-mp4": ["mp4"], "video-webm": ["webm"], "video-mov": ["mov"],
+  "text-base64": ["b64", "base64"], "text-hex": ["hex"], "text-url": ["uri", "urlenc"],
+  vcf: ["vcf", "vcard"], ics: ["ics"], srt: ["srt"], vtt: ["vtt"], gpx: ["gpx"], lrc: ["lrc"],
+  // NOTE: sitemap/rss deliberately declare no plain "xml" extension — the
+  // name→type map is built with Object.fromEntries, so a duplicate "xml" key
+  // would silently overwrite the real xml mapping. .xml files are resolved by
+  // content sniffing instead (see detectFromBytes).
+  sitemap: [], rss: ["rss", "atom"], kml: ["kml"],
+  bibtex: ["bib"], jsonl: ["jsonl", "ndjson"],
+  // bookmarks files are HTML with a NETSCAPE-Bookmark header — no own extension,
+  // resolved by content sniffing.
+  bookmarks: [],
   unknown: []
 };
 
@@ -86,6 +104,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   if (hasPrefix(bytes, [0x1f, 0x8b])) return "gzip";
   if (hasPrefix(bytes, [0x00, 0x01, 0x00, 0x00])) return "font-ttf";
+  if (asciiAt(bytes, 0, "OTTO")) return "font-otf";
   if (asciiAt(bytes, 0, "wOFF")) return "font-woff";
   if (asciiAt(bytes, 0, "wOF2")) return "font-woff2";
   if (asciiAt(bytes, 0, "ID3")) return "audio-mp3";
@@ -109,17 +128,43 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     if (window.includes("[Content_Types].xml") && window.includes("word/")) return "docx";
     if (window.includes("[Content_Types].xml") && window.includes("xl/")) return "xlsx";
     if (window.includes("mimetypeapplication/epub")) return "epub";
+    // A ZIP with a known Office/EPUB name whose container markers live past the
+    // probe window (common in small files) is still that format, not a generic
+    // ZIP — trust the extension rather than mislabeling it.
+    if (fallback === "docx" || fallback === "xlsx" || fallback === "epub") return fallback;
     return "zip";
   }
-  // Text-ish formats: sniff the first chunk.
-  if (fallback !== "unknown") return fallback;
+  // Text-ish formats: sniff the first chunk. XML-family names (.xml) fall
+  // through so content can promote them to gpx/sitemap/rss/kml; an .html name
+  // falls through only when it carries the Netscape bookmarks header; a .txt
+  // name falls through only when it clearly looks like BibTeX. Other known
+  // names are trusted as-is.
   const head = textWindow(bytes, 0, 2000).toLowerCase();
+  if (
+    fallback !== "unknown" &&
+    fallback !== "xml" &&
+    !(fallback === "html" && head.includes("netscape-bookmark")) &&
+    !(fallback === "text" && /@\w+\s*\{/.test(head))
+  ) {
+    return fallback;
+  }
   const trimmed = head.trimStart();
   if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml") && trimmed.includes("<svg")) return "image-svg";
-  if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")) return "html";
+  if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")) {
+    return trimmed.includes("netscape-bookmark") ? "bookmarks" : "html";
+  }
   if (trimmed.startsWith("---") || trimmed.includes(": ") && (trimmed.startsWith("{") === false)) {
     // YAML vs plain text is fuzzy — only claim YAML when it clearly parses later.
   }
+  if (trimmed.startsWith("begin:vcard")) return "vcf";
+  if (trimmed.startsWith("begin:vcalendar")) return "ics";
+  if (trimmed.includes("<kml")) return "kml";
+  if (trimmed.includes("<gpx")) return "gpx";
+  if (trimmed.includes("netscape-bookmark")) return "bookmarks";
+  if (trimmed.includes("<urlset")) return "sitemap";
+  if (trimmed.includes("<rss") || trimmed.includes("<feed")) return "rss";
+  if (/@\w+\s*\{/.test(trimmed)) return "bibtex";
+  if (trimmed.startsWith("{") && head.includes("\n{")) return "jsonl";
   if (trimmed.startsWith("{")) return "json";
   if (trimmed.startsWith("<")) return "xml";
   return fallback;

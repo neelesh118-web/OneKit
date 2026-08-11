@@ -7,7 +7,13 @@
 import { detectFromBytes, type FileType } from "./detect";
 import { encodeGif } from "./gif";
 
-export type ImageTarget = "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif";
+export type ImageTarget =
+  | "image-png"
+  | "image-jpeg"
+  | "image-webp"
+  | "image-avif"
+  | "image-gif"
+  | "image-ico";
 
 const IMAGE_SOURCES = new Set<FileType>([
   "image-png",
@@ -26,10 +32,11 @@ export function imageTargetMime(target: ImageTarget): string {
     case "image-webp": return "image/webp";
     case "image-avif": return "image/avif";
     case "image-gif": return "image/gif";
+    case "image-ico": return "image/x-icon";
   }
 }
 
-/** JPEG/WebP benefit from a quality hint; PNG/AVIF are lossless. */
+/** JPEG/WebP benefit from a quality hint; PNG/AVIF/ICO are lossless. */
 export function imageTargetQuality(target: ImageTarget): number | undefined {
   return target === "image-jpeg" || target === "image-webp" ? 0.92 : undefined;
 }
@@ -145,6 +152,14 @@ export async function convertImage(
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       return encodeGif(imageData);
     }
+    if (target === "image-ico") {
+      // ICO containers hold a PNG payload — render to PNG then wrap it.
+      const pngBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, "image/png");
+      });
+      if (!pngBlob) throw new Error("This browser couldn't encode the icon.");
+      return icoFromPng(new Uint8Array(await pngBlob.arrayBuffer()), Math.max(canvas.width, canvas.height));
+    }
     const outMime = imageTargetMime(target);
     const quality = settings?.quality ?? imageTargetQuality(target);
     const outBlob = await new Promise<Blob | null>((resolve) => {
@@ -157,4 +172,30 @@ export async function convertImage(
   } finally {
     bitmap.close?.();
   }
+}
+
+/**
+ * Wraps PNG bytes in a single-image ICO container (Vista+ style, which
+ * stores the PNG directly). `size` is the declared dimension; 0 means 256
+ * (the ICO convention for large icons), so anything ≥256 is stored as-is.
+ */
+export function icoFromPng(png: Uint8Array, size: number): Uint8Array {
+  const out = new Uint8Array(22 + png.length);
+  const v = new DataView(out.buffer);
+  // ICONDIR
+  v.setUint16(0, 0, true); // reserved
+  v.setUint16(2, 1, true); // type: icon
+  v.setUint16(4, 1, true); // image count
+  // ICONDIRENTRY
+  const dim = size >= 256 ? 0 : size;
+  out[6] = dim; // width
+  out[7] = dim; // height
+  out[8] = 0; // colour count
+  out[9] = 0; // reserved
+  v.setUint16(10, 1, true); // planes
+  v.setUint16(12, 32, true); // bit depth
+  v.setUint32(14, png.length, true); // payload size
+  v.setUint32(18, 22, true); // offset to payload
+  out.set(png, 22);
+  return out;
 }

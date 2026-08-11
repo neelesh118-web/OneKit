@@ -24,6 +24,13 @@ const FONT_TYPE: Record<FontTarget, string> = {
   "font-woff2": "woff2"
 };
 
+const SOURCE_FONT_TYPE: Record<string, string> = {
+  "font-ttf": "ttf",
+  "font-woff": "woff",
+  "font-woff2": "woff2",
+  "font-otf": "otf"
+};
+
 let woff2Ready: Promise<void> | null = null;
 
 /** Initializes the WOFF2 wasm module (idempotent). Pass the bundled URL in the popup. */
@@ -44,14 +51,15 @@ export function initWoff2(wasmUrl?: string): Promise<void> {
 
 export async function convertFont(bytes: Uint8Array, target: FontTarget): Promise<Uint8Array> {
   const source = detectFromBytes(bytes, "unknown");
-  if (source !== "font-ttf" && source !== "font-woff" && source !== "font-woff2") {
+  const sourceType = SOURCE_FONT_TYPE[source];
+  if (!sourceType) {
     throw new Error("Could not read this font — the file is unsupported or corrupt.");
   }
   if (source === "font-woff2" || target === "font-woff2") {
     await initWoff2();
   }
   try {
-    const font = anyF.Font.create(toArrayBuffer(bytes), { type: FONT_TYPE[source] });
+    const font = anyF.Font.create(toArrayBuffer(bytes), { type: sourceType });
     const out = font.write({ type: FONT_TYPE[target] });
     return new Uint8Array(out);
   } catch (err) {
