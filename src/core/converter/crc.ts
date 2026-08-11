@@ -1,12 +1,15 @@
 /**
- * CRC-8 and CRC-16 as used by FLAC frames.
+ * CRC-8, CRC-16 (FLAC frames) and CRC-32 (Ogg pages).
  *
  * CRC-8:  polynomial x^8 + x^2 + x + 1  (0x07), MSB-first, init 0.
  * CRC-16: polynomial x^16 + x^15 + x^2 + 1 (0x8005), MSB-first, init 0.
  * These match CRC-8/SMBUS and CRC-16/UMTS check values.
+ * CRC-32: the IEEE reflected polynomial (0xEDB88320) used by Ogg, PNG and
+ * zlib — init 0xFFFFFFFF, final xor 0xFFFFFFFF.
  */
 const CRC8_TABLE = buildCrc8();
 const CRC16_TABLE = buildCrc16();
+const CRC32_TABLE = buildCrc32();
 
 function buildCrc8(): Uint8Array {
   const table = new Uint8Array(256);
@@ -48,4 +51,25 @@ export function crc16(bytes: Uint8Array, start: number, end: number, init = 0): 
     crc = ((crc << 8) & 0xffff) ^ CRC16_TABLE[((crc >> 8) ^ bytes[i]!) & 0xff]!;
   }
   return crc & 0xffff;
+}
+
+function buildCrc32(): Uint32Array {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let j = 0; j < 8; j++) {
+      c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    }
+    table[i] = c >>> 0;
+  }
+  return table;
+}
+
+/** Standard IEEE CRC-32 over bytes[start..end). */
+export function crc32(bytes: Uint8Array, start: number, end: number): number {
+  let crc = 0xffffffff;
+  for (let i = start; i < end; i++) {
+    crc = CRC32_TABLE[(crc ^ bytes[i]!) & 0xff]! ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
 }

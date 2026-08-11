@@ -10,6 +10,8 @@ import { convertFont, type FontTarget } from "./fonts";
 import {
   anyToFlac,
   anyToMp3,
+  anyToMp4,
+  anyToOgg,
   anyToWav,
   decodeAudioInBrowser,
   normalizeWav,
@@ -17,8 +19,11 @@ import {
   samplesToWav,
   wavToFlac,
   wavToMp3,
+  wavToMp4,
+  wavToOgg,
   type AudioDecoder
 } from "./audio";
+import { midiToWav } from "./midi";
 import {
   videoToGif,
   videoToImage,
@@ -106,6 +111,8 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "audio-mp3": "audio/mpeg",
   "audio-wav": "audio/wav",
   "audio-flac": "audio/flac",
+  "audio-ogg": "audio/ogg",
+  "audio-mp4": "audio/mp4",
   "video-webm": "video/webm",
   "video-mp4": "video/mp4",
   srt: "application/x-subrip",
@@ -726,13 +733,17 @@ async function runConversion(
       }
       if (target === "audio-flac") return wavToFlac(bytes);
       if (target === "audio-aiff") return wavToAiff(bytes);
+      if (target === "audio-ogg") return wavToOgg(bytes);
+      if (target === "audio-mp4") return wavToMp4(bytes);
       return normalizeWav(bytes);
-    case "audio-mp3":
-      if (target === "audio-flac") return anyToFlac(bytes, opts.audioDecoder ?? decodeAudioInBrowser);
-      if (target === "audio-aiff") {
-        return wavToAiff(await anyToWav(bytes, opts.audioDecoder ?? decodeAudioInBrowser));
-      }
-      return anyToWav(bytes, opts.audioDecoder ?? decodeAudioInBrowser);
+    case "audio-mp3": {
+      const decode = opts.audioDecoder ?? decodeAudioInBrowser;
+      if (target === "audio-flac") return anyToFlac(bytes, decode);
+      if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
+      if (target === "audio-ogg") return anyToOgg(bytes, decode);
+      if (target === "audio-mp4") return anyToMp4(bytes, decode);
+      return anyToWav(bytes, decode);
+    }
     case "audio-ogg":
     case "audio-m4a":
     case "audio-aac":
@@ -741,6 +752,8 @@ async function runConversion(
       if (target === "audio-mp3") return anyToMp3(bytes, decode);
       if (target === "audio-flac") return anyToFlac(bytes, decode);
       if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
+      if (target === "audio-ogg") return anyToOgg(bytes, decode);
+      if (target === "audio-mp4") return anyToMp4(bytes, decode);
       return anyToWav(bytes, decode);
     }
     case "audio-aiff": {
@@ -753,6 +766,21 @@ async function runConversion(
         return result.value;
       }
       if (target === "audio-flac") return wavToFlac(wav);
+      if (target === "audio-ogg") return wavToOgg(wav);
+      if (target === "audio-mp4") return wavToMp4(wav);
+      return wav;
+    }
+    case "audio-midi": {
+      const wav = midiToWav(bytes);
+      if (target === "audio-mp3") {
+        const result = wavToMp3(wav);
+        if (!result.ok) throw new Error(result.error);
+        return result.value;
+      }
+      if (target === "audio-flac") return wavToFlac(wav);
+      if (target === "audio-aiff") return wavToAiff(wav);
+      if (target === "audio-ogg") return wavToOgg(wav);
+      if (target === "audio-mp4") return wavToMp4(wav);
       return wav;
     }
     case "video-mp4":
@@ -772,6 +800,8 @@ async function runConversion(
       }
       if (target === "audio-flac") return wavToFlac(await videoToWav(bytes, opts.videoAudio));
       if (target === "audio-aiff") return wavToAiff(await videoToWav(bytes, opts.videoAudio));
+      if (target === "audio-ogg") return wavToOgg(await videoToWav(bytes, opts.videoAudio));
+      if (target === "audio-mp4") return wavToMp4(await videoToWav(bytes, opts.videoAudio));
       return videoToGif(bytes, opts.videoFrames);
     default:
       throw new Error("Unsupported conversion.");

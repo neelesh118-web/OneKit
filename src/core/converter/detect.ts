@@ -9,7 +9,7 @@ export type FileType =
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "xlsx" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "xls"
-  | "fb2" | "mobi" | "audio-aiff" | "audio-aac"
+  | "fb2" | "mobi" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
@@ -30,6 +30,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
   ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", xls: "Excel 97–2003 workbook",
   fb2: "FictionBook (FB2)", mobi: "MOBI ebook", "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
+  "audio-midi": "MIDI music",
   html: "HTML page", markdown: "Markdown", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
@@ -52,7 +53,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   pdf: ["pdf"], docx: ["docx"], xlsx: ["xlsx"], epub: ["epub"],
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"], xls: ["xls"],
   fb2: ["fb2"], mobi: ["mobi", "azw", "prc"],
-  "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"],
+  "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
@@ -134,6 +135,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "OggS")) return "audio-ogg";
   if (asciiAt(bytes, 0, "RIFF") && asciiAt(bytes, 8, "WAVE")) return "audio-wav";
   if (asciiAt(bytes, 0, "fLaC")) return "audio-flac";
+  if (asciiAt(bytes, 0, "MThd")) return "audio-midi";
   // AIFF and AIFF-C share the IFF "FORM" wrapper.
   if (asciiAt(bytes, 0, "FORM") && (asciiAt(bytes, 8, "AIFF") || asciiAt(bytes, 8, "AIFC"))) return "audio-aiff";
   // MOBI/AZW e-books are Palm databases with a book type/creator pair.

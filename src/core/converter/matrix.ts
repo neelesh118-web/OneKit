@@ -16,7 +16,7 @@ export type TargetFormat =
   | "audio-aiff"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2"
-  | "audio-mp3" | "audio-wav" | "audio-flac"
+  | "audio-mp3" | "audio-wav" | "audio-flac" | "audio-ogg" | "audio-mp4"
   | "video-webm" | "video-mp4"
   | "srt" | "vtt" | "lrc" | "kml" | "gpx" | "jsonl"
   | "txt-base64" | "txt-hex" | "txt-url";
@@ -34,6 +34,7 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   zip: "ZIP", tar: "TAR", gzip: "GZIP",
   "font-ttf": "TTF", "font-woff": "WOFF", "font-woff2": "WOFF2",
   "audio-mp3": "MP3", "audio-wav": "WAV", "audio-flac": "FLAC",
+  "audio-ogg": "OGG audio", "audio-mp4": "MP4 audio (M4A)",
   "video-webm": "WebM video", "video-mp4": "MP4 video",
   srt: "SRT subtitles", vtt: "VTT subtitles", lrc: "LRC lyrics", kml: "KML map data", gpx: "GPX GPS tracks",
   jsonl: "JSONL (NDJSON)",
@@ -129,16 +130,17 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "font-woff": ["font-ttf", "font-woff2", "txt-base64", "txt-hex"],
   "font-woff2": ["font-ttf", "font-woff", "txt-base64", "txt-hex"],
   "font-otf": ["font-ttf", "font-woff", "font-woff2", "txt-base64", "txt-hex"],
-  "audio-mp3": ["audio-wav", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "audio-wav": ["audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "audio-ogg": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "audio-m4a": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "audio-flac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "txt-base64", "txt-hex"],
-  "audio-aac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "video-mp4": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "video-webm": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
-  "video-mov": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "txt-base64", "txt-hex"],
+  "audio-midi": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-mp3": ["audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-wav": ["audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-ogg": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-m4a": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-flac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-aac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "video-mp4": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "video-webm": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "video-mov": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "text-base64": ["text", "pdf"],
   "text-hex": ["text", "pdf"],
   "text-url": ["text", "pdf"],
@@ -206,6 +208,8 @@ export function targetExtension(target: TargetFormat): string {
     case "audio-mp3": return "mp3";
     case "audio-wav": return "wav";
     case "audio-flac": return "flac";
+    case "audio-ogg": return "ogg";
+    case "audio-mp4": return "mp4";
     case "video-webm": return "webm";
     case "video-mp4": return "mp4";
     case "srt": return "srt";

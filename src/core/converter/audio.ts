@@ -8,6 +8,8 @@
 // broken (Mp3Encoder throws "MPEGMode is not defined").
 import * as lamejsModule from "@breezystack/lamejs";
 import { encodeFlac } from "./flac";
+import { wavToOggFlac } from "./ogg";
+import { muxMp3IntoMp4 } from "./mp4";
 import { toArrayBuffer } from "./util";
 
 export interface ParsedWav {
@@ -228,6 +230,30 @@ export async function anyToMp3(bytes: Uint8Array, decode: AudioDecoder): Promise
 /** Decodes any supported audio and re-encodes it as lossless FLAC. */
 export async function anyToFlac(bytes: Uint8Array, decode: AudioDecoder): Promise<Uint8Array> {
   return wavToFlac(await anyToWav(bytes, decode));
+}
+
+/** WAV → Ogg-FLAC (container-wrapped lossless FLAC — plays in any Ogg player). */
+export function wavToOgg(bytes: Uint8Array): Uint8Array {
+  return wavToOggFlac(bytes);
+}
+
+/** WAV → MP4/M4A (remuxes an MP3 track into an ISO BMFF container). */
+export function wavToMp4(bytes: Uint8Array): Uint8Array {
+  const parsed = parseWav(bytes);
+  if (!parsed.ok) throw new Error(parsed.error);
+  const mp3 = wavToMp3(bytes);
+  if (!mp3.ok) throw new Error(mp3.error);
+  return muxMp3IntoMp4(mp3.value);
+}
+
+/** Decodes any supported audio and wraps it as Ogg-FLAC. */
+export async function anyToOgg(bytes: Uint8Array, decode: AudioDecoder): Promise<Uint8Array> {
+  return wavToOgg(await anyToWav(bytes, decode));
+}
+
+/** Decodes any supported audio and remuxes it as MP4/M4A (MP3 track). */
+export async function anyToMp4(bytes: Uint8Array, decode: AudioDecoder): Promise<Uint8Array> {
+  return wavToMp4(await anyToWav(bytes, decode));
 }
 
 /** Browser decoder backed by the Web Audio API (OfflineAudioContext). */
