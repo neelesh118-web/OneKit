@@ -10,16 +10,25 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **68** |
+| Source formats | **77** |
 | Target formats | **49** |
-| Working pairs | **695** |
+| Working pairs | **801** |
 
-Every one of those 695 pairs has been swept end-to-end through `convertFile`:
+The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
 `<video>`, or `decodeAudioData`) and fail honestly outside one, and the rest
 return an honest error for a fixture that genuinely lacks the needed content
 (a `.docx` with no table, a `.gz` that isn't a gzipped archive). **No pair in
 the matrix is without a code path.**
+
+## Batch 1 - 2026-08-12 02:36 IST - OOXML variants
+
+- Added sources: `docm`, `dotx`, `xlsm`.
+- Added 38 working pairs, taking the matrix from **763 to 801 pairs**.
+- DOCM and DOTX use the existing OOXML Word reader and expose 11 document/raw-encoding targets each. They deliberately do not advertise CSV/XLSX because an arbitrary Word file need not contain a table.
+- XLSM uses the existing OOXML spreadsheet reader and exposes 16 table/document/raw-encoding targets; malformed non-ZIP input is rejected before parsing.
+- Added 42 parameterized tests covering every new pair, source detection, output signatures/containers, retained content, and corrupt input. Focused verification: 42/42 tests passing; TypeScript clean.
+- Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families
 

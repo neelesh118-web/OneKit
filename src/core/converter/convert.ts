@@ -272,11 +272,14 @@ async function runConversion(
         if (pages.length === 0) throw new Error("This PDF has no pages to render.");
         return pages[0]!.bytes;
       }
-    case "docx": {
+    case "docx":
+    case "docm":
+    case "dotx": {
       const html = await docs.docxToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.docxToPdf(bytes);
+      if (target === "docx") return docs.htmlToDocx(html);
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
@@ -298,9 +301,13 @@ async function runConversion(
     case "mobi":
       return renderDocument(mobiToHtml(bytes), "Book", target);
     case "xls":
+    case "xlsm":
     case "ods":
       // SheetJS reads BIFF8 and OpenDocument with the same reader the
       // .xlsx path uses, so the whole table pipeline is shared.
+      if (source === "xlsm" && !(bytes[0] === 0x50 && bytes[1] === 0x4b)) {
+        throw new Error("Could not read this .xlsm - the file is not a valid OOXML package.");
+      }
       return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target);
     case "epub": {
       const html = docs.epubToHtml(bytes);

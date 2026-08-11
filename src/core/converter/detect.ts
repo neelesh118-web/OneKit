@@ -7,7 +7,7 @@
 export type FileType =
   | "image-png" | "image-jpeg" | "image-webp" | "image-gif" | "image-bmp" | "image-avif" | "image-svg"
   | "image-tiff" | "image-ico" | "image-dds"
-  | "pdf" | "docx" | "xlsx" | "epub"
+  | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "xls"
   | "fb2" | "mobi" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "text"
@@ -26,7 +26,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-png": "PNG image", "image-jpeg": "JPEG image", "image-webp": "WebP image",
   "image-gif": "GIF image", "image-bmp": "BMP image", "image-avif": "AVIF image", "image-svg": "SVG image",
   "image-tiff": "TIFF image", "image-ico": "ICO icon", "image-dds": "DDS texture",
-  pdf: "PDF document", docx: "Word document", xlsx: "Excel workbook", epub: "EPUB ebook",
+  pdf: "PDF document", docx: "Word document", docm: "Macro-enabled Word document",
+  dotx: "Word template", xlsx: "Excel workbook", xlsm: "Macro-enabled Excel workbook", epub: "EPUB ebook",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
   ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", xls: "Excel 97–2003 workbook",
   fb2: "FictionBook (FB2)", mobi: "MOBI ebook", "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
@@ -50,7 +51,8 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-png": ["png"], "image-jpeg": ["jpg", "jpeg", "jfif"], "image-webp": ["webp"],
   "image-gif": ["gif"], "image-bmp": ["bmp"], "image-avif": ["avif"], "image-svg": ["svg"],
   "image-tiff": ["tif", "tiff"], "image-ico": ["ico", "cur"], "image-dds": ["dds"],
-  pdf: ["pdf"], docx: ["docx"], xlsx: ["xlsx"], epub: ["epub"],
+  pdf: ["pdf"], docx: ["docx"], docm: ["docm"], dotx: ["dotx"],
+  xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"], xls: ["xls"],
   fb2: ["fb2"], mobi: ["mobi", "azw", "prc"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
@@ -165,8 +167,14 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // ZIP container — probe for Office/EPUB flavours.
   if (hasPrefix(bytes, [0x50, 0x4b, 0x03, 0x04])) {
     const window = textWindow(bytes, 0, 600);
-    if (window.includes("[Content_Types].xml") && window.includes("word/")) return "docx";
-    if (window.includes("[Content_Types].xml") && window.includes("xl/")) return "xlsx";
+    if (window.includes("[Content_Types].xml") && window.includes("word/")) {
+      if (fallback === "docm" || fallback === "dotx") return fallback;
+      return "docx";
+    }
+    if (window.includes("[Content_Types].xml") && window.includes("xl/")) {
+      if (fallback === "xlsm") return fallback;
+      return "xlsx";
+    }
     if (window.includes("[Content_Types].xml") && window.includes("ppt/")) return "pptx";
     if (window.includes("mimetypeapplication/epub")) return "epub";
     // OpenDocument packages name their flavour in the stored mimetype entry.
@@ -177,7 +185,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     // probe window (common in small files) is still that format, not a generic
     // ZIP — trust the extension rather than mislabeling it.
     if (
-      fallback === "docx" || fallback === "xlsx" || fallback === "epub" ||
+      fallback === "docx" || fallback === "docm" || fallback === "dotx" ||
+      fallback === "xlsx" || fallback === "xlsm" || fallback === "epub" ||
       fallback === "pptx" || fallback === "odt" || fallback === "odp" || fallback === "ods"
     ) {
       return fallback;
