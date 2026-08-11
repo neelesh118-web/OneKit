@@ -20,6 +20,8 @@ export type FileType =
   | "vcf" | "ics" | "srt" | "vtt" | "gpx" | "lrc" | "sitemap" | "rss" | "kml" | "bookmarks"
   | "bibtex" | "jsonl" | "m3u" | "eml" | "torrent" | "qif" | "toml" | "ofx" | "gedcom"
   | "mbox" | "ldif" | "cue"
+  | "raw-cr2" | "raw-nef" | "raw-arw" | "raw-dng" | "raw-orf" | "raw-pef" | "raw-rw2"
+  | "raw-dcr" | "raw-erf" | "raw-3fr" | "raw-mos" | "raw-raf"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -43,6 +45,10 @@ export const TYPE_LABELS: Record<FileType, string> = {
   bibtex: "BibTeX citations", jsonl: "JSON Lines data", m3u: "M3U playlist", eml: "EML email", torrent: "Torrent metadata",
   qif: "QIF transactions", toml: "TOML config", ofx: "OFX statements", gedcom: "GEDCOM family tree",
   mbox: "mbox email archive", ldif: "LDIF directory data", cue: "CUE sheet",
+  "raw-cr2": "Canon RAW (CR2)", "raw-nef": "Nikon RAW (NEF)", "raw-arw": "Sony RAW (ARW)",
+  "raw-dng": "Adobe DNG", "raw-orf": "Olympus RAW (ORF)", "raw-pef": "Pentax RAW (PEF)",
+  "raw-rw2": "Panasonic RAW (RW2)", "raw-dcr": "Kodak RAW (DCR)", "raw-erf": "Epson RAW (ERF)",
+  "raw-3fr": "Hasselblad RAW (3FR)", "raw-mos": "Leaf RAW (MOS)", "raw-raf": "Fujifilm RAW (RAF)",
   unknown: "Unknown format"
 };
 
@@ -73,6 +79,9 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   // bookmarks files are HTML with a NETSCAPE-Bookmark header — no own extension,
   // resolved by content sniffing.
   bookmarks: [],
+  "raw-cr2": ["cr2"], "raw-nef": ["nef"], "raw-arw": ["arw"], "raw-dng": ["dng"],
+  "raw-orf": ["orf"], "raw-pef": ["pef"], "raw-rw2": ["rw2"], "raw-dcr": ["dcr"],
+  "raw-erf": ["erf"], "raw-3fr": ["3fr"], "raw-mos": ["mos"], "raw-raf": ["raf"],
   unknown: []
 };
 
@@ -110,6 +119,17 @@ function textWindow(bytes: Uint8Array, offset: number, length: number): string {
   return out;
 }
 
+/**
+ * Camera RAW formats built on the TIFF/EP container — they share the exact
+ * "II*\0"/"MM\0*" byte-order mark with baseline TIFF, so only the file's
+ * own extension (carried in as `fallback`) tells them apart from a plain
+ * .tiff and from each other.
+ */
+const RAW_TIFF_TYPES = new Set<FileType>([
+  "raw-cr2", "raw-nef", "raw-arw", "raw-dng", "raw-orf", "raw-pef", "raw-rw2",
+  "raw-dcr", "raw-erf", "raw-3fr", "raw-mos"
+]);
+
 /** Detects from magic bytes; container flavours (docx/xlsx/epub) need probing. */
 export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType {
   if (hasPrefix(bytes, [0x89, 0x50, 0x4e, 0x47])) return "image-png";
@@ -118,9 +138,16 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x42, 0x4d])) return "image-bmp";
   if (asciiAt(bytes, 0, "RIFF") && asciiAt(bytes, 8, "WEBP")) return "image-webp";
   if (asciiAt(bytes, 4, "ftypavif") || asciiAt(bytes, 4, "ftypavis")) return "image-avif";
-  // TIFF byte-order marks; RAW camera files share them, so the decoder is
-  // what decides whether the contents are really baseline TIFF.
-  if (hasPrefix(bytes, [0x49, 0x49, 0x2a, 0x00]) || hasPrefix(bytes, [0x4d, 0x4d, 0x00, 0x2a])) return "image-tiff";
+  // Fujifilm RAF carries its own ASCII header, not a TIFF byte-order mark.
+  if (asciiAt(bytes, 0, "FUJIFILMCCD-RAW")) return "raw-raf";
+  // TIFF byte-order marks; most camera RAW formats are TIFF/EP containers
+  // that share them byte-for-byte with baseline TIFF. The extension is what
+  // tells them apart — trust it when it names one of the known RAW kinds,
+  // otherwise treat the bytes as plain TIFF (the decoder is the final judge).
+  if (hasPrefix(bytes, [0x49, 0x49, 0x2a, 0x00]) || hasPrefix(bytes, [0x4d, 0x4d, 0x00, 0x2a])) {
+    if (RAW_TIFF_TYPES.has(fallback)) return fallback;
+    return "image-tiff";
+  }
   // ICO/CUR directories start with a zero word then the resource type.
   if (hasPrefix(bytes, [0x00, 0x00, 0x01, 0x00]) || hasPrefix(bytes, [0x00, 0x00, 0x02, 0x00])) return "image-ico";
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";

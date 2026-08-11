@@ -36,6 +36,7 @@ import {
   type VideoToVideoDeps
 } from "./video";
 import { base64ToText, hexToText, urlToText } from "./text";
+import { extractRawPreviewJpeg } from "./raw-photo";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, mobiToHtml } from "./ebooks";
 import { odpToSlides, odtToHtml } from "./odf";
@@ -249,6 +250,25 @@ async function runConversion(
         return docs.imagesToPdf([{ bytes: png, name: "image" }]);
       }
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
+    case "raw-cr2":
+    case "raw-nef":
+    case "raw-arw":
+    case "raw-dng":
+    case "raw-orf":
+    case "raw-pef":
+    case "raw-rw2":
+    case "raw-dcr":
+    case "raw-erf":
+    case "raw-3fr":
+    case "raw-mos":
+    case "raw-raf": {
+      // RAW sensor data can't be demosaiced in pure TS — extract the
+      // camera's own embedded JPEG preview and run it through the same
+      // pipeline as any other photo.
+      const preview = extractRawPreviewJpeg(bytes);
+      if (target === "pdf") return docs.imagesToPdf([{ bytes: preview, name: "image" }]);
+      return convertImage(preview, target as ImageTarget, opts.canvas, opts.image);
+    }
     case "pdf":
       if (target === "text") return toBytes(await docs.pdfToText(bytes));
       if (target === "markdown") return toBytes(await docs.pdfToMarkdown(bytes));
