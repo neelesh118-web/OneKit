@@ -6,6 +6,8 @@
  */
 import { detectFromBytes, type FileType } from "./detect";
 import { encodeGif } from "./gif";
+import { decodeDds, encodeDds } from "./dds";
+import { decodeTiff, encodeBmp, encodeTiff, icoToDecodable, svgFromPng, type RgbaImage } from "./raster";
 
 export type ImageTarget =
   | "image-png"
@@ -13,7 +15,11 @@ export type ImageTarget =
   | "image-webp"
   | "image-avif"
   | "image-gif"
-  | "image-ico";
+  | "image-ico"
+  | "image-bmp"
+  | "image-tiff"
+  | "image-dds"
+  | "image-svg";
 
 const IMAGE_SOURCES = new Set<FileType>([
   "image-png",
@@ -22,7 +28,12 @@ const IMAGE_SOURCES = new Set<FileType>([
   "image-gif",
   "image-bmp",
   "image-avif",
-  "image-svg"
+  "image-svg",
+  // Formats no browser decodes natively — raster.ts/dds.ts turn them into
+  // a BMP the canvas can read, so they join the same pipeline.
+  "image-tiff",
+  "image-ico",
+  "image-dds"
 ]);
 
 export function imageTargetMime(target: ImageTarget): string {
@@ -33,6 +44,10 @@ export function imageTargetMime(target: ImageTarget): string {
     case "image-avif": return "image/avif";
     case "image-gif": return "image/gif";
     case "image-ico": return "image/x-icon";
+    case "image-bmp": return "image/bmp";
+    case "image-tiff": return "image/tiff";
+    case "image-dds": return "image/vnd-ms.dds";
+    case "image-svg": return "image/svg+xml";
   }
 }
 
@@ -90,6 +105,18 @@ export function sourceImageMime(type: FileType): string {
 }
 
 /**
+ * Hands back bytes the canvas can decode. TIFF, DDS and ICO have no
+ * browser decoder, so their pixels are decoded here and re-wrapped as a
+ * BMP — which every browser reads — instead of needing a second pipeline.
+ */
+function toDecodableSource(bytes: Uint8Array, source: FileType): { bytes: Uint8Array; mime: string } {
+  if (source === "image-tiff") return { bytes: encodeBmp(decodeTiff(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-dds") return { bytes: encodeBmp(decodeDds(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-ico") return icoToDecodable(bytes);
+  return { bytes, mime: sourceImageMime(source) };
+}
+
+/**
  * Converts image bytes to another raster format. `deps` lets tests and
  * alternate hosts inject their own canvas; in the popup it defaults to
  * the real DOM canvas + createImageBitmap.
@@ -121,8 +148,9 @@ export async function convertImage(
       return createImageBitmap(blob);
     });
 
-  const mime = sourceImageMime(source);
-  const blob = new Blob([bytes as unknown as BlobPart], { type: mime });
+  const decodable = toDecodableSource(bytes, source);
+  const mime = decodable.mime;
+  const blob = new Blob([decodable.bytes as unknown as BlobPart], { type: mime });
   let bitmap: ImageBitmap;
   try {
     bitmap = await decode(blob, mime);
@@ -152,13 +180,27 @@ export async function convertImage(
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       return encodeGif(imageData);
     }
-    if (target === "image-ico") {
-      // ICO containers hold a PNG payload — render to PNG then wrap it.
+    if (target === "image-bmp" || target === "image-tiff" || target === "image-dds") {
+      // Formats the browser can't write — encode them from the pixels.
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const image: RgbaImage = {
+        width: canvas.width,
+        height: canvas.height,
+        data: new Uint8Array(imageData.data.buffer, imageData.data.byteOffset, imageData.data.byteLength)
+      };
+      if (target === "image-tiff") return encodeTiff(image);
+      if (target === "image-dds") return encodeDds(image);
+      return encodeBmp(image);
+    }
+    if (target === "image-ico" || target === "image-svg") {
+      // Both wrap a PNG: ICO in its icon directory, SVG in an <image>.
       const pngBlob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/png");
       });
-      if (!pngBlob) throw new Error("This browser couldn't encode the icon.");
-      return icoFromPng(new Uint8Array(await pngBlob.arrayBuffer()), Math.max(canvas.width, canvas.height));
+      if (!pngBlob) throw new Error("This browser couldn't encode the image.");
+      const png = new Uint8Array(await pngBlob.arrayBuffer());
+      if (target === "image-svg") return svgFromPng(png, canvas.width, canvas.height);
+      return icoFromPng(png, Math.max(canvas.width, canvas.height));
     }
     const outMime = imageTargetMime(target);
     const quality = settings?.quality ?? imageTargetQuality(target);

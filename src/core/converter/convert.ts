@@ -13,6 +13,8 @@ import {
   anyToWav,
   decodeAudioInBrowser,
   normalizeWav,
+  parseWav,
+  samplesToWav,
   wavToFlac,
   wavToMp3,
   type AudioDecoder
@@ -29,6 +31,11 @@ import {
   type VideoToVideoDeps
 } from "./video";
 import { base64ToText, hexToText, urlToText } from "./text";
+import { encodeAiff, parseAiff } from "./aiff";
+import { fb2ToHtml, fb2Title, mobiToHtml } from "./ebooks";
+import { odpToSlides, odtToHtml } from "./odf";
+import { pptxToSlides, slidesToHtml } from "./pptx";
+import { rtfToHtml } from "./rtf";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
@@ -67,12 +74,23 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-avif": "image/avif",
   "image-gif": "image/gif",
   "image-ico": "image/x-icon",
+  "image-bmp": "image/bmp",
+  "image-tiff": "image/tiff",
+  "image-dds": "image/vnd-ms.dds",
+  "image-svg": "image/svg+xml",
   pdf: "application/pdf",
   html: "text/html",
   markdown: "text/markdown",
   text: "text/plain",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   epub: "application/epub+zip",
+  rtf: "application/rtf",
+  odt: "application/vnd.oasis.opendocument.text",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  tsv: "text/tab-separated-values",
+  xls: "application/vnd.ms-excel",
+  ods: "application/vnd.oasis.opendocument.spreadsheet",
+  "audio-aiff": "audio/aiff",
   csv: "text/csv",
   json: "application/json",
   yaml: "application/yaml",
@@ -91,8 +109,10 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "video-mp4": "video/mp4",
   srt: "application/x-subrip",
   vtt: "text/vtt",
+  lrc: "text/plain",
   kml: "application/vnd.google-earth.kml+xml",
   gpx: "application/gpx+xml",
+  jsonl: "application/x-ndjson",
   "txt-base64": "text/plain",
   "txt-hex": "text/plain",
   "txt-url": "text/plain"
@@ -108,6 +128,54 @@ function baseName(name: string): string {
   const cleaned = name.trim();
   const withoutExt = cleaned.replace(/\.[^./\\]+$/, "");
   return withoutExt || "converted";
+}
+
+/** The document containers written by the Office writers. */
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx"]);
+
+/** The spreadsheet containers every table and record source can produce. */
+const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
+
+/**
+ * Every prose source funnels through HTML, so one renderer serves them
+ * all — PDF, Word, EPUB, RTF, OpenDocument and PowerPoint included.
+ */
+async function renderDocument(html: string, title: string, target: TargetFormat): Promise<Uint8Array> {
+  if (target === "html") return toBytes(html);
+  if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
+  if (target === "pdf") return docs.htmlToPdf(html);
+  if (target === "docx") return docs.htmlToDocx(html);
+  if (target === "epub") return docs.epubFromHtml(title, html);
+  if (target === "rtf") return toBytes(docs.htmlToRtf(html));
+  if (target === "odt") return docs.htmlToOdt(html);
+  if (target === "pptx") return docs.htmlToPptx(html);
+  return toBytes(docs.htmlToText(html));
+}
+
+/** Any PCM WAV → AIFF, the shared bridge for every audio and video source. */
+function wavToAiff(wav: Uint8Array): Uint8Array {
+  const parsed = parseWav(wav);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return encodeAiff(parsed.value);
+}
+
+/**
+ * Every tabular source funnels through CSV, so one renderer serves them
+ * all — the data formats directly, the document formats via the table's
+ * HTML.
+ */
+async function renderTable(csv: string, title: string, target: TargetFormat): Promise<Uint8Array> {
+  if (target === "csv") return toBytes(csv);
+  if (target === "tsv") return toBytes(docs.csvToTsv(csv));
+  if (target === "json") return toBytes(JSON.stringify(docs.csvToJson(csv), null, 2));
+  if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(docs.csvToJson(csv))));
+  if (target === "xml") return toBytes(docs.jsonToXml(JSON.stringify(docs.csvToJson(csv))));
+  if (target === "xlsx") return docs.csvToXlsx(csv);
+  if (target === "xls") return docs.csvToXls(csv);
+  if (target === "ods") return docs.csvToOds(csv);
+  if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
+  if (target === "pdf") return docs.csvToPdf(csv);
+  return renderDocument(docs.csvToHtml(csv), title, target);
 }
 
 /**
@@ -158,6 +226,11 @@ async function runConversion(
     case "image-gif":
     case "image-bmp":
     case "image-avif":
+    // TIFF, ICO and DDS are decoded to pixels first, then take the same
+    // canvas path as every other raster format.
+    case "image-tiff":
+    case "image-ico":
+    case "image-dds":
       if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image);
     case "image-svg":
@@ -175,6 +248,15 @@ async function runConversion(
       // PDF → DOCX (text-based): extracts the text into a real Word file.
       // Formatting and images aren't preserved — the content is editable.
       if (target === "docx") return docs.textToDocx(await docs.pdfToText(bytes));
+      // PDF → EPUB (text-based), same honest caveat as → DOCX.
+      if (target === "epub") {
+        const text = await docs.pdfToText(bytes);
+        return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
+      }
+      // PDF → RTF / ODT / PPTX: the extracted text, in those containers.
+      if (target === "rtf" || target === "odt" || target === "pptx") {
+        return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
+      }
       // Single-file path: the first page. The Convert tab zips all pages
       // via pdfToImages so multi-page PDFs never lose pages.
       {
@@ -188,14 +270,37 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.docxToPdf(bytes);
       if (target === "epub") return docs.epubFromHtml("Document", html);
+      if (target === "csv") return toBytes(docs.htmlToCsv(html));
+      if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
+    case "rtf":
+      return renderDocument(rtfToHtml(toText(bytes)), "Document", target);
+    case "odt":
+      return renderDocument(odtToHtml(bytes), "Document", target);
+    case "odp":
+      return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target);
+    case "pptx":
+      return renderDocument(slidesToHtml(pptxToSlides(bytes), "Presentation"), "Presentation", target);
+    case "fb2": {
+      const xml = toText(bytes);
+      return renderDocument(fb2ToHtml(xml), fb2Title(xml), target);
+    }
+    case "mobi":
+      return renderDocument(mobiToHtml(bytes), "Book", target);
+    case "xls":
+    case "ods":
+      // SheetJS reads BIFF8 and OpenDocument with the same reader the
+      // .xlsx path uses, so the whole table pipeline is shared.
+      return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target);
     case "epub": {
       const html = docs.epubToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.epubToPdf(bytes);
       if (target === "docx") return docs.htmlToDocx(html);
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Book", target);
       return toBytes(docs.htmlToText(html));
     }
     case "markdown": {
@@ -205,6 +310,8 @@ async function runConversion(
       if (target === "pdf") return docs.markdownToPdf(md);
       if (target === "docx") return docs.markdownToDocx(md);
       if (target === "epub") return docs.epubFromHtml("Document", html);
+      if (target === "csv") return toBytes(docs.htmlToCsv(html));
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
     case "html": {
@@ -213,6 +320,8 @@ async function runConversion(
       if (target === "text") return toBytes(docs.htmlToText(html));
       if (target === "docx") return docs.htmlToDocx(html);
       if (target === "epub") return docs.epubFromHtml("Document", html);
+      if (target === "csv") return toBytes(docs.htmlToCsv(html));
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return docs.htmlToPdf(html);
     }
     case "text": {
@@ -228,6 +337,9 @@ async function runConversion(
         );
       }
       if (target === "markdown") return toBytes(text); // plain text is valid Markdown
+      if (OFFICE_TARGETS.has(target)) {
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Document", target);
+      }
       if (target === "html") {
         return toBytes(
           `<!doctype html>\n<html><head><meta charset=\"utf-8\"></head>\n<body>\n<pre>${docs.escapeHtml(text)}</pre>\n</body>\n</html>`
@@ -238,45 +350,91 @@ async function runConversion(
     case "vcf": {
       const records = docs.vcfToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No VCARD blocks found in this file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "ics": {
       const records = docs.icsToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No VEVENT blocks found in this file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "srt":
     case "vtt": {
       const sub = toText(bytes);
       if (target === "csv" || target === "json") {
-        const records = docs.subtitlesToRecords(sub);
-        if (records.length === 0) throw new Error("No timed cues found in this subtitle file.");
+        const cues = docs.subtitlesToRecords(sub);
+        if (cues.length === 0) throw new Error("No timed cues found in this subtitle file.");
+        const records = cues.map((c) => ({ index: c.index, start: c.start, end: c.end, text: c.text }));
         if (target === "json") return toBytes(JSON.stringify(records, null, 2));
         return toBytes(docs.recordsToCsv(records));
       }
+      if (target === "lrc") return toBytes(docs.subtitlesToLrc(sub));
       if (target === "text") return toBytes(docs.subtitlesToText(sub));
       return toBytes(source === "srt" ? docs.srtToVtt(sub) : docs.vttToSrt(sub));
+    }
+    case "m3u": {
+      const records = docs.m3uToRecords(toText(bytes));
+      if (records.length === 0) throw new Error("No playlist entries found in this file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
+      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
+      if (target === "csv") return toBytes(docs.recordsToCsv(records));
+      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
+      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
+      if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
+      return toBytes(docs.recordsToHtml(records));
+    }
+    case "eml": {
+      const eml = toText(bytes);
+      if (target === "html") return toBytes(docs.emlToHtml(eml));
+      if (target === "csv") {
+        const e = docs.emlToRecords(eml)[0]!;
+        return toBytes(docs.recordsToCsv([{ from: e.from, to: e.to, subject: e.subject, date: e.date, body: e.body }]));
+      }
+      if (target === "json") return toBytes(JSON.stringify(docs.emlToRecords(eml), null, 2));
+      if (target === "pdf") return docs.textToPdf(docs.emlToRecords(eml)[0]!.body);
+      const body = docs.emlToRecords(eml)[0]!.body;
+      if (target === "markdown") return toBytes(body);
+      if (target === "docx") return docs.textToDocx(body);
+      return toBytes(body);
+    }
+    case "torrent": {
+      const records = docs.torrentToRecords(toText(bytes));
+      if (records.length === 0) throw new Error("No file records found in this torrent.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
+      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
+      if (target === "csv") return toBytes(docs.recordsToCsv(records));
+      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
+      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
+      if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
+      return toBytes(docs.recordsToHtml(records));
     }
     case "gpx": {
       const gpx = toText(bytes);
       if (target === "kml") return toBytes(docs.gpxToKml(gpx));
       const records = docs.gpxToRecords(gpx);
       if (records.length === 0) throw new Error("No track points found in this GPX file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "kml": {
@@ -284,41 +442,49 @@ async function runConversion(
       if (target === "gpx") return toBytes(docs.kmlToGpx(kml));
       const records = docs.kmlToRecords(kml);
       if (records.length === 0) throw new Error("No placemarks with coordinates found in this KML file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "bookmarks": {
       const records = docs.bookmarksToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No bookmarked links found in this file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "bibtex": {
       const records = docs.bibToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No @type{key, …} entries found in this BibTeX file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "jsonl": {
       const records = docs.jsonlToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No parseable JSON lines found in this file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "lrc": {
@@ -335,21 +501,25 @@ async function runConversion(
     case "sitemap": {
       const records = docs.sitemapToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No <url> entries found in this sitemap.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "rss": {
       const records = docs.rssToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No feed items found in this file.");
+      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
       if (target === "json") return toBytes(JSON.stringify(records, null, 2));
       if (target === "csv") return toBytes(docs.recordsToCsv(records));
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       return toBytes(docs.recordsToHtml(records));
     }
     case "text-base64": {
@@ -380,6 +550,10 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
       if (target === "epub") return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
+      if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+        return renderTable(csv, "Spreadsheet", target);
+      }
       return docs.csvToXlsx(csv);
     }
     case "json": {
@@ -392,6 +566,11 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.jsonToCsv(json));
       if (target === "docx") return docs.textToDocx(docs.jsonToText(json));
       if (target === "epub") return docs.epubFromHtml("Data", docs.jsonToHtml(json));
+      if (target === "markdown") return toBytes(`\`\`\`json\n${docs.jsonToText(json)}\n\`\`\``);
+      if (target === "jsonl") return toBytes(docs.jsonToJsonl(json));
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+        return renderTable(docs.jsonToCsv(json), "Data", target);
+      }
       return toBytes(docs.jsonToText(json));
     }
     case "tsv": {
@@ -406,6 +585,10 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
       if (target === "epub") return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
+      if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+        return renderTable(csv, "Spreadsheet", target);
+      }
       return toBytes(docs.csvToHtml(csv));
     }
     case "yaml": {
@@ -417,12 +600,17 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.jsonToCsv(json));
       if (target === "docx") return docs.htmlToDocx(docs.jsonToHtml(json));
       if (target === "epub") return docs.epubFromHtml("Data", docs.jsonToHtml(json));
+      if (target === "markdown") return toBytes(`\`\`\`yaml\n${yaml.trim()}\n\`\`\``);
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+        return renderTable(docs.jsonToCsv(json), "Data", target);
+      }
       return toBytes(json);
     }
     case "ini": {
       const text = toText(bytes);
       const json = docs.iniToJson(text);
       if (target === "text") return toBytes(text);
+      if (target === "markdown") return toBytes(`\`\`\`ini\n${text.trim()}\n\`\`\``);
       if (target === "yaml") return toBytes(docs.jsonToYaml(json));
       if (target === "xml") return toBytes(docs.jsonToXml(json));
       return toBytes(json);
@@ -432,6 +620,7 @@ async function runConversion(
       if (target === "html") return toBytes(docs.jsonToHtml(docs.xmlToJson(xml)));
       if (target === "json") return toBytes(docs.xmlToJson(xml));
       if (target === "yaml") return toBytes(docs.jsonToYaml(docs.xmlToJson(xml)));
+      if (target === "markdown") return toBytes(`\`\`\`xml\n${xml.trim()}\n\`\`\``);
       return toBytes(xml); // xml → text is a validated passthrough
     }
     case "xlsx": {
@@ -444,16 +633,33 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+        return renderTable(csv, "Spreadsheet", target);
+      }
       return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
     }
     case "zip": {
       const files = arch.unzipToFiles(bytes);
       if (target === "tar") return arch.filesToTar(files);
+      if (target === "text") {
+        return toBytes(
+          Object.entries(files)
+            .map(([name, data]) => `${name} (${data.length} bytes)`)
+            .join("\n")
+        );
+      }
       return arch.gzipBytes(bytes);
     }
     case "tar": {
       const files = arch.untarToFiles(bytes);
       if (target === "zip") return arch.filesToZip(files);
+      if (target === "text") {
+        return toBytes(
+          Object.entries(files)
+            .map(([name, data]) => `${name} (${data.length} bytes)`)
+            .join("\n")
+        );
+      }
       return arch.gzipBytes(bytes);
     }
     case "gzip": {
@@ -473,17 +679,35 @@ async function runConversion(
         return result.value;
       }
       if (target === "audio-flac") return wavToFlac(bytes);
+      if (target === "audio-aiff") return wavToAiff(bytes);
       return normalizeWav(bytes);
     case "audio-mp3":
       if (target === "audio-flac") return anyToFlac(bytes, opts.audioDecoder ?? decodeAudioInBrowser);
+      if (target === "audio-aiff") {
+        return wavToAiff(await anyToWav(bytes, opts.audioDecoder ?? decodeAudioInBrowser));
+      }
       return anyToWav(bytes, opts.audioDecoder ?? decodeAudioInBrowser);
     case "audio-ogg":
     case "audio-m4a":
+    case "audio-aac":
     case "audio-flac": {
       const decode = opts.audioDecoder ?? decodeAudioInBrowser;
       if (target === "audio-mp3") return anyToMp3(bytes, decode);
       if (target === "audio-flac") return anyToFlac(bytes, decode);
+      if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
       return anyToWav(bytes, decode);
+    }
+    case "audio-aiff": {
+      // AIFF is big-endian PCM — parse it, then reuse the WAV pipeline.
+      const parsed = parseAiff(bytes);
+      const wav = samplesToWav(parsed.sampleRate, parsed.channels, parsed.samples);
+      if (target === "audio-mp3") {
+        const result = wavToMp3(wav);
+        if (!result.ok) throw new Error(result.error);
+        return result.value;
+      }
+      if (target === "audio-flac") return wavToFlac(wav);
+      return wav;
     }
     case "video-mp4":
     case "video-webm":
@@ -500,6 +724,8 @@ async function runConversion(
       if (target === "audio-wav") {
         return videoToWav(bytes, opts.videoAudio);
       }
+      if (target === "audio-flac") return wavToFlac(await videoToWav(bytes, opts.videoAudio));
+      if (target === "audio-aiff") return wavToAiff(await videoToWav(bytes, opts.videoAudio));
       return videoToGif(bytes, opts.videoFrames);
     default:
       throw new Error("Unsupported conversion.");

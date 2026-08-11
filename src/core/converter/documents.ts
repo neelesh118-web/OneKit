@@ -20,6 +20,9 @@ import * as yaml from "js-yaml";
 import { XMLParser } from "fast-xml-parser";
 import { strFromU8, unzipSync, zipSync } from "fflate/browser";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import { textToRtf } from "./rtf";
+import { buildOdt } from "./odf";
+import { buildPptx, slidesToHtml, textToSlides, type Slide } from "./pptx";
 
 const turndown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
 
@@ -1085,9 +1088,274 @@ export function jsonlToRecords(jsonl: string): Record<string, string>[] {
   return records;
 }
 
-/** Parses SRT/VTT subtitle content into per-cue records (index/start/end/text). */
-export function subtitlesToRecords(sub: string): Record<string, string>[] {
+/**
+ * Parses an M3U/M3U8 playlist into per-track records (duration, title, path).
+ * Non-#EXT lines become untitled entries with an empty duration.
+ */
+export function m3uToRecords(m3u: string): Record<string, string>[] {
   const records: Record<string, string>[] = [];
+  let pending: Record<string, string> | null = null;
+  for (const raw of m3u.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (line.startsWith("#EXTINF:")) {
+      pending = {};
+      const dur = line.match(/#EXTINF:([\d.]+)/);
+      if (dur) pending.duration = dur[1]!;
+      const title = line.match(/,(.*)$/);
+      if (title && title[1]!.trim()) pending.title = title[1]!.trim();
+      continue;
+    }
+    if (line.startsWith("#")) continue; // #EXTM3U header and comments
+    if (!line) continue;
+    if (pending) {
+      pending.path = line;
+      records.push(pending);
+      pending = null;
+    } else {
+      records.push({ path: line });
+    }
+  }
+  return records;
+}
+
+/** A parsed EML message: key headers plus the decoded plain-text body. */
+export interface EmlRecord {
+  from: string;
+  to: string;
+  subject: string;
+  date: string;
+  body: string;
+}
+
+/**
+ * Parses an EML email into one record: headers (from/to/subject/date) plus
+ * the decoded body text. Quoted-printable is decoded, HTML bodies are
+ * stripped to text, and base64 bodies are decoded when they decode cleanly.
+ */
+export function emlToRecords(eml: string): EmlRecord[] {
+  const headers: Record<string, string> = {};
+  let bodyStart = 0;
+  const lines = eml.replace(/\r/g, "").split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (line === "") {
+      bodyStart = i + 1;
+      break;
+    }
+    const m = line.match(/^([\w-]+):\s*(.*)$/);
+    if (m) headers[m[1]!.toLowerCase()] = (m[2] ?? "").trim();
+    else if (line.startsWith(" ") || line.startsWith("\t")) {
+      // folded header continuation
+      const last = Object.keys(headers).pop();
+      if (last) headers[last] = `${headers[last]} ${line.trim()}`;
+    }
+  }
+  let body = lines.slice(bodyStart).join("\n").trim();
+  const cte = (headers["content-transfer-encoding"] ?? "").toLowerCase();
+  if (cte.includes("quoted-printable")) {
+    body = body
+      .replace(/=(?:\r?\n)/g, "")
+      .replace(/=([0-9A-Fa-f]{2})/g, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+  } else if (cte.includes("base64")) {
+    try {
+      const decoded = new TextDecoder("utf-8", { fatal: true }).decode(
+        Uint8Array.from(atob(body.replace(/\s+/g, "")), (c) => c.charCodeAt(0))
+      );
+      if (decoded.length > 0) body = decoded;
+    } catch {
+      /* keep the raw body if base64 decoding fails */
+    }
+  }
+  const contentType = (headers["content-type"] ?? "").toLowerCase();
+  if (contentType.includes("text/html") || /<[a-z][\s\S]*>/i.test(body)) {
+    body = htmlToText(body);
+  }
+  return [
+    {
+      from: headers["from"] ?? "",
+      to: headers["to"] ?? "",
+      subject: headers["subject"] ?? "",
+      date: headers["date"] ?? "",
+      body: body.slice(0, 10_000)
+    }
+  ];
+}
+
+/** EML → HTML: a readable message page with a header block and the body. */
+export function emlToHtml(eml: string): string {
+  const record = emlToRecords(eml)[0]!;
+  const row = (label: string, value: string) =>
+    value ? `<tr><th style="text-align:left;padding:2px 12px 2px 0">${escapeHtml(label)}</th><td>${escapeHtml(value)}</td></tr>` : "";
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><title>${escapeHtml(record.subject || "Email")}</title></head>
+<body>
+<table>${row("From", record.from)}${row("To", record.to)}${row("Date", record.date)}${row("Subject", record.subject)}</table>
+<hr>
+<p style="white-space:pre-wrap">${escapeHtml(record.body)}</p>
+</body>
+</html>`;
+}
+
+/* Bencode (torrent metadata) ----------------------------------------- */
+
+interface BencodeNode { value: unknown; next: number }
+
+function parseBencode(text: string, i: number): BencodeNode {
+  const ch = text[i]!;
+  if (ch === "i") {
+    const end = text.indexOf("e", i);
+    return { value: Number(text.slice(i + 1, end)), next: end + 1 };
+  }
+  if (ch === "l") {
+    const arr: unknown[] = [];
+    let j = i + 1;
+    while (text[j] !== "e") {
+      const node = parseBencode(text, j);
+      arr.push(node.value);
+      j = node.next;
+    }
+    return { value: arr, next: j + 1 };
+  }
+  if (ch === "d") {
+    const dict: Record<string, unknown> = {};
+    let j = i + 1;
+    while (text[j] !== "e") {
+      const keyNode = parseBencode(text, j);
+      const valNode = parseBencode(text, keyNode.next);
+      dict[String(keyNode.value)] = valNode.value;
+      j = valNode.next;
+    }
+    return { value: dict, next: j + 1 };
+  }
+  // byte string: <len>:<bytes>
+  const colon = text.indexOf(":", i);
+  const len = Number(text.slice(i, colon));
+  return { value: text.slice(colon + 1, colon + 1 + len), next: colon + 1 + len };
+}
+
+/**
+ * Parses a .torrent file into per-file records (path, size) plus announce
+ * trackers. Returns [] when the bencode root isn't a dict.
+ */
+export function torrentToRecords(torrent: string): Record<string, string>[] {
+  const root = parseBencode(torrent, 0).value as Record<string, unknown>;
+  const info = (root["info"] ?? {}) as Record<string, unknown>;
+  const trackers: string[] = [];
+  const announce = root["announce"];
+  if (typeof announce === "string") trackers.push(announce);
+  const announceList = root["announce-list"];
+  if (Array.isArray(announceList)) {
+    for (const group of announceList) {
+      if (Array.isArray(group)) for (const t of group) if (typeof t === "string") trackers.push(t);
+    }
+  }
+  const name = typeof info["name"] === "string" ? info["name"] : "unnamed";
+  const records: Record<string, string>[] = [];
+  const files = info["files"];
+  if (Array.isArray(files) && files.length > 0) {
+    for (const f of files as Record<string, unknown>[]) {
+      const path = Array.isArray(f["path"]) ? (f["path"] as string[]).join("/") : "";
+      records.push({
+        torrent: name,
+        path,
+        size: String(f["length"] ?? ""),
+        trackers: trackers.slice(0, 3).join(", ")
+      });
+    }
+  } else {
+    records.push({
+      torrent: name,
+      path: typeof info["name"] === "string" ? info["name"] : "",
+      size: String(info["length"] ?? ""),
+      trackers: trackers.slice(0, 3).join(", ")
+    });
+  }
+  return records;
+}
+
+/**
+ * Generic XML → CSV for tabular XML: repeated same-tag children of the root
+ * become rows and their child elements become columns. Errors honestly when
+ * the XML isn't shaped like rows.
+ */
+export function xmlToCsv(xml: string): string {
+  const root = xml.match(/<([\w-]+)[^>]*>([\s\S]*?)<\/\1>/);
+  if (!root) throw new Error("No root element found in this XML.");
+  const body = root[2]!;
+  const rows = body.match(/<([\w-]+)[^>]*>[\s\S]*?<\/\1>/g) ?? [];
+  if (rows.length === 0) throw new Error("This XML has no repeated child elements — not tabular data.");
+  const tags = new Set(rows.map((r) => (r.match(/^<([\w-]+)/) ?? [])[1] ?? ""));
+  if (tags.size !== 1) {
+    throw new Error("This XML isn't shaped like rows — no single repeated element to convert.");
+  }
+  const rowTag = [...tags][0]!;
+  const parsedRows: Record<string, string>[] = [];
+  const columns: string[] = [];
+  for (const row of body.match(new RegExp(`<${rowTag}[^>]*>([\s\S]*?)<\/${rowTag}>`, "g")) ?? []) {
+    const cells: Record<string, string> = {};
+    for (const cell of row.matchAll(/<([\w-]+)[^>]*>([\s\S]*?)<\/\1>/g)) {
+      cells[cell[1]!] = cell[2]!.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    }
+    for (const col of Object.keys(cells)) if (!columns.includes(col)) columns.push(col);
+    parsedRows.push(cells);
+  }
+  const quote = (s: string): string => (/[,"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const grid = [columns, ...parsedRows.map((r) => columns.map((c) => quote(r[c] ?? "")))];
+  return grid.map((row) => row.join(",")).join("\n");
+}
+
+/** HTML → CSV: extracts the first <table> as CSV. Errors when no table exists. */
+export function htmlToCsv(html: string): string {
+  const table = html.match(/<table[^>]*>[\s\S]*?<\/table>/i);
+  if (!table) throw new Error("No HTML <table> found in this file.");
+  const rows = table[0].match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) ?? [];
+  const grid = rows.map((row) =>
+    (row.match(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi) ?? []).map((cell) =>
+      htmlToText(cell.replace(/<t[dh][^>]*>/gi, " "))
+    )
+  );
+  if (grid.length === 0) throw new Error("No table rows found in this HTML file.");
+  const quote = (cell: string): string =>
+    /[,"\n]/.test(cell) ? `"${cell.replace(/"/g, '""')}"` : cell;
+  return grid.map((row) => row.map(quote).join(",")).join("\n");
+}
+
+/** SRT/VTT → LRC: timed cues become [mm:ss.xx] lyric lines. */
+export function subtitlesToLrc(sub: string): string {
+  const cues = subtitlesToRecords(sub);
+  if (cues.length === 0) throw new Error("No timed cues found in this subtitle file.");
+  const lrcTime = (t: string): string => {
+    const m = t.match(/(\d+):(\d{2}):(\d{2})[,.](\d{1,3})/);
+    if (!m) return "00:00.00";
+    const ms = Math.round(Number(m[4]!.padEnd(3, "0")) / 10);
+    return `${m[1]}:${m[2]}.${String(ms).padStart(2, "0")}`;
+  };
+  return cues.map((c) => `[${lrcTime(c.start)}]${c.text}`).join("\n") + "\n";
+}
+
+/** JSON array → JSONL: one JSON value per line (scalars become a single line). */
+export function jsonToJsonl(jsonText: string): string {
+  const parsed = parseJsonOrThrow(jsonText);
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  return items.map((item) => JSON.stringify(item)).join("\n") + "\n";
+}
+
+/** CSV → JSONL: each row becomes a JSON object line. */
+export function csvToJsonl(csvText: string): string {
+  return jsonToJsonl(JSON.stringify(csvToJson(csvText)));
+}
+
+/** One parsed subtitle cue. */
+export interface SubtitleCue {
+  index: string;
+  start: string;
+  end: string;
+  text: string;
+}
+
+/** Parses SRT/VTT subtitle content into per-cue records (index/start/end/text). */
+export function subtitlesToRecords(sub: string): SubtitleCue[] {
+  const records: SubtitleCue[] = [];
   let index = 0;
   let cue: { start: string; end: string; text: string[] } | null = null;
   for (const line of sub.replace(/\r/g, "").split("\n")) {
@@ -1162,4 +1430,53 @@ export function epubToHtml(bytes: Uint8Array): string {
   }
   const body = parts.join("\n") || "<p>This EPUB has no readable chapters.</p>";
   return `<!doctype html>\n<html><head><meta charset="utf-8"><title>EPUB</title></head>\n<body>\n${body}\n</body>\n</html>`;
+}
+
+/* Office writers (RTF / ODT / PPTX) ---------------------------------- */
+
+/**
+ * HTML → RTF. The text and its paragraph breaks survive; styling and
+ * images don't. Word, Pages and LibreOffice all open the result.
+ */
+export function htmlToRtf(html: string): string {
+  return textToRtf(htmlToText(html));
+}
+
+/** HTML → OpenDocument text (one paragraph per line). */
+export function htmlToOdt(html: string): Uint8Array {
+  return buildOdt(htmlToText(html).split(/\r?\n/));
+}
+
+/**
+ * HTML → PPTX. Blank-line-separated blocks become slides, each block's
+ * first line its title — the honest shape for turning prose into a deck.
+ */
+export function htmlToPptx(html: string): Uint8Array {
+  return buildPptx(textToSlides(htmlToText(html)));
+}
+
+/** Slide decks (PPTX/ODP) → the HTML every other document target flows through. */
+export function slidesToDocumentHtml(slides: Slide[], title: string): string {
+  return slidesToHtml(slides, title);
+}
+
+/* Spreadsheet writers (TSV / XLS / ODS) ------------------------------- */
+
+/** CSV → TSV, quoting-aware (tabs and newlines inside cells are stripped). */
+export function csvToTsv(csv: string): string {
+  return parseCsv(csv)
+    .map((row) => row.map((cell) => cell.replace(/[\t\r\n]+/g, " ")).join("\t"))
+    .join("\n");
+}
+
+/** CSV → Excel 97-2003 (.xls), written by the same SheetJS build that reads it. */
+export function csvToXls(csvText: string): Uint8Array {
+  const wb = XLSX.read(csvText, { type: "string" });
+  return new Uint8Array(XLSX.write(wb, { bookType: "biff8", type: "array" }) as ArrayBuffer);
+}
+
+/** CSV → OpenDocument spreadsheet (.ods). */
+export function csvToOds(csvText: string): Uint8Array {
+  const wb = XLSX.read(csvText, { type: "string" });
+  return new Uint8Array(XLSX.write(wb, { bookType: "ods", type: "array" }) as ArrayBuffer);
 }
