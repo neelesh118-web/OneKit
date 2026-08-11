@@ -441,8 +441,10 @@ export function createSafetyController(caps: OneKitCapabilities): () => void {
         totpKey = await unlockTotp(passphrase, caps.storage);
         totpPassphraseInput.value = "";
         totpStatus.textContent = "Passphrase set — existing and new secrets are now encrypted.";
-        await refreshTotpUnlockUi();
+        // Render rows before revealing the unlocked UI so there is never a
+        // visible "unlocked but empty" state (and no racy half-render).
         await renderTotpList();
+        await refreshTotpUnlockUi();
       } catch (err) {
         totpStatus.textContent = err instanceof Error ? err.message : "Could not set passphrase.";
       }
@@ -455,8 +457,8 @@ export function createSafetyController(caps: OneKitCapabilities): () => void {
       await clearTotpPassphrase(caps.storage);
       totpKey = null;
       totpStatus.textContent = "Passphrase removed — secrets are plaintext again. Set one to re-encrypt.";
-      await refreshTotpUnlockUi();
       await renderTotpList();
+      await refreshTotpUnlockUi();
     })();
   });
 
@@ -465,8 +467,10 @@ export function createSafetyController(caps: OneKitCapabilities): () => void {
       try {
         totpKey = await unlockTotp(totpUnlockInput.value, caps.storage);
         totpUnlockInput.value = "";
-        await refreshTotpUnlockUi();
+        // Render rows before revealing the unlocked UI so there is never a
+        // visible "unlocked but empty" state (and no racy half-render).
         await renderTotpList();
+        await refreshTotpUnlockUi();
       } catch (err) {
         totpStatus.textContent = err instanceof Error ? err.message : "Wrong passphrase.";
       }

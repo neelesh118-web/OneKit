@@ -153,7 +153,11 @@ describe("TOTP locked-state render", () => {
       expect(document.getElementById("totp-unlock-wrap")!.hidden).toBe(true);
     });
     const list = document.getElementById("totp-list")!;
-    expect(list.querySelectorAll("[data-totp-row]")).toHaveLength(1);
+    // Rows are rendered in the same unlock flow; wait for them so the
+    // assertions never observe a half-rendered intermediate state.
+    await vi.waitFor(() => {
+      expect(list.querySelectorAll("[data-totp-row]")).toHaveLength(1);
+    });
     const code = list.querySelector<HTMLElement>("[data-totp-code]")!;
     expect(code.textContent).toMatch(/^\d{6}$/);
     // The per-row meta carries the at-rest flag after decrypt-on-unlock.
