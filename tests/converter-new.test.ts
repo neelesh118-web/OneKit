@@ -811,4 +811,60 @@ describe("new detection + matrix", () => {
     expect(mdText).toContain("ana@example.com");
     expect(mdText).toContain("|");
   });
+
+  it("detects TOML by extension and QIF by header sniff", () => {
+    const toml = "title = \"App\"\n[server]\nhost = \"localhost\"\nport = 8080";
+    expect(detectFile(toBytes(toml), "config.toml").type).toBe("toml");
+    const qif = "!Type:Bank\nD01/02/2026\nT-12.50\nPStore\n^";
+    expect(detectFile(toBytes(qif), "bank.qif").type).toBe("qif");
+    // Content sniffing catches a .txt QIF too.
+    expect(detectFile(toBytes(qif), "bank.txt").type).toBe("qif");
+  });
+
+  it("TOML → JSON/YAML preserves sections and typed values", async () => {
+    const toml = 'title = "App"\n[server]\nhost = "localhost"\nport = 8080\nenabled = true\ntags = ["a", "b"]';
+    const json = await convertFile({ bytes: toBytes(toml), name: "config.toml" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(json.bytes));
+    expect(parsed.title).toBe("App");
+    expect(parsed.server.host).toBe("localhost");
+    expect(parsed.server.port).toBe(8080);
+    expect(parsed.server.enabled).toBe(true);
+    const yaml = await convertFile({ bytes: toBytes(toml), name: "config.toml" }, "yaml");
+    expect(new TextDecoder().decode(yaml.bytes)).toContain("localhost");
+  });
+
+  it("JSON → TOML round-trips through the parser", async () => {
+    const json = '{"title": "App", "server": {"host": "localhost", "port": 8080}}';
+    const toml = await convertFile({ bytes: toBytes(json), name: "config.json" }, "toml");
+    const tomlText = new TextDecoder().decode(toml.bytes);
+    expect(tomlText).toContain("title = \"App\"");
+    expect(tomlText).toContain("server.host = \"localhost\"");
+    // And back.
+    const back = await convertFile({ bytes: toBytes(tomlText), name: "config.toml" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(back.bytes));
+    expect(parsed.server.port).toBe(8080);
+  });
+
+  it("QIF → CSV/JSON extracts transactions", async () => {
+    const qif = "!Type:Bank\nD01/02/2026\nT-12.50\nPStore\nMCoffee\n^\nD01/03/2026\nT55.00\nPSalary\n^";
+    const json = await convertFile({ bytes: toBytes(qif), name: "bank.qif" }, "json");
+    const parsed = JSON.parse(new TextDecoder().decode(json.bytes));
+    expect(parsed.length).toBe(2);
+    expect(parsed[0].payee).toBe("Store");
+    expect(parsed[0].amount).toBe("-12.50");
+    const csv = await convertFile({ bytes: toBytes(qif), name: "bank.qif" }, "csv");
+    expect(new TextDecoder().decode(csv.bytes)).toContain("Salary");
+  });
+
+  it("html/markdown/xml → xlsx route through the table pipeline", async () => {
+    const html = '<table><tr><th>Name</th><th>City</th></tr><tr><td>Ana</td><td>Rome</td></tr></table>';
+    const xlsx = await convertFile({ bytes: toBytes(html), name: "page.html" }, "xlsx");
+    expect(await import("../src/core/converter/documents").then((d) => d.xlsxToCsv(xlsx.bytes))).toContain("Ana");
+    const md = "| Name | City |\n| --- | --- |\n| Ben | Paris |";
+    const mdXlsx = await convertFile({ bytes: toBytes(md), name: "table.md" }, "xlsx");
+    expect(await import("../src/core/converter/documents").then((d) => d.xlsxToCsv(mdXlsx.bytes))).toContain("Paris");
+    const xml = "<root><row><a>1</a><b>2</b></row><row><a>3</a><b>4</b></row></root>";
+    const xmlXlsx = await convertFile({ bytes: toBytes(xml), name: "data.xml" }, "xlsx");
+    expect(await import("../src/core/converter/documents").then((d) => d.xlsxToCsv(xmlXlsx.bytes))).toContain("3");
+  });
 });

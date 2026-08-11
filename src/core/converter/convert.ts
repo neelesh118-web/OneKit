@@ -90,6 +90,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   tsv: "text/tab-separated-values",
   xls: "application/vnd.ms-excel",
   ods: "application/vnd.oasis.opendocument.spreadsheet",
+  toml: "application/toml",
   "audio-aiff": "audio/aiff",
   csv: "text/csv",
   json: "application/json",
@@ -311,6 +312,7 @@ async function runConversion(
       if (target === "docx") return docs.markdownToDocx(md);
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
+      if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
@@ -321,6 +323,7 @@ async function runConversion(
       if (target === "docx") return docs.htmlToDocx(html);
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
+      if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return docs.htmlToPdf(html);
     }
@@ -568,6 +571,7 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Data", docs.jsonToHtml(json));
       if (target === "markdown") return toBytes(`\`\`\`json\n${docs.jsonToText(json)}\n\`\`\``);
       if (target === "jsonl") return toBytes(docs.jsonToJsonl(json));
+      if (target === "toml") return toBytes(docs.jsonToToml(json));
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
         return renderTable(docs.jsonToCsv(json), "Data", target);
       }
@@ -601,6 +605,7 @@ async function runConversion(
       if (target === "docx") return docs.htmlToDocx(docs.jsonToHtml(json));
       if (target === "epub") return docs.epubFromHtml("Data", docs.jsonToHtml(json));
       if (target === "markdown") return toBytes(`\`\`\`yaml\n${yaml.trim()}\n\`\`\``);
+      if (target === "toml") return toBytes(docs.jsonToToml(json));
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
         return renderTable(docs.jsonToCsv(json), "Data", target);
       }
@@ -613,6 +618,7 @@ async function runConversion(
       if (target === "markdown") return toBytes(`\`\`\`ini\n${text.trim()}\n\`\`\``);
       if (target === "yaml") return toBytes(docs.jsonToYaml(json));
       if (target === "xml") return toBytes(docs.jsonToXml(json));
+      if (target === "toml") return toBytes(docs.jsonToToml(json));
       return toBytes(json);
     }
     case "xml": {
@@ -621,7 +627,28 @@ async function runConversion(
       if (target === "json") return toBytes(docs.xmlToJson(xml));
       if (target === "yaml") return toBytes(docs.jsonToYaml(docs.xmlToJson(xml)));
       if (target === "markdown") return toBytes(`\`\`\`xml\n${xml.trim()}\n\`\`\``);
+      if (target === "xlsx") return docs.csvToXlsx(docs.xmlToCsv(xml));
       return toBytes(xml); // xml → text is a validated passthrough
+    }
+    case "toml": {
+      const toml = toText(bytes);
+      const json = docs.tomlToJson(toml);
+      if (target === "json") return toBytes(json);
+      if (target === "yaml") return toBytes(docs.jsonToYaml(json));
+      if (target === "xml") return toBytes(docs.jsonToXml(json));
+      if (target === "csv") return toBytes(docs.jsonToCsv(json));
+      if (target === "markdown") return toBytes(`\`\`\`toml\n${toml.trim()}\n\`\`\``);
+      return toBytes(toml); // toml → text is a validated passthrough
+    }
+    case "qif": {
+      const records = docs.qifToRecords(toText(bytes));
+      if (records.length === 0) throw new Error("No transactions found in this QIF file.");
+      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
+      if (target === "csv") return toBytes(docs.recordsToCsv(records));
+      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
+      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
+      if (target === "text") return toBytes(docs.recordsToText(records));
+      return toBytes(docs.recordsToHtml(records));
     }
     case "xlsx": {
       if (target === "csv") return toBytes(await docs.xlsxToCsv(bytes));

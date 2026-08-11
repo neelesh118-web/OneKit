@@ -1288,10 +1288,11 @@ export function xmlToCsv(xml: string): string {
   if (tags.size !== 1) {
     throw new Error("This XML isn't shaped like rows — no single repeated element to convert.");
   }
-  const rowTag = [...tags][0]!;
   const parsedRows: Record<string, string>[] = [];
   const columns: string[] = [];
-  for (const row of body.match(new RegExp(`<${rowTag}[^>]*>([\s\S]*?)<\/${rowTag}>`, "g")) ?? []) {
+  // Reuse the already-extracted row elements (the tag-set check above proved
+  // they share one tag), so no dynamically constructed regex is needed.
+  for (const row of rows) {
     const cells: Record<string, string> = {};
     for (const cell of row.matchAll(/<([\w-]+)[^>]*>([\s\S]*?)<\/\1>/g)) {
       cells[cell[1]!] = cell[2]!.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -1343,6 +1344,174 @@ export function jsonToJsonl(jsonText: string): string {
 /** CSV → JSONL: each row becomes a JSON object line. */
 export function csvToJsonl(csvText: string): string {
   return jsonToJsonl(JSON.stringify(csvToJson(csvText)));
+}
+
+/* TOML ---------------------------------------------------------------- */
+
+/** Parses a TOML scalar/array/inline-table into a JSON-compatible value. */
+function parseTomlValue(raw: string): unknown {
+  // Strip an inline comment that isn't inside quotes.
+  let value = raw;
+  let inQuote: string | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i]!;
+    if (ch === '"' || ch === "'") {
+      if (inQuote === ch) inQuote = null;
+      else if (!inQuote) inQuote = ch;
+    } else if (ch === "#" && !inQuote) {
+      value = value.slice(0, i).trim();
+      break;
+    }
+  }
+  if (value.startsWith('"') || value.startsWith("'")) {
+    try {
+      return JSON.parse(value.replace(/^'|'$/g, '"').replace(/\\'/g, "'"));
+    } catch {
+      return value.slice(1, -1);
+    }
+  }
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (/^-?\d+\.\d+$/.test(value)) return Number(value);
+  if (/^-?\d+$/.test(value)) return Number(value);
+  if (value.startsWith("[")) {
+    const inner = value.slice(1, -1);
+    if (!inner.trim()) return [];
+    // Split on commas that are outside quotes/brackets.
+    const parts: string[] = [];
+    let depth = 0;
+    let q: string | null = null;
+    let cur = "";
+    for (const ch of inner) {
+      if (ch === '"' || ch === "'") {
+        if (q === ch) q = null;
+        else if (!q) q = ch;
+      } else if (!q && (ch === "[" || ch === "{")) depth++;
+      else if (!q && (ch === "]" || ch === "}")) depth--;
+      if (!q && ch === "," && depth === 0) {
+        parts.push(cur.trim());
+        cur = "";
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur.trim()) parts.push(cur.trim());
+    return parts.map((p) => parseTomlValue(p));
+  }
+  if (value.startsWith("{")) {
+    const obj: Record<string, unknown> = {};
+    const inner = value.slice(1, -1);
+    for (const part of inner.split(",")) {
+      const eq = part.indexOf("=");
+      if (eq <= 0) continue;
+      obj[part.slice(0, eq).trim()] = parseTomlValue(part.slice(eq + 1).trim());
+    }
+    return obj;
+  }
+  return value;
+}
+
+/**
+ * Minimal TOML → JSON: sections, dotted keys, strings, numbers, booleans,
+ * arrays and inline tables. Exotic TOML (dates, multiline strings) is
+ * treated honestly as its literal text rather than guessed at.
+ */
+export function tomlToJson(toml: string): string {
+  const root: Record<string, unknown> = {};
+  let current = root;
+  for (const raw of toml.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const section = line.match(/^\[\[?([^\]]+)\]\]?$/);
+    if (section) {
+      const path = section[1]!.trim().split(".").map((s) => s.trim());
+      let node = root;
+      for (const key of path) {
+        const next = node[key];
+        if (typeof next !== "object" || next === null || Array.isArray(next)) {
+          node[key] = {};
+        }
+        node = node[key] as Record<string, unknown>;
+      }
+      current = node;
+      continue;
+    }
+    const kv = line.match(/^([\w.-]+)\s*=\s*(.*)$/);
+    if (!kv) continue;
+    // Dotted keys (server.host = …) nest into tables under the current section.
+    const keyParts = kv[1]!.trim().split(".");
+    let node = current;
+    for (const part of keyParts.slice(0, -1)) {
+      const next = node[part];
+      if (typeof next !== "object" || next === null) node[part] = {};
+      node = node[part] as Record<string, unknown>;
+    }
+    node[keyParts[keyParts.length - 1]!] = parseTomlValue(kv[2]!.trim());
+  }
+  return JSON.stringify(root, null, 2);
+}
+
+/** JSON → TOML: objects become [section] tables, object arrays become [[tables]]. */
+export function jsonToToml(jsonText: string): string {
+  const parsed = parseJsonOrThrow(jsonText);
+  const lines: string[] = [];
+  const walk = (obj: Record<string, unknown>, prefix: string): void => {
+    for (const [k, v] of Object.entries(obj)) {
+      const key = prefix ? `${prefix}.${k}` : k;
+      if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+        walk(v as Record<string, unknown>, key);
+      } else if (Array.isArray(v) && v.every((item) => item !== null && typeof item === "object")) {
+        for (const item of v) {
+          lines.push(`[[${key}]]`);
+          walk(item as Record<string, unknown>, "");
+        }
+      } else {
+        lines.push(`${key} = ${tomlScalar(v)}`);
+      }
+    }
+  };
+  walk(parsed as Record<string, unknown>, "");
+  return lines.length > 0 ? lines.join("\n") + "\n" : "";
+}
+
+function tomlScalar(v: unknown): string {
+  if (typeof v === "string") return JSON.stringify(v);
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "number") return String(v);
+  if (Array.isArray(v)) return `[${v.map(tomlScalar).join(", ")}]`;
+  return "{}";
+}
+
+/* QIF ----------------------------------------------------------------- */
+
+const QIF_FIELDS: Record<string, string> = {
+  D: "date", T: "amount", U: "amount", P: "payee", M: "memo", N: "number",
+  C: "cleared", L: "category", A: "address", S: "split_category",
+  E: "split_memo", "$": "split_amount"
+};
+
+/**
+ * Parses a QIF (Quicken interchange) export into per-transaction records.
+ * Every record gets the standard fields (date/amount/payee/memo/…) that
+ * are present; unknown single-letter fields are kept as field_X.
+ */
+export function qifToRecords(qif: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  let current: Record<string, string> = {};
+  for (const line of qif.split(/\r?\n/)) {
+    const t = line.trim();
+    if (t === "^") {
+      if (Object.keys(current).length > 0) records.push(current);
+      current = {};
+      continue;
+    }
+    if (t.startsWith("!") || !t) continue;
+    const m = t.match(/^([A-Za-z$])(.*)$/);
+    if (!m) continue;
+    current[QIF_FIELDS[m[1]!] ?? `field_${m[1]!}`] = m[2]!.trim();
+  }
+  if (Object.keys(current).length > 0) records.push(current);
+  return records;
 }
 
 /** One parsed subtitle cue. */

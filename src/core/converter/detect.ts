@@ -18,7 +18,7 @@ export type FileType =
   | "video-mp4" | "video-webm" | "video-mov"
   | "text-base64" | "text-hex" | "text-url"
   | "vcf" | "ics" | "srt" | "vtt" | "gpx" | "lrc" | "sitemap" | "rss" | "kml" | "bookmarks"
-  | "bibtex" | "jsonl" | "m3u" | "eml" | "torrent"
+  | "bibtex" | "jsonl" | "m3u" | "eml" | "torrent" | "qif" | "toml"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -39,6 +39,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   vcf: "VCF contacts", ics: "ICS calendar", srt: "SRT subtitles", vtt: "VTT subtitles", gpx: "GPX GPS tracks",
   lrc: "LRC lyrics", sitemap: "Sitemap XML", rss: "RSS/Atom feed", kml: "KML map data", bookmarks: "Browser bookmarks",
   bibtex: "BibTeX citations", jsonl: "JSON Lines data", m3u: "M3U playlist", eml: "EML email", torrent: "Torrent metadata",
+  qif: "QIF transactions", toml: "TOML config",
   unknown: "Unknown format"
 };
 
@@ -64,6 +65,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   // content sniffing instead (see detectFromBytes).
   sitemap: [], rss: ["rss", "atom"], kml: ["kml"],
   bibtex: ["bib"], jsonl: ["jsonl", "ndjson"], m3u: ["m3u", "m3u8"], eml: ["eml"], torrent: ["torrent"],
+  qif: ["qif"], toml: ["toml"],
   // bookmarks files are HTML with a NETSCAPE-Bookmark header — no own extension,
   // resolved by content sniffing.
   bookmarks: [],
@@ -187,7 +189,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     fallback !== "unknown" &&
     fallback !== "xml" &&
     !(fallback === "html" && head.includes("netscape-bookmark")) &&
-    !(fallback === "text" && /@\w+\s*\{/.test(head))
+    !(fallback === "text" && /@\w+\s*\{/.test(head)) &&
+    !(fallback === "text" && head.startsWith("!type:"))
   ) {
     return fallback;
   }
@@ -210,6 +213,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (trimmed.startsWith("#extm3u")) return "m3u";
   if (trimmed.startsWith("d8:announce")) return "torrent";
   if (/^from:/im.test(trimmed) && /^content-type:/im.test(trimmed)) return "eml";
+  if (trimmed.startsWith("!type:")) return "qif";
   if (/@\w+\s*\{/.test(trimmed)) return "bibtex";
   if (trimmed.startsWith("{") && head.includes("\n{")) return "jsonl";
   if (trimmed.startsWith("{")) return "json";

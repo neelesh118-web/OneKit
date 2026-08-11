@@ -12,7 +12,7 @@ export type TargetFormat =
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg"
   | "pdf" | "html" | "markdown" | "text" | "docx" | "epub"
   | "rtf" | "odt" | "pptx"
-  | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods"
+  | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml"
   | "audio-aiff"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2"
@@ -29,7 +29,7 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", epub: "EPUB ebook",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", pptx: "PowerPoint (PPTX)",
   csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
-  tsv: "TSV", xls: "Excel 97–2003 (XLS)", ods: "OpenDocument sheet (ODS)",
+  tsv: "TSV", xls: "Excel 97–2003 (XLS)", ods: "OpenDocument sheet (ODS)", toml: "TOML config",
   "audio-aiff": "AIFF",
   zip: "ZIP", tar: "TAR", gzip: "GZIP",
   "font-ttf": "TTF", "font-woff": "WOFF", "font-woff2": "WOFF2",
@@ -106,15 +106,17 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   pptx: docTargetsExcept("pptx"),
   fb2: docTargetsExcept(),
   mobi: docTargetsExcept(),
-  html: ["markdown", "text", "pdf", "docx", "epub", "csv", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
-  markdown: ["html", "text", "pdf", "docx", "epub", "csv", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
+  html: ["markdown", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
+  markdown: ["html", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
   text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "html", "markdown", "epub", "rtf", "odt", "pptx"],
   csv: [...tableTargetsExcept("csv"), "jsonl"],
-  json: [...tableTargetsExcept("json"), "text", "jsonl"],
+  json: [...tableTargetsExcept("json"), "text", "jsonl", "toml"],
   tsv: [...tableTargetsExcept("tsv"), "jsonl"],
-  yaml: tableTargetsExcept("yaml"),
-  xml: ["json", "text", "yaml", "html", "markdown", "csv", "txt-base64", "txt-hex"],
-  ini: ["json", "yaml", "xml", "text", "markdown", "txt-base64", "txt-hex"],
+  yaml: [...tableTargetsExcept("yaml"), "toml"],
+  xml: ["json", "text", "yaml", "html", "markdown", "csv", "xlsx", "txt-base64", "txt-hex"],
+  ini: ["json", "yaml", "xml", "text", "markdown", "toml", "txt-base64", "txt-hex"],
+  toml: ["json", "yaml", "xml", "csv", "markdown", "text", "txt-base64", "txt-hex"],
+  qif: ["csv", "json", "xlsx", "html", "markdown", "text", "txt-base64", "txt-hex"],
   zip: ["tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
   tar: ["zip", "gzip", "text", "json", "txt-base64", "txt-hex"],
   gzip: ["zip", "tar", "text", "txt-base64", "txt-hex"],
@@ -177,6 +179,7 @@ export function targetExtension(target: TargetFormat): string {
     case "tsv": return "tsv";
     case "xls": return "xls";
     case "ods": return "ods";
+    case "toml": return "toml";
     case "audio-aiff": return "aiff";
     case "pdf": return "pdf";
     case "html": return "html";
