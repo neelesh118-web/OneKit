@@ -10,9 +10,9 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **77** |
+| Source formats | **80** |
 | Target formats | **49** |
-| Working pairs | **801** |
+| Working pairs | **837** |
 
 The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
@@ -28,6 +28,14 @@ the matrix is without a code path.**
 - DOCM and DOTX use the existing OOXML Word reader and expose 11 document/raw-encoding targets each. They deliberately do not advertise CSV/XLSX because an arbitrary Word file need not contain a table.
 - XLSM uses the existing OOXML spreadsheet reader and exposes 16 table/document/raw-encoding targets; malformed non-ZIP input is rejected before parsing.
 - Added 42 parameterized tests covering every new pair, source detection, output signatures/containers, retained content, and corrupt input. Focused verification: 42/42 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 2 - 2026-08-12 02:45 IST - OOXML presentation variants
+
+- Added sources: `pptm`, `potx`, `ppsx`.
+- Added 36 working pairs, taking the matrix from **801 to 837 pairs**.
+- All three variants are ZIP-based PresentationML packages and use the existing slide XML reader. Each exposes 12 document, presentation, and raw-encoding targets, including a clean `pptx` output rebuilt without macros.
+- Added 40 parameterized tests covering every new pair, source detection, output signatures/containers, retained slide text, and corrupt input. Focused verification: 40/40 tests passing; TypeScript clean.
 - Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families

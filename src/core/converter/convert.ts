@@ -293,6 +293,9 @@ async function runConversion(
     case "odp":
       return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target);
     case "pptx":
+    case "pptm":
+    case "potx":
+    case "ppsx":
       return renderDocument(slidesToHtml(pptxToSlides(bytes), "Presentation"), "Presentation", target);
     case "fb2": {
       const xml = toText(bytes);

@@ -8,7 +8,7 @@ export type FileType =
   | "image-png" | "image-jpeg" | "image-webp" | "image-gif" | "image-bmp" | "image-avif" | "image-svg"
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
-  | "rtf" | "odt" | "odp" | "ods" | "pptx" | "xls"
+  | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
@@ -29,7 +29,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   pdf: "PDF document", docx: "Word document", docm: "Macro-enabled Word document",
   dotx: "Word template", xlsx: "Excel workbook", xlsm: "Macro-enabled Excel workbook", epub: "EPUB ebook",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
-  ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", xls: "Excel 97–2003 workbook",
+  ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", pptm: "Macro-enabled PowerPoint deck",
+  potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
   fb2: "FictionBook (FB2)", mobi: "MOBI ebook", "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
   html: "HTML page", markdown: "Markdown", text: "Plain text",
@@ -53,7 +54,8 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-tiff": ["tif", "tiff"], "image-ico": ["ico", "cur"], "image-dds": ["dds"],
   pdf: ["pdf"], docx: ["docx"], docm: ["docm"], dotx: ["dotx"],
   xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
-  rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"], xls: ["xls"],
+  rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
+  pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
   fb2: ["fb2"], mobi: ["mobi", "azw", "prc"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], text: ["txt"],
@@ -175,7 +177,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       if (fallback === "xlsm") return fallback;
       return "xlsx";
     }
-    if (window.includes("[Content_Types].xml") && window.includes("ppt/")) return "pptx";
+    if (window.includes("[Content_Types].xml") && window.includes("ppt/")) {
+      if (fallback === "pptm" || fallback === "potx" || fallback === "ppsx") return fallback;
+      return "pptx";
+    }
     if (window.includes("mimetypeapplication/epub")) return "epub";
     // OpenDocument packages name their flavour in the stored mimetype entry.
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
@@ -187,7 +192,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     if (
       fallback === "docx" || fallback === "docm" || fallback === "dotx" ||
       fallback === "xlsx" || fallback === "xlsm" || fallback === "epub" ||
-      fallback === "pptx" || fallback === "odt" || fallback === "odp" || fallback === "ods"
+      fallback === "pptx" || fallback === "pptm" || fallback === "potx" || fallback === "ppsx" ||
+      fallback === "odt" || fallback === "odp" || fallback === "ods"
     ) {
       return fallback;
     }
