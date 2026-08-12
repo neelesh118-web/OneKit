@@ -401,10 +401,10 @@ async function runConversion(
     case "mobi":
     case "azw":
     case "prc": {
-      if (source === "azw" && target === "mobi") {
-        // AZW1 is the same PalmDB/MOBI container. Fully parse it first so
-        // corrupt, DRM-protected, and unsupported HUFF/CDIC books are never
-        // mislabeled as a successful conversion.
+      if ((source === "azw" || source === "prc") && target === "mobi") {
+        // AZW1 and MOBI-book PRC files use the same PalmDB/MOBI container.
+        // Fully parse first so a generic PRC, corrupt input, DRM-protected
+        // book, or unsupported HUFF/CDIC book is never merely relabeled.
         mobiToHtml(bytes);
         return bytes.slice();
       }
@@ -465,7 +465,7 @@ async function runConversion(
       }
       const csv = await docs.xlsxToCsv(bytes);
       if (target === "image-svg") return docs.csvToSvg(csv);
-      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp" || target === "image-avif" || target === "image-bmp") {
         return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
       }
       return renderTable(csv, "Spreadsheet", target);
@@ -525,8 +525,13 @@ async function runConversion(
       }
       return renderDocument(html, "Document", target);
     }
-    case "zabw":
-      return renderDocument(zabwToHtml(bytes), "Document", target);
+    case "zabw": {
+      const html = zabwToHtml(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Document", target);
+    }
     case "oeb": {
       const html = oebToHtml(toText(bytes));
       if (target === "image-png" || target === "image-jpeg") return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
@@ -917,7 +922,7 @@ async function runConversion(
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
       if (target === "image-svg") return docs.csvToSvg(csv);
-      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp" || target === "image-avif" || target === "image-bmp") {
         return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
       }
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {

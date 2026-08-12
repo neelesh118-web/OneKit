@@ -193,3 +193,12 @@
 - Tests: 29 focused cases validate all 19 pairs, matrix exposure, native signatures/MIME/names, ODP package content, and corrupt or blank input rejection. The complete suite passes 1,734 tests across 219 files.
 
 - Interleaved proprietary legacy Office, raw-camera, and unsupported ebook writer targets through rank 2081 remain skipped where no honest local parser or encoder exists.
+
+## Batch 22
+
+- Added 7 demand-ranked pairs: XLS to AVIF/BMP (ranks 2144/2145), XLSX to AVIF/BMP (ranks 2162/2163), ZABW to JPG/PNG (ranks 2182/2183), and PRC to MOBI (rank 2357).
+- Pair total: 1,422.
+- Formats: spreadsheet tables feed the existing local AVIF/BMP encoders; gzip-compressed AbiWord text feeds the SVG raster pipeline; validated MOBI-book PRC containers normalize losslessly to MOBI only after full corruption, DRM, and compression checks.
+- Tests: 15 focused cases validate all seven pairs, native signatures/MIME/names, exact PRC byte preservation, matrix exposure, empty spreadsheet rejection, and corrupt/DRM/HUFF-CDIC rejection. The complete repository suite passed with exit code 0.
+
+- Interleaved VSD/WMF/WPD/WPS, camera-RAW outputs, EPS writing, legacy Office, and proprietary ebook targets through rank 2357 remain skipped because honest local parsers or encoders are unavailable.
