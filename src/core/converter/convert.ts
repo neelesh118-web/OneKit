@@ -436,7 +436,8 @@ async function runConversion(
     }
     case "txtz": {
       const html = txtzToHtml(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Book", target);
@@ -572,6 +573,12 @@ async function runConversion(
       if (target === "txt-hex") return toBytes(txt.textToHex(text));
       if (target === "pdf") return docs.textToPdf(text);
       if (target === "docx") return docs.textToDocx(text);
+      if (target === "dotx") {
+        if (!text.trim()) throw new Error("This document contains no readable text to convert.");
+        return docs.textToDotx(text);
+      }
+      if (target === "rst") return toBytes(docs.textToRst(text, "Text document"));
+      if (target === "tex") return toBytes(docs.textToTex(text));
       if (target === "image-svg") return docs.textToSvg(text);
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");

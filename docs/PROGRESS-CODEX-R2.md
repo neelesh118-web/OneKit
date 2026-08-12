@@ -256,3 +256,12 @@
 - Tests: 20 focused cases plus the legacy matrix suite validate all six outputs, signatures/MIME/names, matrix exposure, and blank-input rejection. TypeScript and the complete repository suite passed with exit code 0.
 
 - RocketBook and proprietary SDA/SDC/SDW/WPD/WPS/iWork formats, HEIC, legacy PPT, MOBI writing, and dishonest RAW targets through rank 3621 remain honest skips.
+
+## Batch 29
+
+- Added 6 demand-ranked pairs: TXT to DOTX/RST/TeX (ranks 3631/3635/3637) and TXTZ to GIF/SVG/WebP (ranks 3642/3646/3648).
+- Pair total: 1,463.
+- Formats: plain text is packaged as genuine Word template OOXML or written as escaped structured RST/standalone TeX; multi-chapter text archives return SVG directly or feed local GIF/WebP encoders.
+- Tests: 15 focused cases validate DOTX package content, text escaping/structure, image signatures/MIME/names, matrix exposure, and blank, corrupt, or text-free archive rejection. TypeScript and the complete repository suite passed with exit code 0.
+
+- ABW/DjVu/DOCM/HWP/HWPX/LWP and other proprietary or legacy writers, HEIC, and unsupported document/ebook targets through rank 3648 remain honest skips.
