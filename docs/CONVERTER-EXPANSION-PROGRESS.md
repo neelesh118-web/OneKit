@@ -1,169 +1,66 @@
-# Converter expansion progress
+# OneKit Converter Expansion — Progress
 
-The Convert tab renders straight from `MATRIX` in
-`src/core/converter/matrix.ts`, so every entry in it is a promise that the
-conversion really runs, locally, on the user's machine. This file records what
-each expansion round added and — just as importantly — what was left out and
-why.
+Status tracker for the autonomous converter-expansion rounds. Every claimed
+pair runs through `convertFile` — no stubs, no fake matrix entries.
 
-## Where the matrix stands
+## Live status
 
 | | Count |
 |---|---|
-| Source formats | **90** |
-| Target formats | **52** |
-| Working pairs | **967** |
+| Source formats | **107** |
+| Working pairs | **1,275** |
+| Pairs added this campaign (from 763) | **+512** |
 
-The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
-490 run to completion under Node, 143 need a real browser (canvas,
-`<video>`, or `decodeAudioData`) and fail honestly outside one, and the rest
-return an honest error for a fixture that genuinely lacks the needed content
-(a `.docx` with no table, a `.gz` that isn't a gzipped archive). **No pair in
-the matrix is without a code path.**
+## Campaign so far
 
-## Batch 1 - 2026-08-12 02:36 IST - OOXML variants
+### Codex round 1 — documents / office / ebooks (branch `codex/converter-round`)
 
-- Added sources: `docm`, `dotx`, `xlsm`.
-- Added 38 working pairs, taking the matrix from **763 to 801 pairs**.
-- DOCM and DOTX use the existing OOXML Word reader and expose 11 document/raw-encoding targets each. They deliberately do not advertise CSV/XLSX because an arbitrary Word file need not contain a table.
-- XLSM uses the existing OOXML spreadsheet reader and exposes 16 table/document/raw-encoding targets; malformed non-ZIP input is rejected before parsing.
-- Added 42 parameterized tests covering every new pair, source detection, output signatures/containers, retained content, and corrupt input. Focused verification: 42/42 tests passing; TypeScript clean.
-- Dependencies added: none.
+Base 763 → **967 pairs** across 7 batches:
 
-## Batch 2 - 2026-08-12 02:45 IST - OOXML presentation variants
+- **Batch 1 — DOCM, DOTX, XLSM** (801 pairs): Office macro/legacy variants
+  wired through the existing DOCX/XLSX pipelines with container probing.
+- **Batch 2 — PPTM, POTX, PPSX** (837 pairs): PowerPoint macro/template/
+  slideshow variants.
+- **Batch 3 — RST, TeX** (859 pairs): reStructuredText and TeX as sources
+  and targets.
+- **Batch 4 — HTMLZ, TXTZ** (881 pairs): zipped HTML/text bundles.
+- **Batch 5 — ABW, OEB, PML** (914 pairs): AbiWord, Open eBook, and Palm
+  Markup Language (with real Palm database record handling).
+- **Batch 6 — AZW, PRC, ZABW** (947 pairs): Kindle/Mobipocket wrappers and
+  compressed AbiWord.
+- **Batch 7 — FB2 target** (967 pairs): standards-shaped FictionBook 2 XML
+  output with metadata, XML escaping and paragraph preservation.
 
-- Added sources: `pptm`, `potx`, `ppsx`.
-- Added 36 working pairs, taking the matrix from **801 to 837 pairs**.
-- All three variants are ZIP-based PresentationML packages and use the existing slide XML reader. Each exposes 12 document, presentation, and raw-encoding targets, including a clean `pptx` output rebuilt without macros.
-- Added 40 parameterized tests covering every new pair, source detection, output signatures/containers, retained slide text, and corrupt input. Focused verification: 40/40 tests passing; TypeScript clean.
-- Dependencies added: none.
+### Claude Code round 1 — image / video / audio (branch `claude/converter-round`)
 
-## Batch 3 - 2026-08-12 02:52 IST - publishing markup
+Base 763 → **1,071 pairs** across 4 batches:
 
-- Added sources: `rst`, `tex` / `.latex`.
-- Added 22 working pairs, taking the matrix from **837 to 859 pairs**.
-- Added a local text-based publishing reader for reStructuredText headings, lists, literal blocks, links and emphasis, plus a TeX/LaTeX reader for document bodies, section hierarchy, lists, common inline commands and readable math content.
-- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Inputs containing binary NUL data fail honestly.
-- Added 26 parameterized tests covering every new pair, semantic parsing, detection, output signatures/containers, retained content, and corrupt binary input. Focused verification: 26/26 tests passing; TypeScript clean.
-- Dependencies added: none.
+- **Batch 1 — Camera RAW preview extraction** (919 pairs): CR2/NEF/ARW/DNG/
+  ORF/PEF/RW2/DCR/ERF/3FR/MOS/RAF embedded-preview readers.
+- **Batch 2 — TGA + PPM raster codecs** (991 pairs): read and write for both
+  formats.
+- **Batch 3 — Photoshop PSD** (1,030 pairs): flattened-composite decode/
+  encode (raw + PackBits RLE, RGB/gray, alpha).
+- **Batch 4 — Apple ICNS** (1,071 pairs): chunk-container read/write via
+  embedded PNG.
 
-## Batch 4 - 2026-08-12 03:04 IST - compressed text ebooks
+## Merge
 
-- Added sources: `htmlz`, `txtz`.
-- Added 22 working pairs, taking the matrix from **859 to 881 pairs**.
-- HTMLZ reads the primary HTML document from the ZIP container. TXTZ finds text chapters, orders them by archive path, rejects binary entries, and renders them as structured HTML.
-- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Missing or unreadable book payloads fail honestly.
-- Added 26 parameterized tests covering every new pair, detection versus generic ZIP, chapter ordering, output signatures/containers, retained content, and malformed archives. Focused verification: 26/26 tests passing; TypeScript clean.
-- Dependencies added: none.
+Both branches merged into `main` with a clean matrix union (the domain split
+was disjoint — 763 + 204 + 308 = 1,275, zero overlap). The combined backlog
+lives in `docs/converter-backlog.csv` (12,986 demand-ranked rows).
 
-## Batch 5 - 2026-08-12 03:18 IST - open XML and Palm markup documents
+## Honest caveats (carried from both agents)
 
-- Added sources: `abw`, `oeb`, `pml`.
-- Added 33 working pairs, taking the matrix from **881 to 914 pairs**.
-- AbiWord XML preserves separately styled headings and paragraphs. Open eBook reads embedded HTML/XML book bodies and rejects manifest-only packages that lack prose. Palm Markup Language preserves chapter headings, paragraphs, line breaks, centering and common emphasis codes.
-- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Mislabeled, binary, or content-free input fails honestly.
-- Added 38 parameterized tests covering every new pair, detection, source structure, output signatures/containers, retained content, and malformed inputs. Focused verification: 38/38 tests passing; TypeScript clean.
-- Dependencies added: none.
-
-## Batch 6 - 2026-08-12 03:30 IST - Palm ebook variants and compressed AbiWord
-
-- Added sources: `azw`, `prc`, `zabw`.
-- Added 33 working pairs, taking the matrix from **914 to 947 pairs**.
-- AZW and PRC retain their source identity while using the real Palm database/PalmDOC MOBI reader; encrypted DRM and unsupported compression continue to fail honestly. ZABW is gunzipped locally and then parsed as validated AbiWord XML.
-- Each source exposes 11 document and raw-encoding targets through the shared document renderer.
-- Added 38 parameterized tests covering every new pair, container-specific detection, real Palm database records, gzip decompression, output signatures/containers, retained content, and corrupt inputs. Focused verification: 38/38 tests passing; TypeScript clean.
-- Dependencies added: none.
-
-## Batch 7 - 2026-08-12 03:45 IST - FictionBook output
-
-- Added target: `fb2` with standards-shaped FictionBook 2 XML, metadata, XML escaping, and readable paragraph preservation.
-- Added 20 working pairs, taking the matrix from **947 to 967 pairs**, across PDF, Word variants, EPUB, RTF, OpenDocument, presentation variants, HTML/Markdown/text, publishing markup, and AbiWord/Open eBook sources.
-- Kept the exposure explicit rather than adding FB2 to every document-shaped source; only the 20 source paths exercised in this batch advertise the target.
-- Added 22 tests covering every new pair, FB2 structure and MIME/name metadata, parser round-tripping, XML escaping, and corrupt-container rejection. Focused verification: 22/22 tests passing; TypeScript clean.
-- Corrected the target inventory count to the 52 unique targets currently advertised by `MATRIX`.
-- Dependencies added: none.
-
-## This round: raster, Office, e-book and AIFF families
-
-### New format families
-
-| Family | Sources added | What backs it |
-|---|---|---|
-| Raster containers | `image-tiff`, `image-ico`, `image-dds` | `raster.ts`, `dds.ts` — decode to pixels, then re-wrap as BMP so the existing canvas pipeline in `images.ts` handles them like any other image |
-| Presentations | `pptx`, `odp` | `pptx.ts`, `odf.ts` — slide text in reading order, via `xml-text.ts` |
-| Documents | `rtf`, `odt` | `rtf.ts` (control-word parser), `odf.ts` (content.xml reader) |
-| Spreadsheets | `xls`, `ods` | The vendored SheetJS build already reads BIFF8 and OpenDocument — routed into the existing `xlsxToCsv` pipeline |
-| E-books | `fb2`, `mobi` | `ebooks.ts` — FictionBook XML, and PalmDOC LZ77 decompression for MOBI |
-| Audio | `audio-aiff`, `audio-aac` | `aiff.ts` (big-endian PCM, incl. AIFF-C `sowt`/`fl32`); AAC via the browser decoder |
-
-### New targets
-
-`image-bmp`, `image-tiff`, `image-dds`, `image-svg`, `rtf`, `odt`, `pptx`,
-`tsv`, `xls`, `ods`, `audio-aiff`.
-
-These are wired to *every* source that can honestly reach them, not just the
-new ones — two shared renderers in `convert.ts` do the work:
-
-- **`renderDocument`** — every prose source funnels through HTML, so PDF, DOCX,
-  EPUB, RTF, ODT and PPTX output is one implementation shared by `pdf`, `docx`,
-  `epub`, `html`, `markdown`, `text`, `rtf`, `odt`, `odp`, `pptx`, `fb2` and
-  `mobi`.
-- **`renderTable`** — every tabular source funnels through CSV, so CSV/TSV/
-  JSON/YAML/XML/XLSX/XLS/ODS and the document renderings of a table are one
-  implementation shared by `csv`, `tsv`, `json`, `yaml`, `xlsx`, `xls`, `ods`
-  and every record-shaped source (`vcf`, `ics`, `gpx`, `kml`, …).
-
-### Files changed
-
-New: `src/core/converter/{raster,dds,rtf,pptx,odf,aiff,ebooks,xml-text}.ts`
-and `tests/converter-{raster,dds,rtf,office,aiff,ebooks}.test.ts` (74 tests).
-
-Extended: `detect.ts` (13 source types, magic bytes, ZIP/OLE2 probes),
-`matrix.ts` (targets, labels, extensions, rows), `convert.ts` (MIME map,
-dispatch, the two shared renderers), `images.ts` (decode TIFF/ICO/DDS in,
-encode BMP/TIFF/DDS/SVG out), `documents.ts` (RTF/ODT/PPTX and TSV/XLS/ODS
-writers).
-
-## Honest caveats
-
-These are real conversions, but they are not magic. Stated plainly:
-
-- **PPTX / ODT / RTF / EPUB output preserves text and structure, not layout.**
-  Fonts, positioning, images and styling are not carried across.
-- **`image-svg` is an embedded raster, not a vector trace.** The output is a
-  valid SVG that displays the picture, with the original pixels inside it. The
-  target is labelled "SVG (embedded image)" so it can't be mistaken for
-  vectorisation.
-- **DDS output is uncompressed BGRA**, not DXT-compressed. Reading covers
-  DXT1/DXT3/DXT5 and uncompressed surfaces.
-- **MOBI reading covers unencrypted PalmDOC.** DRM-protected and HUFF/CDIC
-  books raise an honest error rather than producing garbage.
-- **TIFF reading covers baseline TIFF** (uncompressed, PackBits, LZW, Deflate,
-  8-bit samples). JPEG-in-TIFF, 16-bit samples, tiled and planar layouts raise
-  an honest error.
-- **PDF → anything textual is text extraction.** Scanned PDFs with no text
-  layer produce no text (the OCR tool is a separate feature).
-
-## Deliberately left out
-
-| Format | Why |
-|---|---|
-| HEIC / HEIF | Needs a wasm decoder — a new npm dependency, outside this round's file scope, and a 1 MB+ bundle cost for the extension |
-| OPUS decode, library-backed TIFF | Same reason: a new dependency |
-| AVI, WMV, MKV | Depend on demuxers Chrome doesn't reliably provide; the matrix would promise conversions that fail on most files |
-| EMF, AI, PSD, CDR | No honest local implementation at a sane size |
-| `png → svg` as real vectorisation | Tracing is a different problem from container conversion; the embedded-image SVG above is offered instead, and labelled as such |
-| Old binary `.doc` / `.ppt` | Detected as OLE2 compound files, but only the workbook stream is readable — they resolve to "unknown" rather than claiming support |
-| MIDI → MP3 | Needs a synthesiser and a soundfont |
+- Real conversions, not magic: PPTX/ODT/RTF/EPUB output preserves text and
+  structure, not layout; SVG targets embed the raster (labelled); MOBI is
+  unencrypted PalmDOC only; TIFF is baseline (uncompressed/PackBits/LZW/
+  Deflate, 8-bit); PSD is flattened composite only; RAW is embedded preview
+  extraction; HEIC/HEVC/OPUS/AVI/WMV/MKV and real vectorisation are
+  deliberately out of scope and rejected with honest errors.
 
 ## Verification
 
 - `npx tsc --noEmit` — clean
-- `npx vitest run` — 169 files, 1152 tests passing
-- `npm run build` — succeeds (21.18 MB output)
-- Full pair sweep — 695/695 pairs reach a real implementation, 0 unimplemented
-
-Worth doing by hand before a store release: open a generated `.pptx` and
-`.odt` in real Office, and exercise the Convert tab's four special modes
-(images→PDF, images→animated GIF, PDF→pages, GIF→frames) in the browser, since
-those paths need a canvas the test suite can't provide.
+- `npx vitest run --pool=threads` — full suite green
+- `npm run build` — succeeds

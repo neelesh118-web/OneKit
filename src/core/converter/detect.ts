@@ -20,6 +20,9 @@ export type FileType =
   | "vcf" | "ics" | "srt" | "vtt" | "gpx" | "lrc" | "sitemap" | "rss" | "kml" | "bookmarks"
   | "bibtex" | "jsonl" | "m3u" | "eml" | "torrent" | "qif" | "toml" | "ofx" | "gedcom"
   | "mbox" | "ldif" | "cue"
+  | "raw-cr2" | "raw-nef" | "raw-arw" | "raw-dng" | "raw-orf" | "raw-pef" | "raw-rw2"
+  | "raw-dcr" | "raw-erf" | "raw-3fr" | "raw-mos" | "raw-raf"
+  | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -49,6 +52,12 @@ export const TYPE_LABELS: Record<FileType, string> = {
   bibtex: "BibTeX citations", jsonl: "JSON Lines data", m3u: "M3U playlist", eml: "EML email", torrent: "Torrent metadata",
   qif: "QIF transactions", toml: "TOML config", ofx: "OFX statements", gedcom: "GEDCOM family tree",
   mbox: "mbox email archive", ldif: "LDIF directory data", cue: "CUE sheet",
+  "raw-cr2": "Canon RAW (CR2)", "raw-nef": "Nikon RAW (NEF)", "raw-arw": "Sony RAW (ARW)",
+  "raw-dng": "Adobe DNG", "raw-orf": "Olympus RAW (ORF)", "raw-pef": "Pentax RAW (PEF)",
+  "raw-rw2": "Panasonic RAW (RW2)", "raw-dcr": "Kodak RAW (DCR)", "raw-erf": "Epson RAW (ERF)",
+  "raw-3fr": "Hasselblad RAW (3FR)", "raw-mos": "Leaf RAW (MOS)", "raw-raf": "Fujifilm RAW (RAF)",
+  "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
+  "image-icns": "Apple icon (ICNS)",
   unknown: "Unknown format"
 };
 
@@ -82,6 +91,10 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   // bookmarks files are HTML with a NETSCAPE-Bookmark header — no own extension,
   // resolved by content sniffing.
   bookmarks: [],
+  "raw-cr2": ["cr2"], "raw-nef": ["nef"], "raw-arw": ["arw"], "raw-dng": ["dng"],
+  "raw-orf": ["orf"], "raw-pef": ["pef"], "raw-rw2": ["rw2"], "raw-dcr": ["dcr"],
+  "raw-erf": ["erf"], "raw-3fr": ["3fr"], "raw-mos": ["mos"], "raw-raf": ["raf"],
+  "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
   unknown: []
 };
 
@@ -119,6 +132,17 @@ function textWindow(bytes: Uint8Array, offset: number, length: number): string {
   return out;
 }
 
+/**
+ * Camera RAW formats built on the TIFF/EP container — they share the exact
+ * "II*\0"/"MM\0*" byte-order mark with baseline TIFF, so only the file's
+ * own extension (carried in as `fallback`) tells them apart from a plain
+ * .tiff and from each other.
+ */
+const RAW_TIFF_TYPES = new Set<FileType>([
+  "raw-cr2", "raw-nef", "raw-arw", "raw-dng", "raw-orf", "raw-pef", "raw-rw2",
+  "raw-dcr", "raw-erf", "raw-3fr", "raw-mos"
+]);
+
 /** Detects from magic bytes; container flavours (docx/xlsx/epub) need probing. */
 export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType {
   if (hasPrefix(bytes, [0x89, 0x50, 0x4e, 0x47])) return "image-png";
@@ -127,12 +151,30 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x42, 0x4d])) return "image-bmp";
   if (asciiAt(bytes, 0, "RIFF") && asciiAt(bytes, 8, "WEBP")) return "image-webp";
   if (asciiAt(bytes, 4, "ftypavif") || asciiAt(bytes, 4, "ftypavis")) return "image-avif";
-  // TIFF byte-order marks; RAW camera files share them, so the decoder is
-  // what decides whether the contents are really baseline TIFF.
-  if (hasPrefix(bytes, [0x49, 0x49, 0x2a, 0x00]) || hasPrefix(bytes, [0x4d, 0x4d, 0x00, 0x2a])) return "image-tiff";
-  // ICO/CUR directories start with a zero word then the resource type.
-  if (hasPrefix(bytes, [0x00, 0x00, 0x01, 0x00]) || hasPrefix(bytes, [0x00, 0x00, 0x02, 0x00])) return "image-ico";
+  // Fujifilm RAF carries its own ASCII header, not a TIFF byte-order mark.
+  if (asciiAt(bytes, 0, "FUJIFILMCCD-RAW")) return "raw-raf";
+  // TIFF byte-order marks; most camera RAW formats are TIFF/EP containers
+  // that share them byte-for-byte with baseline TIFF. The extension is what
+  // tells them apart — trust it when it names one of the known RAW kinds,
+  // otherwise treat the bytes as plain TIFF (the decoder is the final judge).
+  if (hasPrefix(bytes, [0x49, 0x49, 0x2a, 0x00]) || hasPrefix(bytes, [0x4d, 0x4d, 0x00, 0x2a])) {
+    if (RAW_TIFF_TYPES.has(fallback)) return fallback;
+    return "image-tiff";
+  }
+  // ICO/CUR directories start with a zero word then the resource type — but
+  // an uncompressed-truecolor TGA with no ID/colour-map field starts the
+  // same way ([0,0,2,0,...]) purely by coincidence, so trust the .tga
+  // extension over this magic when the two collide.
+  if (
+    fallback !== "image-tga" &&
+    (hasPrefix(bytes, [0x00, 0x00, 0x01, 0x00]) || hasPrefix(bytes, [0x00, 0x00, 0x02, 0x00]))
+  ) {
+    return "image-ico";
+  }
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";
+  if (asciiAt(bytes, 0, "8BPS")) return "image-psd";
+  if (asciiAt(bytes, 0, "icns")) return "image-icns";
+  if (hasPrefix(bytes, [0x50, 0x36]) || hasPrefix(bytes, [0x50, 0x33])) return "image-ppm"; // "P6"/"P3"
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   if (hasPrefix(bytes, [0x1f, 0x8b])) return fallback === "zabw" ? "zabw" : "gzip";
@@ -163,6 +205,11 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) return "audio-mp3";
   // Raw AAC in an ADTS stream: FF F1 (MPEG-4) / FF F9 (MPEG-2).
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xf1 || bytes[1] === 0xf9)) return "audio-aac";
+  // TGA has no reliable header signature — old-style files carry no magic
+  // at all. Trust the optional TGA 2.0 footer when present; otherwise fall
+  // back to the extension, since nothing else in this list claims .tga.
+  if (bytes.length >= 18 && asciiAt(bytes, bytes.length - 18, "TRUEVISION-XFILE.")) return "image-tga";
+  if (fallback === "image-tga") return "image-tga";
   // OLE2 compound files hold .xls, .doc and .ppt alike — only the workbook
   // stream is readable here, so anything else stays unknown rather than
   // claiming a conversion that doesn't exist.

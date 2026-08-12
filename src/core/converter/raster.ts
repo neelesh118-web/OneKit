@@ -317,8 +317,8 @@ function applyHorizontalPredictor(data: Uint8Array, rowBytes: number, samples: n
   }
 }
 
-/** PackBits run-length decoding (TIFF compression 32773). */
-function unpackBits(input: Uint8Array): Uint8Array {
+/** PackBits run-length decoding (TIFF compression 32773, and PSD RLE). */
+export function unpackBits(input: Uint8Array): Uint8Array {
   const out: number[] = [];
   let i = 0;
   while (i < input.length) {
@@ -448,6 +448,196 @@ function dibToBmp(dib: Uint8Array): Uint8Array {
   outView.setInt32(14 + 8, doubleHeight < 0 ? -height : height, true);
   outView.setUint32(14 + 20, colourBytes, true); // biSizeImage
   return out;
+}
+
+/* TGA -------------------------------------------------------------------- */
+
+/**
+ * Encodes RGBA pixels as an uncompressed 32-bit Targa (TGA), top-left
+ * origin. Every real TGA reader — including this decoder — reads that
+ * origin flag rather than assuming bottom-up rows.
+ */
+export function encodeTga(image: RgbaImage): Uint8Array {
+  const { width, height, data } = image;
+  if (width <= 0 || height <= 0) throw new Error("Can't encode an empty image.");
+  if (width > 0xffff || height > 0xffff) throw new Error("This image is too large for a TGA.");
+  const out = new Uint8Array(18 + width * height * 4);
+  const view = new DataView(out.buffer);
+  out[2] = 2; // image type: uncompressed true-color
+  view.setUint16(12, width, true);
+  view.setUint16(14, height, true);
+  out[16] = 32; // bits per pixel
+  out[17] = 0x28; // 8 alpha bits + top-left origin (bit 5)
+  let dst = 18;
+  for (let i = 0; i < width * height; i++) {
+    const p = i * 4;
+    out[dst++] = data[p + 2] ?? 0; // B
+    out[dst++] = data[p + 1] ?? 0; // G
+    out[dst++] = data[p] ?? 0; // R
+    out[dst++] = data[p + 3] ?? 255; // A
+  }
+  return out;
+}
+
+/**
+ * Decodes a Targa (TGA) image to RGBA. Covers the shapes real files use —
+ * uncompressed and RLE-compressed true-color, 24 or 32 bits per pixel —
+ * honestly rejecting palette/greyscale TGA and right-to-left pixel order,
+ * which are rare enough not to be worth silently mishandling.
+ */
+export function decodeTga(bytes: Uint8Array): RgbaImage {
+  if (bytes.length < 18) throw new Error("This TGA file is too short to read.");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const idLength = bytes[0]!;
+  const colorMapType = bytes[1]!;
+  const imageType = bytes[2]!;
+  const colorMapLength = view.getUint16(5, true);
+  const colorMapEntrySize = bytes[7]!;
+  const width = view.getUint16(12, true);
+  const height = view.getUint16(14, true);
+  const bpp = bytes[16]!;
+  const descriptor = bytes[17]!;
+  if (width <= 0 || height <= 0) throw new Error("This TGA file has invalid dimensions.");
+  if (imageType !== 2 && imageType !== 10) {
+    throw new Error("Only uncompressed or RLE true-color TGA files are supported (not palette or greyscale).");
+  }
+  if (bpp !== 24 && bpp !== 32) throw new Error("Only 24- or 32-bit TGA files are supported.");
+  if ((descriptor & 0x10) !== 0) throw new Error("Right-to-left pixel order isn't supported in this TGA reader.");
+  const topDown = (descriptor & 0x20) !== 0;
+  const bytesPerPixel = bpp / 8;
+  let pos = 18 + idLength;
+  if (colorMapType === 1) pos += Math.ceil((colorMapLength * colorMapEntrySize) / 8);
+  const out = new Uint8Array(width * height * 4);
+  const writePixel = (index: number, b: number, g: number, r: number, a: number): void => {
+    const row = topDown ? Math.floor(index / width) : height - 1 - Math.floor(index / width);
+    const col = index % width;
+    const d = (row * width + col) * 4;
+    out[d] = r;
+    out[d + 1] = g;
+    out[d + 2] = b;
+    out[d + 3] = bpp === 32 ? a : 255;
+  };
+  if (imageType === 2) {
+    for (let i = 0; i < width * height; i++) {
+      const p = pos + i * bytesPerPixel;
+      if (p + bytesPerPixel > bytes.length) throw new Error("This TGA file is truncated.");
+      writePixel(i, bytes[p]!, bytes[p + 1]!, bytes[p + 2]!, bytes[p + 3] ?? 255);
+    }
+  } else {
+    // RLE: each packet is a 1-byte header (top bit set = run of one repeated
+    // pixel, count in the low 7 bits + 1) followed by pixel data.
+    let pixel = 0;
+    while (pixel < width * height) {
+      if (pos >= bytes.length) throw new Error("This TGA file's RLE data is truncated.");
+      const header = bytes[pos++]!;
+      const count = (header & 0x7f) + 1;
+      if (header & 0x80) {
+        if (pos + bytesPerPixel > bytes.length) throw new Error("This TGA file's RLE data is truncated.");
+        const b = bytes[pos]!;
+        const g = bytes[pos + 1]!;
+        const r = bytes[pos + 2]!;
+        const a = bytes[pos + 3] ?? 255;
+        pos += bytesPerPixel;
+        for (let k = 0; k < count && pixel < width * height; k++) writePixel(pixel++, b, g, r, a);
+      } else {
+        for (let k = 0; k < count && pixel < width * height; k++) {
+          if (pos + bytesPerPixel > bytes.length) throw new Error("This TGA file's RLE data is truncated.");
+          writePixel(pixel++, bytes[pos]!, bytes[pos + 1]!, bytes[pos + 2]!, bytes[pos + 3] ?? 255);
+          pos += bytesPerPixel;
+        }
+      }
+    }
+  }
+  return { width, height, data: out };
+}
+
+/* PPM -------------------------------------------------------------------- */
+
+/**
+ * Encodes RGBA pixels as a binary PPM (P6) — 8 bits per channel, no alpha
+ * (classic Netpbm has none), composited on white like a 24-bit BMP.
+ */
+export function encodePpm(image: RgbaImage): Uint8Array {
+  const { width, height, data } = image;
+  if (width <= 0 || height <= 0) throw new Error("Can't encode an empty image.");
+  const header = new TextEncoder().encode(`P6\n${width} ${height}\n255\n`);
+  const out = new Uint8Array(header.length + width * height * 3);
+  out.set(header, 0);
+  let dst = header.length;
+  for (let i = 0; i < width * height; i++) {
+    const p = i * 4;
+    const r = data[p] ?? 0;
+    const g = data[p + 1] ?? 0;
+    const b = data[p + 2] ?? 0;
+    const a = data[p + 3] ?? 255;
+    out[dst++] = Math.round((r * a + 255 * (255 - a)) / 255);
+    out[dst++] = Math.round((g * a + 255 * (255 - a)) / 255);
+    out[dst++] = Math.round((b * a + 255 * (255 - a)) / 255);
+  }
+  return out;
+}
+
+/**
+ * Decodes a Netpbm PPM image (P3 ASCII or P6 binary) to RGBA. `#` starts a
+ * comment to end of line anywhere in the header, per the format spec.
+ */
+export function decodePpm(bytes: Uint8Array): RgbaImage {
+  if (bytes.length < 2 || bytes[0] !== 0x50 || (bytes[1] !== 0x33 && bytes[1] !== 0x36)) {
+    throw new Error("Not a PPM file (expected a P3 or P6 header).");
+  }
+  const ascii = bytes[1] === 0x33;
+  let pos = 2;
+  const tokens: number[] = [];
+  while (tokens.length < 3) {
+    while (pos < bytes.length && /\s/.test(String.fromCharCode(bytes[pos]!))) pos++;
+    if (pos < bytes.length && bytes[pos] === 0x23) {
+      while (pos < bytes.length && bytes[pos] !== 0x0a) pos++;
+      continue;
+    }
+    let start = pos;
+    while (pos < bytes.length && !/\s/.test(String.fromCharCode(bytes[pos]!))) pos++;
+    if (pos === start) throw new Error("This PPM file's header is incomplete.");
+    tokens.push(parseInt(new TextDecoder().decode(bytes.subarray(start, pos)), 10));
+  }
+  const [width, height, maxval] = tokens as [number, number, number];
+  if (width <= 0 || height <= 0) throw new Error("This PPM file has invalid dimensions.");
+  if (maxval <= 0 || maxval > 255) throw new Error("Only 8-bit (maxval ≤ 255) PPM files are supported.");
+  pos++; // the single whitespace byte required after maxval
+  const out = new Uint8Array(width * height * 4);
+  if (ascii) {
+    let value = "";
+    let channel = 0;
+    let pixel = 0;
+    const flush = (): void => {
+      if (value === "") return;
+      out[pixel * 4 + channel] = Math.round((parseInt(value, 10) * 255) / maxval);
+      value = "";
+      channel++;
+      if (channel === 3) {
+        out[pixel * 4 + 3] = 255;
+        channel = 0;
+        pixel++;
+      }
+    };
+    for (; pos < bytes.length && pixel < width * height; pos++) {
+      const ch = bytes[pos]!;
+      if (/\s/.test(String.fromCharCode(ch))) flush();
+      else value += String.fromCharCode(ch);
+    }
+    flush();
+    if (pixel < width * height) throw new Error("This PPM file's pixel data is incomplete.");
+  } else {
+    if (pos + width * height * 3 > bytes.length) throw new Error("This PPM file's pixel data is incomplete.");
+    for (let i = 0; i < width * height; i++) {
+      const s = pos + i * 3;
+      const d = i * 4;
+      out[d] = maxval === 255 ? bytes[s]! : Math.round((bytes[s]! * 255) / maxval);
+      out[d + 1] = maxval === 255 ? bytes[s + 1]! : Math.round((bytes[s + 1]! * 255) / maxval);
+      out[d + 2] = maxval === 255 ? bytes[s + 2]! : Math.round((bytes[s + 2]! * 255) / maxval);
+      out[d + 3] = 255;
+    }
+  }
+  return { width, height, data: out };
 }
 
 /* SVG ------------------------------------------------------------------ */
