@@ -139,3 +139,12 @@
 
 - Ranks 747-843 remain skipped where they require AZW3/KF8, RAR, CorelDRAW/Illustrator, MOBI writing, iWork, legacy Office writers, or unsupported proprietary document encoders.
 - PDF targets at ranks 836-849 other than RST/TeX remain skipped when they require proprietary/legacy containers; compression or extension relabeling is not treated as conversion.
+
+## Batch 16
+
+- Added 3 demand-ranked pairs: PDF to DOTX (rank 840), MOBI to AZW (rank 1037), and PPTX to ODP (rank 1105).
+- Pair total: 1,355.
+- Formats: editable PDF text is packaged as a standards-correct Word template, validated unencrypted MOBI containers normalize to AZW, and PPTX slide text/order is written into a complete ODF 1.3 presentation package.
+- Tests: 11 focused cases validate OOXML content types/relationships, MOBI DRM/compression rejection, ODP package parts and round-trip slide order, metadata, and corrupt input rejection.
+
+- Ranks 947-1104 remain skipped where they require ET/HWP/HWPX/LIT/LRF/LWP/PDB/iWork/legacy Office parsers or proprietary writers; MOBI to AZW3/CBR/CBZ is not equivalent to container relabeling.

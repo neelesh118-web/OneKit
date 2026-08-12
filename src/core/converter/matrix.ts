@@ -11,8 +11,8 @@ export type TargetFormat =
   | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif" | "image-ico"
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm" | "image-psd"
   | "image-icns"
-  | "pdf" | "html" | "markdown" | "text" | "docx" | "epub" | "mobi" | "cbz"
-  | "rtf" | "odt" | "pptx" | "fb2" | "rst" | "tex"
+  | "pdf" | "html" | "markdown" | "text" | "docx" | "dotx" | "epub" | "mobi" | "azw" | "cbz"
+  | "rtf" | "odt" | "odp" | "pptx" | "fb2" | "rst" | "tex"
   | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml"
   | "audio-aiff"
   | "zip" | "tar" | "gzip"
@@ -29,8 +29,8 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   "image-icns": "Apple icon (ICNS)",
   // Not a trace: the SVG carries the picture as an embedded image.
   "image-svg": "SVG (embedded image)",
-  pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", epub: "EPUB ebook", mobi: "MOBI ebook", cbz: "Comic Book ZIP (CBZ)",
-  rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", pptx: "PowerPoint (PPTX)", fb2: "FictionBook (FB2)",
+  pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", dotx: "Word template (DOTX)", epub: "EPUB ebook", mobi: "MOBI ebook", azw: "Kindle AZW ebook", cbz: "Comic Book ZIP (CBZ)",
+  rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", odp: "OpenDocument presentation (ODP)", pptx: "PowerPoint (PPTX)", fb2: "FictionBook (FB2)",
   rst: "reStructuredText (RST)", tex: "TeX document",
   csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
   tsv: "TSV", xls: "Excel 97–2003 (XLS)", ods: "OpenDocument sheet (ODS)", toml: "TOML config",
@@ -104,7 +104,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-ppm": [...IMAGE_TARGETS.filter((t) => t !== "image-ppm"), "pdf", "txt-base64", "txt-hex"],
   "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "txt-base64", "txt-hex"],
   "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "txt-base64", "txt-hex"],
-  pdf: ["text", "markdown", "html", "rst", "tex", "image-png", "image-jpeg", "image-webp", "image-avif", "image-gif", "image-ico", "image-bmp", "image-tiff", "image-svg", "image-psd", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  pdf: ["text", "markdown", "html", "rst", "tex", "image-png", "image-jpeg", "image-webp", "image-avif", "image-gif", "image-ico", "image-bmp", "image-tiff", "image-svg", "image-psd", "docx", "dotx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "txt-base64", "txt-hex"],
   docm: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   dotx: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
@@ -116,12 +116,12 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   rtf: docTargetsExcept("rtf").concat("fb2", "image-png", "image-jpeg"),
   odt: docTargetsExcept("odt").concat("fb2", "image-png", "image-jpeg"),
   odp: docTargetsExcept("odt", "pptx").concat("pptx", "fb2", "image-png", "image-jpeg"),
-  pptx: docTargetsExcept("pptx").concat("fb2", "image-png", "image-jpeg", "image-gif", "image-svg", "image-webp"),
+  pptx: docTargetsExcept("pptx").concat("fb2", "odp", "image-png", "image-jpeg", "image-gif", "image-svg", "image-webp"),
   pptm: docTargetsExcept().concat("pptx", "fb2"),
   potx: docTargetsExcept().concat("pptx", "fb2"),
   ppsx: docTargetsExcept().concat("pptx", "fb2"),
   fb2: docTargetsExcept().concat("image-png", "image-jpeg"),
-  mobi: docTargetsExcept().concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp"),
+  mobi: docTargetsExcept().concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "azw"),
   azw: docTargetsExcept().concat("image-png", "image-jpeg", "mobi"),
   prc: docTargetsExcept(),
   htmlz: docTargetsExcept(),
@@ -227,6 +227,7 @@ export function targetExtension(target: TargetFormat): string {
     case "image-icns": return "icns";
     case "rtf": return "rtf";
     case "odt": return "odt";
+    case "odp": return "odp";
     case "pptx": return "pptx";
     case "fb2": return "fb2";
     case "rst": return "rst";
@@ -241,9 +242,11 @@ export function targetExtension(target: TargetFormat): string {
     case "markdown": return "md";
     case "text": return "txt";
     case "docx": return "docx";
+    case "dotx": return "dotx";
     case "epub": return "epub";
     case "cbz": return "cbz";
     case "mobi": return "mobi";
+    case "azw": return "azw";
     case "csv": return "csv";
     case "json": return "json";
     case "xlsx": return "xlsx";

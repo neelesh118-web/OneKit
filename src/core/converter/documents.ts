@@ -398,6 +398,20 @@ export function textToDocx(text: string): Uint8Array {
   return buildDocx(paragraphs.length > 0 ? paragraphs : [" "]);
 }
 
+/** Plain text to an OOXML Word template, preserving the editable DOCX body. */
+export function textToDotx(text: string): Uint8Array {
+  const files = unzipSync(textToDocx(text));
+  const contentTypesName = "[Content_Types].xml";
+  const contentTypes = files[contentTypesName];
+  if (!contentTypes) throw new Error("Could not create the Word template package.");
+  const xml = new TextDecoder().decode(contentTypes);
+  const documentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml";
+  const templateType = "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml";
+  if (!xml.includes(documentType)) throw new Error("Could not identify the Word document part.");
+  files[contentTypesName] = new TextEncoder().encode(xml.replace(documentType, templateType));
+  return zipSync(files);
+}
+
 /** HTML → DOCX (flattens to paragraphs). */
 export function htmlToDocx(html: string): Uint8Array {
   return textToDocx(htmlToText(html));

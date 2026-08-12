@@ -39,7 +39,7 @@ import { base64ToText, hexToText, urlToText } from "./text";
 import { extractRawPreviewJpeg } from "./raw-photo";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
-import { odpToSlides, odtToHtml } from "./odf";
+import { buildOdp, odpToSlides, odtToHtml } from "./odf";
 import { pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
@@ -95,11 +95,14 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   markdown: "text/markdown",
   text: "text/plain",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
   epub: "application/epub+zip",
   cbz: "application/vnd.comicbook+zip",
   mobi: "application/x-mobipocket-ebook",
+  azw: "application/vnd.amazon.ebook",
   rtf: "application/rtf",
   odt: "application/vnd.oasis.opendocument.text",
+  odp: "application/vnd.oasis.opendocument.presentation",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   fb2: "application/x-fictionbook+xml",
   rst: "text/x-rst",
@@ -294,6 +297,7 @@ async function runConversion(
       // PDF → DOCX (text-based): extracts the text into a real Word file.
       // Formatting and images aren't preserved — the content is editable.
       if (target === "docx") return docs.textToDocx(await docs.pdfToText(bytes));
+      if (target === "dotx") return docs.textToDotx(await docs.pdfToText(bytes));
       // PDF → EPUB (text-based), same honest caveat as → DOCX.
       if (target === "epub") {
         const text = await docs.pdfToText(bytes);
@@ -362,7 +366,9 @@ async function runConversion(
     case "pptm":
     case "potx":
     case "ppsx": {
-      const html = slidesToHtml(pptxToSlides(bytes), "Presentation");
+      const slides = pptxToSlides(bytes);
+      if (target === "odp") return buildOdp(slides);
+      const html = slidesToHtml(slides, "Presentation");
       if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
@@ -384,6 +390,13 @@ async function runConversion(
         // AZW1 is the same PalmDB/MOBI container. Fully parse it first so
         // corrupt, DRM-protected, and unsupported HUFF/CDIC books are never
         // mislabeled as a successful conversion.
+        mobiToHtml(bytes);
+        return bytes.slice();
+      }
+      if (source === "mobi" && target === "azw") {
+        // Classic AZW1 and MOBI use the same BOOKMOBI Palm database. Parse
+        // every record first so protected or unsupported books aren't merely
+        // renamed and presented as a successful conversion.
         mobiToHtml(bytes);
         return bytes.slice();
       }
