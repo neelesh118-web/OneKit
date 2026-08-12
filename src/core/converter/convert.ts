@@ -520,7 +520,7 @@ async function runConversion(
     }
     case "abw": {
       const html = abwToHtml(toText(bytes));
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);

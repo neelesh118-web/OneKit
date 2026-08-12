@@ -202,3 +202,12 @@
 - Tests: 15 focused cases validate all seven pairs, native signatures/MIME/names, exact PRC byte preservation, matrix exposure, empty spreadsheet rejection, and corrupt/DRM/HUFF-CDIC rejection. The complete repository suite passed with exit code 0.
 
 - Interleaved VSD/WMF/WPD/WPS, camera-RAW outputs, EPS writing, legacy Office, and proprietary ebook targets through rank 2357 remain skipped because honest local parsers or encoders are unavailable.
+
+## Batch 23
+
+- Added 3 demand-ranked pairs: AZW to FB2 (rank 2514), ODS to XLSM (rank 2669), and ABW to GIF (rank 2798).
+- Pair total: 1,425.
+- Formats: validated AZW text renders to structured FictionBook XML; OpenDocument spreadsheet cells are written into genuine macro-enabled OOXML without fabricated VBA; AbiWord text feeds the local GIF raster encoder.
+- Tests: 11 focused cases validate structured XML and escaping, XLSM package content and cell round-trip, GIF signature/MIME/name, matrix exposure, plus corrupt, DRM-protected, and malformed input rejection. The complete repository suite passed with exit code 0.
+
+- Earlier RB/SNB/TCR and legacy Office/iWork sources, proprietary AI/CDR outputs, MOBI/KF8/RAR writers, and prose-to-comic targets through rank 2798 remain skipped where an honest local implementation is unavailable or semantically invalid.
