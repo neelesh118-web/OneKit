@@ -22,7 +22,7 @@ export type FileType =
   | "mbox" | "ldif" | "cue"
   | "raw-cr2" | "raw-nef" | "raw-arw" | "raw-dng" | "raw-orf" | "raw-pef" | "raw-rw2"
   | "raw-dcr" | "raw-erf" | "raw-3fr" | "raw-mos" | "raw-raf"
-  | "image-tga" | "image-ppm"
+  | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -50,7 +50,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "raw-dng": "Adobe DNG", "raw-orf": "Olympus RAW (ORF)", "raw-pef": "Pentax RAW (PEF)",
   "raw-rw2": "Panasonic RAW (RW2)", "raw-dcr": "Kodak RAW (DCR)", "raw-erf": "Epson RAW (ERF)",
   "raw-3fr": "Hasselblad RAW (3FR)", "raw-mos": "Leaf RAW (MOS)", "raw-raf": "Fujifilm RAW (RAF)",
-  "image-tga": "Targa (TGA) image", "image-ppm": "PPM image",
+  "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
+  "image-icns": "Apple icon (ICNS)",
   unknown: "Unknown format"
 };
 
@@ -84,7 +85,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "raw-cr2": ["cr2"], "raw-nef": ["nef"], "raw-arw": ["arw"], "raw-dng": ["dng"],
   "raw-orf": ["orf"], "raw-pef": ["pef"], "raw-rw2": ["rw2"], "raw-dcr": ["dcr"],
   "raw-erf": ["erf"], "raw-3fr": ["3fr"], "raw-mos": ["mos"], "raw-raf": ["raf"],
-  "image-tga": ["tga"], "image-ppm": ["ppm"],
+  "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
   unknown: []
 };
 
@@ -162,6 +163,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     return "image-ico";
   }
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";
+  if (asciiAt(bytes, 0, "8BPS")) return "image-psd";
+  if (asciiAt(bytes, 0, "icns")) return "image-icns";
   if (hasPrefix(bytes, [0x50, 0x36]) || hasPrefix(bytes, [0x50, 0x33])) return "image-ppm"; // "P6"/"P3"
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";

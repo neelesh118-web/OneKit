@@ -19,6 +19,8 @@ import {
   svgFromPng,
   type RgbaImage
 } from "./raster";
+import { decodePsd, encodePsd } from "./psd";
+import { icnsFromPng, icnsToPng } from "./icns";
 
 export type ImageTarget =
   | "image-png"
@@ -32,7 +34,9 @@ export type ImageTarget =
   | "image-dds"
   | "image-svg"
   | "image-tga"
-  | "image-ppm";
+  | "image-ppm"
+  | "image-psd"
+  | "image-icns";
 
 const IMAGE_SOURCES = new Set<FileType>([
   "image-png",
@@ -48,7 +52,9 @@ const IMAGE_SOURCES = new Set<FileType>([
   "image-ico",
   "image-dds",
   "image-tga",
-  "image-ppm"
+  "image-ppm",
+  "image-psd",
+  "image-icns"
 ]);
 
 export function imageTargetMime(target: ImageTarget): string {
@@ -65,6 +71,8 @@ export function imageTargetMime(target: ImageTarget): string {
     case "image-svg": return "image/svg+xml";
     case "image-tga": return "image/x-tga";
     case "image-ppm": return "image/x-portable-pixmap";
+    case "image-psd": return "image/vnd.adobe.photoshop";
+    case "image-icns": return "image/icns";
   }
 }
 
@@ -131,7 +139,9 @@ function toDecodableSource(bytes: Uint8Array, source: FileType): { bytes: Uint8A
   if (source === "image-dds") return { bytes: encodeBmp(decodeDds(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-tga") return { bytes: encodeBmp(decodeTga(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-ppm") return { bytes: encodeBmp(decodePpm(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-psd") return { bytes: encodeBmp(decodePsd(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-ico") return icoToDecodable(bytes);
+  if (source === "image-icns") return { bytes: icnsToPng(bytes), mime: "image/png" };
   return { bytes, mime: sourceImageMime(source) };
 }
 
@@ -207,7 +217,7 @@ export async function convertImage(
     }
     if (
       target === "image-bmp" || target === "image-tiff" || target === "image-dds" ||
-      target === "image-tga" || target === "image-ppm"
+      target === "image-tga" || target === "image-ppm" || target === "image-psd"
     ) {
       // Formats the browser can't write — encode them from the pixels.
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -220,16 +230,19 @@ export async function convertImage(
       if (target === "image-dds") return encodeDds(image);
       if (target === "image-tga") return encodeTga(image);
       if (target === "image-ppm") return encodePpm(image);
+      if (target === "image-psd") return encodePsd(image);
       return encodeBmp(image);
     }
-    if (target === "image-ico" || target === "image-svg") {
-      // Both wrap a PNG: ICO in its icon directory, SVG in an <image>.
+    if (target === "image-ico" || target === "image-svg" || target === "image-icns") {
+      // All three wrap a PNG: ICO in its icon directory, SVG in an
+      // <image>, ICNS in its chunk container.
       const pngBlob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, "image/png");
       });
       if (!pngBlob) throw new Error("This browser couldn't encode the image.");
       const png = new Uint8Array(await pngBlob.arrayBuffer());
       if (target === "image-svg") return svgFromPng(png, canvas.width, canvas.height);
+      if (target === "image-icns") return icnsFromPng(png, Math.max(canvas.width, canvas.height));
       return icoFromPng(png, Math.max(canvas.width, canvas.height));
     }
     const outMime = imageTargetMime(target);

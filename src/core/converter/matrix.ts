@@ -9,7 +9,8 @@ import type { FileType } from "./detect";
 
 export type TargetFormat =
   | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif" | "image-ico"
-  | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm"
+  | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm" | "image-psd"
+  | "image-icns"
   | "pdf" | "html" | "markdown" | "text" | "docx" | "epub"
   | "rtf" | "odt" | "pptx"
   | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml"
@@ -24,7 +25,8 @@ export type TargetFormat =
 export const TARGET_LABELS: Record<TargetFormat, string> = {
   "image-png": "PNG", "image-jpeg": "JPEG", "image-webp": "WebP", "image-avif": "AVIF", "image-gif": "GIF", "image-ico": "ICO icon",
   "image-bmp": "BMP", "image-tiff": "TIFF", "image-dds": "DDS texture",
-  "image-tga": "Targa (TGA)", "image-ppm": "PPM",
+  "image-tga": "Targa (TGA)", "image-ppm": "PPM", "image-psd": "Photoshop (PSD)",
+  "image-icns": "Apple icon (ICNS)",
   // Not a trace: the SVG carries the picture as an embedded image.
   "image-svg": "SVG (embedded image)",
   pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", epub: "EPUB ebook",
@@ -49,7 +51,8 @@ const IMAGE_SOURCES: FileType[] = [
 
 const IMAGE_TARGETS: TargetFormat[] = [
   "image-png", "image-jpeg", "image-webp", "image-avif", "image-gif", "image-ico",
-  "image-bmp", "image-tiff", "image-dds", "image-svg", "image-tga", "image-ppm"
+  "image-bmp", "image-tiff", "image-dds", "image-svg", "image-tga", "image-ppm", "image-psd",
+  "image-icns"
 ];
 
 /** Raster images can also be packed into a PDF (smallpdf/pdfresizer). */
@@ -98,6 +101,8 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-dds": [...IMAGE_TARGETS.filter((t) => t !== "image-dds"), "pdf", "txt-base64", "txt-hex"],
   "image-tga": [...IMAGE_TARGETS.filter((t) => t !== "image-tga"), "pdf", "txt-base64", "txt-hex"],
   "image-ppm": [...IMAGE_TARGETS.filter((t) => t !== "image-ppm"), "pdf", "txt-base64", "txt-hex"],
+  "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "txt-base64", "txt-hex"],
+  "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "txt-base64", "txt-hex"],
   pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "docx", "epub", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
   docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
   xlsx: tableTargetsExcept("xlsx"),
@@ -199,6 +204,8 @@ export function targetExtension(target: TargetFormat): string {
     case "image-svg": return "svg";
     case "image-tga": return "tga";
     case "image-ppm": return "ppm";
+    case "image-psd": return "psd";
+    case "image-icns": return "icns";
     case "rtf": return "rtf";
     case "odt": return "odt";
     case "pptx": return "pptx";

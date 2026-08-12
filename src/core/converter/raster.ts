@@ -317,8 +317,8 @@ function applyHorizontalPredictor(data: Uint8Array, rowBytes: number, samples: n
   }
 }
 
-/** PackBits run-length decoding (TIFF compression 32773). */
-function unpackBits(input: Uint8Array): Uint8Array {
+/** PackBits run-length decoding (TIFF compression 32773, and PSD RLE). */
+export function unpackBits(input: Uint8Array): Uint8Array {
   const out: number[] = [];
   let i = 0;
   while (i < input.length) {

@@ -86,6 +86,8 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-svg": "image/svg+xml",
   "image-tga": "image/x-tga",
   "image-ppm": "image/x-portable-pixmap",
+  "image-psd": "image/vnd.adobe.photoshop",
+  "image-icns": "image/icns",
   pdf: "application/pdf",
   html: "text/html",
   markdown: "text/markdown",
@@ -237,13 +239,15 @@ async function runConversion(
     case "image-gif":
     case "image-bmp":
     case "image-avif":
-    // TIFF, ICO, DDS, TGA and PPM are decoded to pixels first, then take
-    // the same canvas path as every other raster format.
+    // TIFF, ICO, DDS, TGA, PPM, PSD and ICNS are decoded to pixels first,
+    // then take the same canvas path as every other raster format.
     case "image-tiff":
     case "image-ico":
     case "image-dds":
     case "image-tga":
     case "image-ppm":
+    case "image-psd":
+    case "image-icns":
       if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
