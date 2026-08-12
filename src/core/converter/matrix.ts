@@ -281,6 +281,16 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // sK1/Sketch vector drawings: basic shapes render to SVG, text objects
   // read as prose, plain-text fallback for anything unparseable.
   sk1: docTargetsExcept(),
+  // Shockwave Flash: the DefineText/DefineText2 character runs read as
+  // prose for every document target.
+  swf: docTargetsExcept(),
+  // Hangul Word Processor (HWPX/HWP): the ZIP packaging's HWPML runs.
+  hwpx: docTargetsExcept(),
+  hwp: docTargetsExcept(),
+  // Sony BBeB (LRF): the zlib/UTF-16 text streams read as prose.
+  lrf: docTargetsExcept(),
+  // WordPerfect: the character stream reads as prose.
+  wpd: docTargetsExcept(),
   // WPS Presentation: content-sniffed like .et — an OOXML zip behaves as
   // pptx (full reach), a binary OLE2 deck as ppt (text extraction).
   dps: docTargetsExcept(),

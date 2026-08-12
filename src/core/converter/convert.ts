@@ -57,6 +57,10 @@ import { xpsToHtml } from "./xps";
 import { pubToHtml } from "./pub";
 import { emfToSvg, emfToText, wmfToSvg, wmfToText } from "./metafile";
 import { skToHtml, skToSvg } from "./sketch";
+import { swfToHtml } from "./swf";
+import { hwpxToHtml } from "./hwpx";
+import { lrfToHtml } from "./lrf";
+import { wpdToHtml } from "./wpd";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -931,6 +935,26 @@ async function runConversion(
         return convertImage(toBytes(skToSvg(bytes)), target as ImageTarget, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(skToHtml(bytes), "sK1 drawing", target, opts);
+    // Shockwave Flash: the static-text tags' character runs read as prose.
+    case "swf":
+      return renderDocument(swfToHtml(bytes), "SWF text", target, opts);
+    // Hangul Word Processor — the ZIP packaging's HWPML runs read as prose.
+    case "hwpx":
+      return renderDocument(hwpxToHtml(bytes), "HWP document", target, opts);
+    case "hwp": {
+      // Modern .hwp files are the same ZIP packaging as .hwpx; legacy
+      // binary HWP is a proprietary compound format we can't read.
+      if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
+        return renderDocument(hwpxToHtml(bytes), "HWP document", target, opts);
+      }
+      throw new Error("Binary .hwp files can't be read locally — only the ZIP (HWPX) packaging.");
+    }
+    // Sony BBeB (LRF): the zlib/UTF-16 text streams read as prose.
+    case "lrf":
+      return renderDocument(lrfToHtml(bytes), "LRF book", target, opts);
+    // WordPerfect: the character stream reads as prose.
+    case "wpd":
+      return renderDocument(wpdToHtml(bytes), "WordPerfect document", target, opts);
     // .et (WPS Spreadsheet) is content-sniffed like .dot/.wps: an OOXML
     // zip behaves as xlsx, an OLE2 workbook as xls, CSV text as a table.
     case "et": {
