@@ -92,3 +92,12 @@
 - Ranks 203–218 DJVU/DOT/HWP/HWPX/LWP/SDW/WPD/WPS/PAGES to/from PDF: these require unsupported legacy or proprietary document/layout parsers and writers.
 - Ranks 227–282 legacy DOC/PPT targets and EPUB to MOBI: binary Office writers and a PalmDB/MOBI writer are unavailable locally.
 - Ranks 306–311 AZW3/AZW4/CBC/CBR conversions: KF8/AZW4 parsing, comic collection semantics, and RAR decompression are unavailable locally.
+
+## Batch 11
+
+- Added 5 demand-ranked pairs: PDF to AVIF, BMP, ICO, PSD, and TIFF (backlog ranks 363, 366, 374, 379, 381/382; TIF and TIFF share one target).
+- Pair total: 1,304.
+- Formats: PDF page rendering feeds the existing AVIF browser encoder and local BMP/ICO/PSD/TIFF encoders.
+- Tests: real PDF input to all five format signatures/MIME/names, matrix milestone, and corrupt-PDF rejection for a newly exposed target.
+
+- Ranks 361–419 proprietary/legacy ebook, raw-photo, Office, and vector targets remain skipped where no honest parser or encoder exists; PDF to camera RAW and proprietary document containers cannot be synthesized locally.
