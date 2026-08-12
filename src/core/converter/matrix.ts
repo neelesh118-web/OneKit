@@ -261,11 +261,16 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // honest set is the text-based document targets (no image targets).
   pages: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
   // Apple Keynote: the same iWork container as Pages — the slide text
-  // reads out of the IWA/XML blobs, so the text-based targets apply.
-  key: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  // reads out of the IWA/XML blobs, and renders into real presentation
+  // files (pptx/odp) exactly like the other text-based sources.
+  key: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
   // Legacy binary PowerPoint: the OLE2 text records are readable, so the
-  // same text-based document targets are honestly reachable.
-  ppt: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  // same text-based document targets are honestly reachable, and the text
+  // renders into real presentation files too (pptx/odp via the HTML pipe).
+  ppt: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
+  // WPS Presentation: content-sniffed like .et — an OOXML zip behaves as
+  // pptx (full reach), a binary OLE2 deck as ppt (text extraction).
+  dps: docTargetsExcept(),
   xhtml: docTargetsExcept("xhtml"),
   mhtml: docTargetsExcept("mhtml"),
   svgz: SVG_TARGETS.filter((t) => t !== "svgz"),

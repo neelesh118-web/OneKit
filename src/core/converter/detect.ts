@@ -10,7 +10,7 @@ export type FileType =
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
-  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
+  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "dps" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -52,7 +52,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   pml: "Palm Markup Language ebook", odg: "OpenDocument drawing", dot: "Word template (DOT)",
   wps: "Microsoft Works word processor", doc: "Word document (DOC)", pages: "Apple Pages document",
   numbers: "Apple Numbers spreadsheet", key: "Apple Keynote presentation",
-  ppt: "PowerPoint presentation (PPT)", et: "WPS Spreadsheet (ET)", geojson: "GeoJSON data",
+  ppt: "PowerPoint presentation (PPT)", dps: "WPS Presentation (DPS)", et: "WPS Spreadsheet (ET)", geojson: "GeoJSON data",
   xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
@@ -98,7 +98,10 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
   abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], odg: ["odg"], dot: ["dot"],
-  wps: ["wps"], doc: ["doc"], pages: ["pages"], numbers: ["numbers"], key: ["key"], ppt: ["ppt"], et: ["et"],
+  wps: ["wps"], doc: ["doc"], pages: ["pages"], numbers: ["numbers"], key: ["key"],
+  // Legacy binary PowerPoint templates (.pot) and slide shows (.pps) share
+  // the exact OLE2 text records as .ppt — one type serves all three.
+  ppt: ["ppt", "pot", "pps"], dps: ["dps"], et: ["et"],
   geojson: ["geojson"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
@@ -377,7 +380,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       fallback === "odg" || fallback === "pages" || fallback === "numbers" ||
       // Content-sniffed legacy names keep their type so the conversion
       // handler can decide from the payload.
-      fallback === "et" || fallback === "doc" || fallback === "dot" || fallback === "wps"
+      fallback === "et" || fallback === "doc" || fallback === "dot" || fallback === "wps" ||
+      fallback === "dps"
     ) {
       return fallback;
     }

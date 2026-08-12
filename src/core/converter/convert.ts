@@ -878,6 +878,14 @@ async function runConversion(
     // layout fidelity — title, bullets and notes, rendered as a document.
     case "ppt":
       return renderDocument(pptToHtml(bytes), "PowerPoint presentation", target, opts);
+    // .dps (WPS Presentation) is content-sniffed like .et: an OOXML zip
+    // behaves as pptx (real slides), a binary OLE2 deck as ppt (text).
+    case "dps": {
+      const inner = detectFile(bytes, "sniff.bin").type;
+      if (inner === "pptx" || inner === "zip") return runConversion("pptx", target, bytes, opts);
+      if (inner === "ppt") return runConversion("ppt", target, bytes, opts);
+      throw new Error("This .dps file is a binary WPS container that can't be read locally.");
+    }
     // .et (WPS Spreadsheet) is content-sniffed like .dot/.wps: an OOXML
     // zip behaves as xlsx, an OLE2 workbook as xls, CSV text as a table.
     case "et": {
