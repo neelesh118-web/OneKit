@@ -24,9 +24,9 @@ async function makePdf(lines = ["Page one line", "Page two line"]): Promise<Uint
 }
 
 // A genuine 1×1 PNG (has a real IHDR chunk so image embedding works).
-const PIXEL = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
-  "base64"
+const PIXEL = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="),
+  (c) => c.charCodeAt(0)
 );
 
 function makeCbz(pages = 2, extra: Record<string, string> = {}): Uint8Array {
