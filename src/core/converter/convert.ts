@@ -337,8 +337,13 @@ async function runConversion(
     case "pptx":
     case "pptm":
     case "potx":
-    case "ppsx":
-      return renderDocument(slidesToHtml(pptxToSlides(bytes), "Presentation"), "Presentation", target);
+    case "ppsx": {
+      const html = slidesToHtml(pptxToSlides(bytes), "Presentation");
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Presentation", target);
+    }
     case "fb2": {
       const xml = toText(bytes);
       return renderDocument(fb2ToHtml(xml), fb2Title(xml), target);
@@ -443,6 +448,9 @@ async function runConversion(
       if (target === "txt-hex") return toBytes(txt.textToHex(text));
       if (target === "pdf") return docs.textToPdf(text);
       if (target === "docx") return docs.textToDocx(text);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");
+      }
       if (target === "epub") {
         return docs.epubFromHtml(
           "Document",

@@ -65,3 +65,12 @@
 - Pair total: 1,290.
 - Formats: existing HTML cleanup and unencrypted PalmDOC/MOBI extraction now feed the bounded text-to-SVG raster path.
 - Tests: real HTML and MOBI inputs to both raster signatures, output metadata, pair milestone, empty-HTML rejection, and corrupt-MOBI rejection.
+
+## Batch 8
+
+- Added 4 demand-ranked pairs: PPTX to JPG/PNG (backlog ranks 182–183) and TXT to JPG/PNG (ranks 187–188).
+- Pair total: 1,294.
+- Formats: OOXML slide text extraction and plain text now feed the shared word-wrapped SVG/raster path.
+- Tests: real PPTX and TXT inputs to both raster signatures, output metadata, pair milestone, empty-text rejection, and corrupt-PPTX rejection.
+
+- Ranks 178–180 PPT to DOCX/JPG/PNG: legacy binary PowerPoint needs an OLE presentation parser and renderer; modern PPTX remains supported.

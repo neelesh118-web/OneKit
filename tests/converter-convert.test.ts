@@ -133,7 +133,7 @@ describe("converter convertFile", () => {
   it("throws honestly for unsupported pairs", async () => {
     // Text → image isn't offered; PDF → Excel isn't offered locally either.
     await expect(
-      convertFile({ bytes: new TextEncoder().encode("hello"), name: "note.txt" }, "image-png")
+      convertFile({ bytes: new TextEncoder().encode("hello"), name: "note.txt" }, "xlsx")
     ).rejects.toThrow(/isn't supported locally/);
     await expect(
       convertFile({ bytes: await makeTextPdf(), name: "doc.pdf" }, "xlsx")
