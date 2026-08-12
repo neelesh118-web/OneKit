@@ -156,7 +156,7 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2", "mobi"]);
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2", "mobi", "azw"]);
 
 /** The spreadsheet containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
@@ -408,7 +408,7 @@ async function runConversion(
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
       // PDF → document containers: extract readable text before writing.
-      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2" || target === "mobi") {
+      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2" || target === "mobi" || target === "azw") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
       // Single-file path: render page 1 as PNG, then push it through the

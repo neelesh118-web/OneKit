@@ -173,6 +173,47 @@ describe("matrix wiring", () => {
     expect(targetExtension("mobi")).toBe("mobi");
     expect(targetExtension("azw")).toBe("azw");
   });
+
+  it("advertises azw across the document family without self-targets or dupes", () => {
+    for (const src of ["pdf", "docx", "docm", "dotx", "epub", "html", "markdown", "text", "fb2", "odt", "rtf", "rst", "tex", "prc", "htmlz", "txtz"] as const) {
+      const targets = targetsFor(src);
+      expect(targets).toContain("azw");
+      expect(targets.filter((t) => t === "azw").length).toBe(1); // no duplicates
+    }
+    expect(targetsFor("azw")).not.toContain("azw"); // no self-conversion
+    expect(targetsFor("mobi")).not.toContain("mobi");
+  });
+});
+
+describe("source → AZW pairs", () => {
+  it("pdf → azw produces a Kindle-readable container", async () => {
+    const pdf = await tinyPdf("Kindle bound text");
+    const result = await convertFile({ bytes: pdf, name: "book.pdf" }, "azw");
+    expect(result.name).toBe("book.azw");
+    expect(result.mime).toBe("application/vnd.amazon.ebook");
+    expect(isMobi(result.bytes)).toBe(true);
+    expect(detectFile(result.bytes, "book.azw").type).toBe("azw");
+    expect(mobiToHtml(result.bytes)).toContain("Kindle bound text");
+  });
+
+  it("epub, docx, html, markdown, txt and fb2 all write AZW books", async () => {
+    const epub = await convertFile({ bytes: toBytes("# E\n\nEpub words"), name: "e.md" }, "epub");
+    const docx = await convertFile({ bytes: toBytes("Docx words"), name: "d.txt" }, "docx");
+    const sources: [string, Uint8Array][] = [
+      ["e.epub", epub.bytes],
+      ["d.docx", docx.bytes],
+      ["page.html", toBytes("<html><body><p>Html words</p></body></html>")],
+      ["page.md", toBytes("# T\n\nMarkdown words")],
+      ["page.txt", toBytes("Plain words")],
+      ["book.fb2", toBytes('<?xml version="1.0"?><FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0"><description><title-info><book-title>FB</book-title></title-info></description><body><section><p>Fb2 words</p></section></body></FictionBook>')]
+    ];
+    for (const [name, bytes] of sources) {
+      const result = await convertFile({ bytes, name }, "azw");
+      expect(result.name).toBe(name.replace(/\.[a-z0-9]+$/i, "") + ".azw");
+      expect(isMobi(result.bytes)).toBe(true);
+      expect(mobiToHtml(result.bytes).length).toBeGreaterThan(10);
+    }
+  });
 });
 
 describe("free wins", () => {
