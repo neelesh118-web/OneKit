@@ -12,7 +12,7 @@ export type FileType =
   | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "dps" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
   | "tcr" | "sdw" | "sdc" | "sda" | "vsd" | "xps" | "pub" | "emf" | "wmf" | "sk1"
-  | "swf" | "hwpx" | "hwp" | "lrf" | "wpd"
+  | "swf" | "hwpx" | "hwp" | "lrf" | "wpd" | "cgm"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -58,7 +58,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   tcr: "Psion text (TCR)", sdw: "StarWriter document (SDW)", sdc: "StarCalc spreadsheet (SDC)",
   sda: "StarDraw drawing (SDA)", vsd: "Visio diagram (VSD)",
   xps: "XPS document (XPS)", pub: "Publisher document (PUB)", emf: "Windows metafile (EMF)",
-  wmf: "Windows metafile (WMF)", sk1: "sK1 vector drawing (SK1/SK)",
+  wmf: "Windows metafile (WMF)", sk1: "sK1 vector drawing (SK1/SK)", cgm: "Computer Graphics Metafile (CGM)",
   swf: "Flash movie (SWF)", hwpx: "Hangul document (HWPX)", hwp: "Hangul document (HWP)",
   lrf: "Sony ebook (LRF)", wpd: "WordPerfect document (WPD)",
   xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
@@ -112,7 +112,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   ppt: ["ppt", "pot", "pps"], dps: ["dps"], et: ["et"],
   tcr: ["tcr"], sdw: ["sdw"], sdc: ["sdc"], sda: ["sda"], vsd: ["vsd"],
   // .sk is the same sK1 text format under its classic short extension.
-  xps: ["xps"], pub: ["pub"], emf: ["emf"], wmf: ["wmf"], sk1: ["sk1", "sk"],
+  xps: ["xps"], pub: ["pub"], emf: ["emf"], wmf: ["wmf"], sk1: ["sk1", "sk"], cgm: ["cgm"],
   swf: ["swf"], hwpx: ["hwpx"], hwp: ["hwp"], lrf: ["lrf"], wpd: ["wpd"],
   geojson: ["geojson"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
@@ -343,6 +343,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // offset 40. WMF: the 0x9AC6CDD7 placeable-header key (D7 CD C6 9A).
   if (hasPrefix(bytes, [0x01, 0x00, 0x00, 0x00]) && asciiAt(bytes, 40, " EMF")) return "emf";
   if (hasPrefix(bytes, [0xd7, 0xcd, 0xc6, 0x9a])) return "wmf";
+  // Binary CGM opens with the BEGIN METAFILE delimiter (class 0, id 1)
+  // carrying the "BEGMF" string: 0x01 0x05 B E G M F.
+  if (bytes[0] === 0x01 && asciiAt(bytes, 2, "BEGMF")) return "cgm";
   // Flash movies: FWS (raw) / CWS (zlib) / ZWS (LZMA) headers.
   if (asciiAt(bytes, 0, "FWS") || asciiAt(bytes, 0, "CWS") || asciiAt(bytes, 0, "ZWS")) return "swf";
   // Sony BBeB books open with "LRF" encoded as UTF-16LE.

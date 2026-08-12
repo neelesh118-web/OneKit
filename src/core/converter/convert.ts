@@ -56,6 +56,7 @@ import { pptToHtml, sdaToHtml, sdcToHtml, sdwToHtml, vsdToHtml } from "./ole2";
 import { xpsToHtml } from "./xps";
 import { pubToHtml } from "./pub";
 import { emfToSvg, emfToText, wmfToSvg, wmfToText } from "./metafile";
+import { cgmToSvg, cgmToText } from "./cgm";
 import { skToHtml, skToSvg } from "./sketch";
 import { swfToHtml } from "./swf";
 import { hwpxToHtml } from "./hwpx";
@@ -786,6 +787,15 @@ async function runConversion(
     }
     case "cbz":
     case "cbc": {
+      // RAR comic books (.cbr) share the CBZ extension mapping but pack a
+      // different archive — say so instead of failing with a misleading
+      // "not a zip" error.
+      if (
+        bytes[0] === 0x52 && bytes[1] === 0x61 && bytes[2] === 0x72 &&
+        bytes[3] === 0x21 && bytes[4] === 0x1a && bytes[5] === 0x07
+      ) {
+        throw new Error("RAR comic books (.cbr) can't be read locally — convert the archive to .cbz first.");
+      }
       const entries = arch.unzipToFiles(bytes);
       const pages = Object.entries(entries)
         .filter(([name, data]) => data.length > 0 && /\.(?:png|jpe?g|gif|webp|bmp|avif|tiff?|ico|dds|tga|ppm|psd|icns)$/i.test(name))
@@ -800,6 +810,18 @@ async function runConversion(
           name: name.replace(/\.[^.]+$/, ".png")
         };
       }));
+      // Comic → prose: OCR every page and join them. Real OCR (tesseract.js,
+      // the bundled offline engine), never a filename dump.
+      if (target === "text" || target === "markdown" || OCR_DOC_TARGETS.has(target)) {
+        const pageTexts: string[] = [];
+        for (const page of prepared) {
+          const pageText = await runOcr(page.bytes, page.name, opts);
+          if (pageText.trim()) pageTexts.push(pageText);
+        }
+        const prose = pageTexts.join("\n\n");
+        if (target === "text" || target === "markdown") return toBytes(prose);
+        return renderDocument(`<pre>${docs.escapeHtml(prose)}</pre>`, "Comic text", target, opts);
+      }
       if (target === "epub") return docs.epubFromImages("Comic", prepared);
       if (target === "pdf") return docs.imagesToPdf(prepared);
       if (target === "docx") return docs.imagesToDocx(prepared);
@@ -915,6 +937,14 @@ async function runConversion(
       return renderDocument(pubToHtml(bytes), "Publisher document", target, opts);
     // Windows metafiles: the supported record subset renders to SVG; the
     // text records read as prose for every document target.
+    case "cgm":
+      // Binary CGM vector drawings: the primitive subset renders to SVG,
+      // the TEXT records read as prose — same rule as the metafiles.
+      if (target === "image-svg") return toBytes(cgmToSvg(bytes));
+      if (target.startsWith("image-")) {
+        return convertImage(toBytes(cgmToSvg(bytes)), target as ImageTarget, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(`<pre>${docs.escapeHtml(cgmToText(bytes))}</pre>`, "CGM metafile", target, opts);
     case "emf":
       if (target === "image-svg") return toBytes(emfToSvg(bytes));
       if (target.startsWith("image-")) {

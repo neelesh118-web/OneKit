@@ -226,8 +226,10 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   azw4: ["pdf", "text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "cbc", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "txt-base64", "txt-hex", "txt-url", "opml"],
   htmlz: docTargetsExcept("htmlz"),
   txtz: docTargetsExcept("txtz"),
-  cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbc", ...IMAGE_TARGETS],
-  cbc: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbz", ...IMAGE_TARGETS],
+  // Comic pages reach prose targets by OCR-ing every page (real tesseract.js,
+  // not a filename dump) — the same rule the image sources use.
+  cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbc", "text", "markdown", "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4", ...IMAGE_TARGETS],
+  cbc: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbz", "text", "markdown", "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4", ...IMAGE_TARGETS],
   dxf: ["pdf", "html", "text", "markdown", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   // Illustrator files carry a PDF payload since CS6, so every document
   // and raster target is honestly reachable through the PDF pipeline
@@ -278,6 +280,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // the text records read as prose for every document target.
   emf: docTargetsExcept(),
   wmf: docTargetsExcept(),
+  cgm: docTargetsExcept(),
   // sK1/Sketch vector drawings: basic shapes render to SVG, text objects
   // read as prose, plain-text fallback for anything unparseable.
   sk1: docTargetsExcept(),
