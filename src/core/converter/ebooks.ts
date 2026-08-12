@@ -330,12 +330,19 @@ export function extractPagesPreviewPdf(bytes: Uint8Array): Uint8Array | undefine
  * UTF-16LE text in the IWA case, XML text in the XML case — which is the
  * honest, lossy-but-real extraction available without an Apple parser.
  */
-export function pagesToHtml(bytes: Uint8Array): string {
+/**
+ * Shared iWork (Pages/Numbers) text extraction: modern documents keep a
+ * plain XML Index/Document.xml, older ones binary IWA blobs. For both we
+ * pick out printable runs — XML text in the former case, UTF-16LE prose
+ * in the latter — which is the honest, lossy-but-real extraction available
+ * without an Apple parser.
+ */
+function iworkText(bytes: Uint8Array, kind: string): string {
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(bytes);
   } catch {
-    throw new Error("Could not read this .pages file — it may be corrupt or password-protected.");
+    throw new Error(`Could not read this ${kind} file — it may be corrupt or password-protected.`);
   }
   const docXml = Object.entries(files).find(([name]) => /^index\/document\.xml$/i.test(name))?.[1];
   if (docXml) {
@@ -343,7 +350,7 @@ export function pagesToHtml(bytes: Uint8Array): string {
       .replace(/<\/?[a-zA-Z0-9-]+(\s[^>]*)?>/g, " ")
       .replace(/\s+/g, " ")
       .trim();
-    if (text.length > 0) return wrapPagesHtml(text);
+    if (text.length > 0) return text;
   }
   // IWA heuristic: pick out UTF-16LE runs of printable ASCII from every
   // .iwa blob and keep the longer ones (sentence-length prose, not the
@@ -369,9 +376,18 @@ export function pagesToHtml(bytes: Uint8Array): string {
   }
   const sentences = [...words].filter((w) => w.length >= 20).sort((a, b) => a.localeCompare(b));
   if (sentences.length === 0) {
-    throw new Error("Couldn't find readable text inside this .pages file — it may be empty or use unusual fonts.");
+    throw new Error(`Couldn't find readable text inside this ${kind} file — it may be empty or use unusual fonts.`);
   }
-  return wrapPagesHtml(sentences.join(" "));
+  return sentences.join(" ");
+}
+
+export function pagesToHtml(bytes: Uint8Array): string {
+  return wrapPagesHtml(iworkText(bytes, ".pages"));
+}
+
+/** Apple Numbers → HTML: the sheet's strings as readable prose. */
+export function numbersToHtml(bytes: Uint8Array): string {
+  return wrapPagesHtml(iworkText(bytes, ".numbers"));
 }
 
 function wrapPagesHtml(text: string): string {

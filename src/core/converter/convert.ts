@@ -42,7 +42,7 @@ import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { encodeAu, parseAu } from "./au";
 import { encodeVoc, isVoc, parseVoc } from "./voc";
-import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, pagesToHtml, txtzToHtml } from "./ebooks";
+import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, numbersToHtml, pagesToHtml, txtzToHtml } from "./ebooks";
 import { azw4FromPdf, mobiFromHtml } from "./ebooks-write";
 import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml, slidesToOdp } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
@@ -110,6 +110,9 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   odg: "application/vnd.oasis.opendocument.drawing",
   svgz: "image/svg+xml",
   cbc: "application/vnd.comicbook+zip",
+  abw: "application/x-abiword",
+  zabw: "application/x-abiword-compressed",
+  geojson: "application/geo+json",
   tex: "application/x-tex",
   rst: "text/x-rst",
   "image-pbm": "image/x-portable-bitmap",
@@ -217,15 +220,20 @@ function baseName(name: string): string {
 const OFFICE_TARGETS = new Set<TargetFormat>([
   "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "prc", "pdb", "azw3", "azw4", "tex", "rst", "opml", "txt-url",
   "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "docm", "dotx", "pptm", "potx", "ppsx",
-  "cbz", "cbc", "mhtml", "xhtml", "ps", "eps", "odg", "svgz",
+  "cbz", "cbc", "mhtml", "xhtml", "ps", "eps", "odg", "svgz", "abw", "zabw", "geojson",
   "image-png", "image-jpeg", "image-webp", "image-gif", "image-svg"
 ]);
 
 /** Targets the epub case routes through renderDocument (OFFICE_TARGETS + cbz). */
 const IMAGE_OR_DOC_TARGETS = new Set<TargetFormat>(["image-png", "image-jpeg", "image-webp", "image-gif", "image-svg"]);
 
+/** Prose targets an image reaches by OCR-ing the picture first. */
+const OCR_DOC_TARGETS = new Set<TargetFormat>([
+  "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4"
+]);
+
 /** The spreadsheet/data containers every table and record source can produce. */
-const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "xltx", "xltm", "tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl", "vcf", "ics"]);
+const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "xltx", "xltm", "tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl", "vcf", "ics", "geojson"]);
 
 /**
  * Every prose source funnels through HTML, so one renderer serves them
@@ -260,6 +268,8 @@ async function renderDocument(html: string, title: string, target: TargetFormat,
     const png = await convertImage(svg, "image-png", opts.canvas, opts.image, "image-svg");
     return arch.filesToZip({ "page-01.png": png });
   }
+  if (target === "abw") return docs.htmlToAbw(html, title);
+  if (target === "zabw") return arch.gzipBytes(docs.htmlToAbw(html, title));
   if (target === "tex") return toBytes(docs.htmlToLatex(html, title));
   if (target === "rst") return toBytes(docs.textToRst(docs.htmlToText(html), title));
   if (target === "opml") return toBytes(docs.htmlToOpml(html, title));
@@ -296,6 +306,7 @@ async function routeRecords(
   if (target === "text") return toBytes(docs.recordsToText(records));
   if (target === "vcf") return toBytes(docs.recordsToVcf(records));
   if (target === "ics") return toBytes(docs.recordsToIcs(records));
+  if (target === "geojson") return toBytes(docs.recordsToGeoJson(records));
   if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
     return renderDocument(docs.recordsToHtml(records), title, target, opts);
   }
@@ -348,6 +359,7 @@ async function renderTable(csv: string, title: string, target: TargetFormat, opt
   if (target === "xltm") return docs.xlsxToXltm(await docs.csvToXlsx(csv));
   if (target === "vcf") return toBytes(docs.recordsToVcf(docs.csvToJson(csv) as Record<string, string>[]));
   if (target === "ics") return toBytes(docs.recordsToIcs(docs.csvToJson(csv) as Record<string, string>[]));
+  if (target === "geojson") return toBytes(docs.recordsToGeoJson(docs.csvToJson(csv) as Record<string, string>[]));
   if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
   if (target === "pdf") return docs.csvToPdf(csv);
   if (target === "image-svg") return docs.csvToSvg(csv);
@@ -443,6 +455,16 @@ async function convertDecodedBytes(
  * plain text and XML content all convert; binary OLE2 containers can't be
  * parsed locally and get a clear error instead of a mangled file.
  */
+/** True when the bytes look like printable text (no NULs/control bytes). */
+function isPrintable(bytes: Uint8Array): boolean {
+  if (bytes.length === 0) return false;
+  for (let i = 0; i < Math.min(bytes.length, 8192); i++) {
+    const b = bytes[i]!;
+    if (b === 0 || (b < 9) || (b > 13 && b < 32 && b !== 27)) return false;
+  }
+  return true;
+}
+
 async function sniffDocToHtml(bytes: Uint8Array): Promise<string> {
   const inner = detectFile(bytes, "sniff.bin").type;
   if (inner === "rtf") return rtfToHtml(toText(bytes));
@@ -453,16 +475,8 @@ async function sniffDocToHtml(bytes: Uint8Array): Promise<string> {
   }
   // Plain text has no magic bytes, so it lands on "unknown" — accept it
   // when the payload is printable (no NULs, no control bytes).
-  if (inner === "unknown" && bytes.length > 0) {
-    let printable = true;
-    for (let i = 0; i < Math.min(bytes.length, 8192); i++) {
-      const b = bytes[i]!;
-      if (b === 0 || (b < 9) || (b > 13 && b < 32 && b !== 27)) {
-        printable = false;
-        break;
-      }
-    }
-    if (printable) return `<pre>${docs.escapeHtml(toText(bytes))}</pre>`;
+  if (inner === "unknown" && isPrintable(bytes)) {
+    return `<pre>${docs.escapeHtml(toText(bytes))}</pre>`;
   }
   throw new Error(
     "This file is a binary Word/Works container that can't be read locally — try the text, RTF or HTML version instead."
@@ -521,9 +535,29 @@ async function runConversion(
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes, name: "image" }));
       if (target === "prc" || target === "pdb") return await mobiFromHtml(toText(await docs.imageToHtml({ bytes, name: "image" })), { title: "Image" });
       if (target === "tex") return toBytes(docs.htmlToLatex(toText(await docs.imageToHtml({ bytes, name: "image" })), "Image"));
+      // Text-document targets read the picture with OCR and render the
+      // recognised text into each prose format (same rule as image → text).
+      if (OCR_DOC_TARGETS.has(target)) {
+        const text = await runOcr(bytes, "image", opts);
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
+      }
+      if (target === "svgz") return arch.gzipBytes(await convertImage(bytes, "image-svg", opts.canvas, opts.image, source));
+      if (target === "cbz" || target === "cbc") {
+        return arch.filesToZip({ "page-01.png": await convertImage(bytes, "image-png", opts.canvas, opts.image, source) });
+      }
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
+      // SVG text is directly extractable (no OCR needed) — strip the tags
+      // and render the content into each prose format.
+      if (OCR_DOC_TARGETS.has(target)) {
+        const text = toText(bytes).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
+      }
+      if (target === "svgz") return arch.gzipBytes(bytes);
+      if (target === "cbz" || target === "cbc") {
+        return arch.filesToZip({ "page-01.png": await convertImage(bytes, "image-png", opts.canvas, opts.image, source) });
+      }
       // SVG embeds directly — the browser renders it natively, no rasterization needed.
       if (target === "html") return docs.wrapImageAsHtml(bytes, "image/svg+xml", "image");
       if (target === "markdown") return docs.wrapImageAsMarkdown(bytes, "image/svg+xml", "image");
@@ -567,6 +601,14 @@ async function runConversion(
       if (target === "odt") return imagesToOdt([{ bytes: preview, name: "image" }]);
       if (target === "odp") return imagesToOdp([{ bytes: preview, name: "image" }]);
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: preview, name: "image" }));
+      if (OCR_DOC_TARGETS.has(target)) {
+        const text = await runOcr(preview, "image", opts);
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
+      }
+      if (target === "svgz") return arch.gzipBytes(await convertImage(preview, "image-svg", opts.canvas, opts.image, "image-jpeg"));
+      if (target === "cbz" || target === "cbc") {
+        return arch.filesToZip({ "page-01.png": await convertImage(preview, "image-png", opts.canvas, opts.image, "image-jpeg") });
+      }
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
     }
     case "eps":
@@ -593,6 +635,14 @@ async function runConversion(
         if (target === "odp") return imagesToOdp([{ bytes: png, name: "image" }]);
         if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
         return toBytes(await runOcr(png, "image", opts));
+      }
+      if (OCR_DOC_TARGETS.has(target)) {
+        const text = await runOcr(preview, "image", opts);
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
+      }
+      if (target === "svgz") return arch.gzipBytes(await convertImage(preview, "image-svg", opts.canvas, opts.image, "image-tiff"));
+      if (target === "cbz" || target === "cbc") {
+        return arch.filesToZip({ "page-01.png": await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff") });
       }
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-tiff");
     }
@@ -782,6 +832,7 @@ async function runConversion(
     // error (the same rule the .eps and .xlsm paths follow).
     case "dot":
     case "wps":
+    case "doc":
       return renderDocument(await sniffDocToHtml(bytes), "Document", target, opts);
     // Apple Pages: the embedded QuickLook PDF is the faithful path; text
     // extraction from the IWA blobs covers the rest.
@@ -789,6 +840,28 @@ async function runConversion(
       const preview = extractPagesPreviewPdf(bytes);
       if (target === "pdf" && preview) return preview;
       return renderDocument(pagesToHtml(bytes), "Pages document", target, opts);
+    }
+    // Apple Numbers: the same iWork container — the sheet's strings read
+    // as prose through the shared text extraction.
+    case "numbers":
+      return renderDocument(numbersToHtml(bytes), "Numbers spreadsheet", target, opts);
+    // .et (WPS Spreadsheet) is content-sniffed like .dot/.wps: an OOXML
+    // zip behaves as xlsx, an OLE2 workbook as xls, CSV text as a table.
+    case "et": {
+      const inner = detectFile(bytes, "sniff.bin").type;
+      // A zip .et IS a spreadsheet by definition (OOXML or ODS flavour),
+      // so any zip/office container goes through the shared SheetJS read.
+      if (inner === "xlsx" || inner === "xls" || inner === "ods" || inner === "zip") {
+        return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target, opts);
+      }
+      if (inner === "csv" || inner === "text" || (inner === "unknown" && isPrintable(bytes))) {
+        return renderTable(toText(bytes), "Spreadsheet", target, opts);
+      }
+      throw new Error("This .et file is a binary WPS container that can't be read locally.");
+    }
+    case "geojson": {
+      const records = docs.geojsonToRecords(toText(bytes));
+      return routeRecords(records, "GeoJSON", target);
     }
     case "xhtml":
       // XHTML is XML-serialised HTML — drop the declaration and reuse the

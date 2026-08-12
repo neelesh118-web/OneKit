@@ -2921,6 +2921,62 @@ export function epubImagesToCbz(bytes: Uint8Array): Uint8Array {
 
 /* Extra single-file document targets (XHTML / MHTML / PS / EPS / ODG) ------ */
 
+/* GeoJSON --------------------------------------------------------------- */
+
+/** Records → a GeoJSON FeatureCollection (geometry omitted, honest). */
+export function recordsToGeoJson(records: Record<string, string>[]): string {
+  const features = records.map((record, i) => {
+    const { id, ...properties } = record;
+    const feature: Record<string, unknown> = { type: "Feature" };
+    if (id !== undefined && id !== "") feature.id = id;
+    feature.properties = properties;
+    return feature;
+  });
+  return JSON.stringify({ type: "FeatureCollection", features }, null, 2);
+}
+
+/** GeoJSON → records: each feature's properties (plus id/geometry). */
+export function geojsonToRecords(json: string): Record<string, string>[] {
+  const data = JSON.parse(json) as { features?: unknown; type?: unknown };
+  const features = Array.isArray(data?.features)
+    ? (data.features as Record<string, unknown>[])
+    : data?.type
+      ? [data as Record<string, unknown>]
+      : [];
+  if (features.length === 0) throw new Error("No features found in this GeoJSON file.");
+  return features.map((feature, i) => {
+    const props = (feature?.properties && typeof feature.properties === "object"
+      ? (feature.properties as Record<string, unknown>)
+      : {}) as Record<string, unknown>;
+    const out: Record<string, string> = {};
+    for (const [key, value] of Object.entries(props)) {
+      out[key] = typeof value === "string" ? value : JSON.stringify(value ?? "");
+    }
+    if (feature.id !== undefined) out.id = String(feature.id);
+    if (feature.geometry !== undefined) out.geometry = JSON.stringify(feature.geometry ?? null);
+    if (Object.keys(out).length === 0) out._feature = String(i + 1);
+    return out;
+  });
+}
+
+/* Extra single-file document targets (XHTML / MHTML / PS / EPS / ODG) ------ */
+
+/** HTML → AbiWord (ABW): AbiWord's native XML, one paragraph per line. */
+export function htmlToAbw(html: string, title: string): Uint8Array {
+  const paragraphs = htmlToText(html).split("\n");
+  const body = (paragraphs.length > 0 ? paragraphs : [""])
+    .map((p) => `<p style="Normal">${escapeXml(p)}</p>`)
+    .join("");
+  const abw =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<abiword template="false" version="1.0">` +
+    `<metadata><m key="dc.title">${escapeXml(title)}</m></metadata>` +
+    `<styles><s type="P" name="Normal"/></styles>` +
+    `<section>${body}</section>` +
+    `</abiword>`;
+  return strToU8(abw);
+}
+
 /** MHTML → the text/html part (base64 or quoted-printable bodies). */
 export function mhtmlToHtml(bytes: Uint8Array): string {
   const raw = strFromU8(bytes);
