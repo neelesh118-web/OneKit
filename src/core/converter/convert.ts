@@ -296,12 +296,19 @@ async function runConversion(
       if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
-      // Single-file path: the first page. The Convert tab zips all pages
-      // via pdfToImages so multi-page PDFs never lose pages.
+      // Single-file path: the first page. Render to PNG first for formats
+      // that pdfjs cannot encode directly, then reuse the image pipeline.
+      // The Convert tab zips all pages for its multi-file PNG/JPEG path.
       {
-        const pages = await docs.pdfToImages(bytes, target === "image-png" ? "png" : "jpeg");
+        const directlyRendered = target === "image-png" || target === "image-jpeg";
+        const pages = await docs.pdfToImages(
+          bytes,
+          target === "image-jpeg" ? "jpeg" : "png",
+          opts.canvas?.canvasFactory ? { canvasFactory: opts.canvas.canvasFactory } : {}
+        );
         if (pages.length === 0) throw new Error("This PDF has no pages to render.");
-        return pages[0]!.bytes;
+        if (directlyRendered) return pages[0]!.bytes;
+        return convertImage(pages[0]!.bytes, target as ImageTarget, opts.canvas, opts.image, "image-png");
       }
     case "docx":
     case "docm":
