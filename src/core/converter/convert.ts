@@ -42,7 +42,7 @@ import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { encodeAu, parseAu } from "./au";
 import { encodeVoc, isVoc, parseVoc } from "./voc";
-import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, keyToHtml, mobiToHtml, numbersToHtml, pagesToHtml, txtzToHtml } from "./ebooks";
+import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, keyToHtml, mobiToHtml, numbersToHtml, pagesToHtml, tcrToHtml, txtzToHtml } from "./ebooks";
 import { azw4FromPdf, mobiFromHtml } from "./ebooks-write";
 import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml, slidesToOdp } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
@@ -52,7 +52,7 @@ import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
 import { dxfToPdf, dxfToSvg, dxfToText } from "./vector";
-import { pptToHtml } from "./ole2";
+import { pptToHtml, sdaToHtml, sdcToHtml, sdwToHtml, vsdToHtml } from "./ole2";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -886,6 +886,19 @@ async function runConversion(
       if (inner === "ppt") return runConversion("ppt", target, bytes, opts);
       throw new Error("This .dps file is a binary WPS container that can't be read locally.");
     }
+    // Legacy OLE2 office documents: the document stream's text reads like
+    // any other text-based source.
+    case "sdw":
+      return renderDocument(sdwToHtml(bytes), "StarWriter document", target, opts);
+    case "sdc":
+      return renderDocument(sdcToHtml(bytes), "StarCalc spreadsheet", target, opts);
+    case "sda":
+      return renderDocument(sdaToHtml(bytes), "StarDraw drawing", target, opts);
+    case "vsd":
+      return renderDocument(vsdToHtml(bytes), "Visio diagram", target, opts);
+    // Psion TCR: decompress the zlib text and read it as plain prose.
+    case "tcr":
+      return renderDocument(tcrToHtml(bytes), "TCR text", target, opts);
     // .et (WPS Spreadsheet) is content-sniffed like .dot/.wps: an OOXML
     // zip behaves as xlsx, an OLE2 workbook as xls, CSV text as a table.
     case "et": {

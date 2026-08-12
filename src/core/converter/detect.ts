@@ -11,6 +11,7 @@ export type FileType =
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "dps" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
+  | "tcr" | "sdw" | "sdc" | "sda" | "vsd"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -53,6 +54,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   wps: "Microsoft Works word processor", doc: "Word document (DOC)", pages: "Apple Pages document",
   numbers: "Apple Numbers spreadsheet", key: "Apple Keynote presentation",
   ppt: "PowerPoint presentation (PPT)", dps: "WPS Presentation (DPS)", et: "WPS Spreadsheet (ET)", geojson: "GeoJSON data",
+  tcr: "Psion text (TCR)", sdw: "StarWriter document (SDW)", sdc: "StarCalc spreadsheet (SDC)",
+  sda: "StarDraw drawing (SDA)", vsd: "Visio diagram (VSD)",
   xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
@@ -102,6 +105,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   // Legacy binary PowerPoint templates (.pot) and slide shows (.pps) share
   // the exact OLE2 text records as .ppt — one type serves all three.
   ppt: ["ppt", "pot", "pps"], dps: ["dps"], et: ["et"],
+  tcr: ["tcr"], sdw: ["sdw"], sdc: ["sdc"], sda: ["sda"], vsd: ["vsd"],
   geojson: ["geojson"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
@@ -335,7 +339,15 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     const directory = textWindow(bytes, 0, 8192);
     if (directory.includes("W\0o\0r\0k\0b\0o\0o\0k\0") || directory.includes("B\0o\0o\0k\0")) return "xls";
     if (directory.includes("P\0o\0w\0e\0r\0P\0o\0i\0n\0t\0")) return "ppt";
+    if (directory.includes("S\0t\0a\0r\0W\0r\0i\0t\0e\0r\0")) return "sdw";
+    if (directory.includes("S\0t\0a\0r\0C\0a\0l\0c\0")) return "sdc";
+    if (directory.includes("S\0t\0a\0r\0D\0r\0a\0w\0")) return "sda";
+    if (directory.includes("V\0i\0s\0i\0o\0D\0o\0c\0u\0m\0e\0n\0t\0")) return "vsd";
     return "unknown";
+  }
+  // Psion TCR: 0xEA + version (1–3) + 0x01, then a zlib text stream.
+  if (bytes.length > 3 && bytes[0] === 0xea && bytes[1]! >= 1 && bytes[1]! <= 3 && bytes[2]! === 0x01) {
+    return "tcr";
   }
   // TAR: "ustar" at offset 257.
   if (asciiAt(bytes, 257, "ustar")) return "tar";

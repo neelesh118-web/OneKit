@@ -8,7 +8,7 @@
  * DRM-protected e-books can't be read — the honest answer is an error,
  * not a mangled file.
  */
-import { strFromU8, unzipSync } from "fflate/browser";
+import { inflateSync, strFromU8, unzipSync, unzlibSync } from "fflate/browser";
 import { decodeXmlText, escapeXml, xmlFragmentText } from "./xml-text";
 
 /* FB2 ------------------------------------------------------------------ */
@@ -398,6 +398,38 @@ export function numbersToHtml(bytes: Uint8Array): string {
 function wrapPagesHtml(text: string): string {
   const paragraphs = text.split(/(?<=\.)\s+/).map((p) => `<p>${escapeXml(p)}</p>`);
   return `<!doctype html><html><head><meta charset="utf-8"><title>Pages document</title></head><body>${paragraphs.join("\n")}</body></html>`;
+}
+
+/* Psion TCR ------------------------------------------------------------- */
+
+/**
+ * Psion Series 3/5 text (.tcr): a 3-byte header followed by a zlib
+ * stream of plain text. Trivial to read honestly — the compression is
+ * standard zlib, and modern devices treat the decompressed text exactly
+ * like any other plain-text source.
+ */
+export function tcrToHtml(bytes: Uint8Array): string {
+  if (bytes.length < 4) {
+    throw new Error("This .tcr file is too small to be a Psion text file.");
+  }
+  const payload = bytes.subarray(3);
+  let text: string;
+  try {
+    text = strFromU8(inflateSync(payload));
+  } catch {
+    try {
+      text = strFromU8(unzlibSync(payload));
+    } catch {
+      throw new Error("Could not decompress this .tcr file — it may be corrupt.");
+    }
+  }
+  const paragraphs = text
+    .split(/\r?\n+/)
+    .filter((p) => p.trim().length > 0)
+    .map((p) => `<p>${escapeXml(p)}</p>`);
+  return `<!doctype html><html><head><meta charset="utf-8"><title>TCR text</title></head><body>${paragraphs.join(
+    "\n"
+  )}</body></html>`;
 }
 
 /* Kindle AZW4 ----------------------------------------------------------- */

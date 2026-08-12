@@ -266,3 +266,113 @@ export function pptToHtml(bytes: Uint8Array): string {
     "\n"
   )}</body></html>`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Generic OLE2 text extraction (StarOffice, Visio, Publisher…)      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Pulls printable prose out of an OLE2 stream. StarOffice/Visio documents
+ * store their body text in one document stream with control bytes between
+ * words — the same lossy-but-real run extraction the iWork readers use:
+ * UTF-16LE runs where every odd byte is 0, plus plain 8-bit printable
+ * runs, keeping only sentence-length fragments.
+ */
+function printableRuns(data: Uint8Array): string {
+  const pieces: string[] = [];
+  const seen = new Set<string>();
+  const push = (run: string): void => {
+    const clean = run.replace(/[\s\u0000]+/g, " ").trim();
+    if (clean.length >= 12 && !seen.has(clean)) {
+      seen.add(clean);
+      pieces.push(clean);
+    }
+  };
+  // UTF-16LE runs (odd bytes are 0).
+  let run = "";
+  for (let i = 0; i + 1 < data.length; i += 2) {
+    const c = data[i]! | (data[i + 1]! << 8);
+    if (c >= 32 && c < 0xfffe) run += String.fromCharCode(c);
+    else {
+      push(run);
+      run = "";
+    }
+  }
+  push(run);
+  // Plain 8-bit printable runs.
+  run = "";
+  for (const b of data) {
+    if (b >= 32 && b < 127) run += String.fromCharCode(b);
+    else {
+      push(run);
+      run = "";
+    }
+  }
+  push(run);
+  return pieces.join(" ");
+}
+
+/**
+ * Finds and reads the document stream of a legacy OLE2 office file,
+ * returning its text. Preferred stream names are tried first; any stream
+ * whose directory name contains "document" is the fallback, which keeps
+ * the reader working across the StarOffice/Visio naming variants.
+ */
+export function ole2DocumentText(bytes: Uint8Array, kind: string, preferred: string[]): string {
+  const file = readOle2(bytes);
+  const candidates = [
+    ...preferred,
+    ...file.directory.filter((e) => e.type === 2 && /document/i.test(e.name)).map((e) => e.name)
+  ];
+  for (const name of [...new Set(candidates)]) {
+    const stream = readOle2Stream(file, name);
+    if (!stream) continue;
+    const text = printableRuns(stream);
+    if (text) return text;
+  }
+  throw new Error(
+    `Couldn't find readable text inside this ${kind} file — it may be empty or password-protected.`
+  );
+}
+
+function wrapOle2Html(text: string, title: string): string {
+  const paragraphs = text
+    .split(/\s{2,}|\n+/)
+    .filter((p) => p.trim().length > 0)
+    .map((p) => `<p>${p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`);
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title></head><body><h1>${title}</h1>${paragraphs.join(
+    "\n"
+  )}</body></html>`;
+}
+
+/** StarWriter (.sdw) → HTML: the document's prose. */
+export function sdwToHtml(bytes: Uint8Array): string {
+  return wrapOle2Html(
+    ole2DocumentText(bytes, ".sdw", ["StarWriterDocument", "StarWriter"]),
+    "StarWriter document"
+  );
+}
+
+/** StarCalc (.sdc) → HTML: the sheet's strings as readable prose. */
+export function sdcToHtml(bytes: Uint8Array): string {
+  return wrapOle2Html(
+    ole2DocumentText(bytes, ".sdc", ["StarCalcDocument", "StarCalc"]),
+    "StarCalc spreadsheet"
+  );
+}
+
+/** StarDraw (.sda) → HTML: the drawing's text. */
+export function sdaToHtml(bytes: Uint8Array): string {
+  return wrapOle2Html(
+    ole2DocumentText(bytes, ".sda", ["StarDrawDocument", "StarDraw"]),
+    "StarDraw drawing"
+  );
+}
+
+/** Visio (.vsd) → HTML: the diagram's text. */
+export function vsdToHtml(bytes: Uint8Array): string {
+  return wrapOle2Html(
+    ole2DocumentText(bytes, ".vsd", ["VisioDocument", "Visio"]),
+    "Visio diagram"
+  );
+}
