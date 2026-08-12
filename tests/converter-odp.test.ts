@@ -117,7 +117,8 @@ describe("matrix scoping", () => {
   });
 
   it("keeps pptx → odp out of scope (Codex's pair) and no self-targets", () => {
-    expect(targetsFor("pptx")).not.toContain("odp");
+    // pptx → odp is now in scope (Codex's ODP path merged in round 4).
+    expect(targetsFor("pptx")).toContain("odp");
     expect(targetsFor("odp")).not.toContain("odp");
     expect(targetExtension("odp")).toBe("odp");
   });

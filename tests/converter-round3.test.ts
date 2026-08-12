@@ -275,7 +275,7 @@ describe("matrix consistency for the new round", () => {
     }
   });
 
-  it("keeps pptx → odp out of scope (Codex's pair)", () => {
-    expect(MATRIX["pptx"]).not.toContain("odp");
+  it("advertises pptx → odp now that Codex's ODP path is merged", () => {
+    expect(MATRIX["pptx"]).toContain("odp");
   });
 });

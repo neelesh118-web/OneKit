@@ -9,7 +9,7 @@ export type FileType =
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
-  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "audio-aiff" | "audio-aac" | "audio-midi"
+  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "cbz" | "dxf" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
@@ -41,7 +41,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", pptm: "Macro-enabled PowerPoint deck",
   potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
   fb2: "FictionBook (FB2)", mobi: "MOBI ebook", azw: "Kindle AZW ebook", prc: "Palm PRC ebook",
-  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook",
+  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook", cbz: "Comic Book ZIP (CBZ)", dxf: "AutoCAD DXF drawing",
   "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
   html: "HTML page", markdown: "Markdown", rst: "reStructuredText", tex: "TeX/LaTeX",
@@ -84,7 +84,8 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
   pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
-  fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], htmlz: ["htmlz"], txtz: ["txtz"],
+  fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], htmlz: ["htmlz"], txtz: ["txtz"], cbz: ["cbz", "cbr"],
+  dxf: ["dxf"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
   abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], text: ["txt"],
@@ -320,7 +321,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       return "pptx";
     }
     if (window.includes("mimetypeapplication/epub")) return "epub";
-    if (fallback === "htmlz" || fallback === "txtz") return fallback;
+    if (fallback === "htmlz" || fallback === "txtz" || fallback === "cbz") return fallback;
     // OpenDocument packages name their flavour in the stored mimetype entry.
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.presentation")) return "odp";
@@ -394,6 +395,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (trimmed.startsWith("{") && head.includes("\n{")) return "jsonl";
   if (trimmed.startsWith("{")) return "json";
   if (trimmed.startsWith("<")) return "xml";
+  // DXF: a sectioned AutoCAD drawing — "SECTION"/"ENTITIES"/"EOF" markers.
+  if (/^\s*\d+\s*$/m.test(trimmed) && /^\s*SECTION\s*$/im.test(trimmed) && /^\s*EOF\s*$/im.test(trimmed)) return "dxf";
   return fallback;
 }
 

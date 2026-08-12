@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
 import { convertFile } from "../src/core/converter/convert";
+import { canvasOptions } from "./canvas-options";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { buildPptx } from "../src/core/converter/pptx";
@@ -31,7 +32,7 @@ describe("converter batch 2 - OOXML presentation variants", () => {
 
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: deck, name: `roadmap.${source}` }, target);
+        const result = await convertFile({ bytes: deck, name: `roadmap.${source}` }, target, canvasOptions());
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Roadmap");

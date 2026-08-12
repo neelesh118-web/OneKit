@@ -44,13 +44,14 @@ import { encodeAu, parseAu } from "./au";
 import { encodeVoc, isVoc, parseVoc } from "./voc";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { mobiFromHtml } from "./ebooks-write";
-import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml } from "./odf";
+import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml, slidesToOdp } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
 import { imageToRtfDocument, rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
+import { dxfToPdf } from "./vector";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -101,6 +102,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   prc: "application/x-mobipocket-ebook",
   pdb: "application/vnd.palm",
   tex: "application/x-tex",
+  rst: "text/x-rst",
   "image-pbm": "image/x-portable-bitmap",
   "image-pgm": "image/x-portable-graymap",
   "image-pam": "image/x-portable-arbitrary-map",
@@ -116,6 +118,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   text: "text/plain",
   htmlz: "application/zip",
   txtz: "application/zip",
+  cbz: "application/vnd.comicbook+zip",
   org: "text/x-org",
   textile: "text/x-textile",
   mediawiki: "text/x-wiki",
@@ -197,9 +200,13 @@ function baseName(name: string): string {
 
 /** The document containers written by the Office writers. */
 const OFFICE_TARGETS = new Set<TargetFormat>([
-  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "prc", "pdb", "tex", "opml", "txt-url",
-  "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "docm", "dotx", "pptm", "potx", "ppsx"
+  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "opml", "txt-url",
+  "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "docm", "dotx", "pptm", "potx", "ppsx",
+  "image-png", "image-jpeg", "image-webp", "image-gif", "image-svg"
 ]);
+
+/** Targets the epub case routes through renderDocument (OFFICE_TARGETS + cbz). */
+const IMAGE_OR_DOC_TARGETS = new Set<TargetFormat>(["image-png", "image-jpeg", "image-webp", "image-gif", "image-svg"]);
 
 /** The spreadsheet/data containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "xltx", "xltm", "tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl", "vcf", "ics"]);
@@ -208,7 +215,7 @@ const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "xltx", "xltm", "ts
  * Every prose source funnels through HTML, so one renderer serves them
  * all — PDF, Word, EPUB, RTF, OpenDocument and PowerPoint included.
  */
-async function renderDocument(html: string, title: string, target: TargetFormat): Promise<Uint8Array> {
+async function renderDocument(html: string, title: string, target: TargetFormat, opts: ConvertOptions = {}): Promise<Uint8Array> {
   if (target === "html") return toBytes(html);
   if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
   if (target === "pdf") return docs.htmlToPdf(html);
@@ -226,6 +233,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "fb2") return docs.htmlToFb2(html, title);
   if (target === "mobi" || target === "azw" || target === "prc" || target === "pdb") return await mobiFromHtml(html, { title });
   if (target === "tex") return toBytes(docs.htmlToLatex(html, title));
+  if (target === "rst") return toBytes(docs.textToRst(docs.htmlToText(html), title));
   if (target === "opml") return toBytes(docs.htmlToOpml(html, title));
   if (target === "txt-url") return toBytes(txt.textToUrl(docs.htmlToText(html)));
   if (target === "htmlz") return docs.htmlToHtmlz(html, title);
@@ -234,6 +242,11 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "textile") return toBytes(docs.htmlToTextile(html, title));
   if (target === "mediawiki") return toBytes(docs.htmlToMediawiki(html, title));
   if (target === "asciidoc") return toBytes(docs.htmlToAsciidoc(html, title));
+  if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+  if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif") {
+    const svg = docs.textToSvg(docs.htmlToText(html));
+    return convertImage(svg, target, opts.canvas, opts.image, "image-svg");
+  }
   return toBytes(docs.htmlToText(html));
 }
 
@@ -245,7 +258,8 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
 async function routeRecords(
   records: Record<string, string>[],
   title: string,
-  target: TargetFormat
+  target: TargetFormat,
+  opts: ConvertOptions = {}
 ): Promise<Uint8Array> {
   if (target === "json") return toBytes(JSON.stringify(records, null, 2));
   if (target === "csv") return toBytes(docs.recordsToCsv(records));
@@ -255,9 +269,9 @@ async function routeRecords(
   if (target === "vcf") return toBytes(docs.recordsToVcf(records));
   if (target === "ics") return toBytes(docs.recordsToIcs(records));
   if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
-    return renderDocument(docs.recordsToHtml(records), title, target);
+    return renderDocument(docs.recordsToHtml(records), title, target, opts);
   }
-  if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), title, target);
+  if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), title, target, opts);
   return toBytes(docs.recordsToHtml(records));
 }
 
@@ -287,7 +301,7 @@ function wavToVoc(wav: Uint8Array): Uint8Array {
  * all — the data formats directly, the document formats via the table's
  * HTML.
  */
-async function renderTable(csv: string, title: string, target: TargetFormat): Promise<Uint8Array> {
+async function renderTable(csv: string, title: string, target: TargetFormat, opts: ConvertOptions = {}): Promise<Uint8Array> {
   if (target === "csv") return toBytes(csv);
   if (target === "tsv") return toBytes(docs.csvToTsv(csv));
   if (target === "json") return toBytes(JSON.stringify(docs.csvToJson(csv), null, 2));
@@ -308,7 +322,12 @@ async function renderTable(csv: string, title: string, target: TargetFormat): Pr
   if (target === "ics") return toBytes(docs.recordsToIcs(docs.csvToJson(csv) as Record<string, string>[]));
   if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
   if (target === "pdf") return docs.csvToPdf(csv);
-  return renderDocument(docs.csvToHtml(csv), title, target);
+  if (target === "image-svg") return docs.csvToSvg(csv);
+  if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif") {
+    const svg = docs.csvToSvg(csv);
+    return convertImage(svg, target, opts.canvas, opts.image, "image-svg");
+  }
+  return renderDocument(docs.csvToHtml(csv), title, target, opts);
 }
 
 /**
@@ -531,7 +550,7 @@ async function runConversion(
       }
       // PDF → document containers: extract readable text before writing.
       if (target === "rtf" || target === "odt" || target === "odp" || target === "pptx" || target === "fb2" || target === "mobi" || target === "azw" || target === "txt-url" || target === "opml") {
-        return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
+        return renderDocument(await docs.pdfToHtml(bytes), "Document", target, opts);
       }
       // Single-file path: render page 1 as PNG, then push it through the
       // raster pipeline so EVERY image target works (GIF/WebP/BMP/TIFF/
@@ -554,32 +573,34 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
-      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target, opts);
       return toBytes(docs.htmlToText(html));
     }
     case "rtf":
-      return renderDocument(rtfToHtml(toText(bytes)), "Document", target);
+      return renderDocument(rtfToHtml(toText(bytes)), "Document", target, opts);
     case "odt":
-      return renderDocument(odtToHtml(bytes), "Document", target);
+      return renderDocument(odtToHtml(bytes), "Document", target, opts);
     case "odp":
-      return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target);
+      if (target === "odp") return slidesToOdp(odpToSlides(bytes));
+      return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target, opts);
     case "pptx":
     case "pptm":
     case "potx":
     case "ppsx":
-      return renderDocument(slidesToHtml(pptxToSlides(bytes), "Presentation"), "Presentation", target);
+      if (target === "odp") return slidesToOdp(pptxToSlides(bytes));
+      return renderDocument(slidesToHtml(pptxToSlides(bytes), "Presentation"), "Presentation", target, opts);
     case "fb2": {
       const xml = toText(bytes);
-      return renderDocument(fb2ToHtml(xml), fb2Title(xml), target);
+      return renderDocument(fb2ToHtml(xml), fb2Title(xml), target, opts);
     }
     case "mobi":
     case "azw":
     case "prc":
-      return renderDocument(mobiToHtml(bytes), "Book", target);
+      return renderDocument(mobiToHtml(bytes), "Book", target, opts);
     case "htmlz":
-      return renderDocument(htmlzToHtml(bytes), "Book", target);
+      return renderDocument(htmlzToHtml(bytes), "Book", target, opts);
     case "txtz":
-      return renderDocument(txtzToHtml(bytes), "Book", target);
+      return renderDocument(txtzToHtml(bytes), "Book", target, opts);
     case "xls":
     case "xlsm":
     case "ods":
@@ -592,16 +613,36 @@ async function runConversion(
       // without the vbaProject.bin stream, so this keeps every cell and
       // every style instead of rebuilding from CSV.
       if (source === "xlsm" && target === "xlsx") return docs.xlsmToXlsx(bytes);
-      return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target);
+      return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target, opts);
     case "epub": {
+      if (target === "cbz") return docs.epubImagesToCbz(bytes);
       const html = docs.epubToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.epubToPdf(bytes);
       if (target === "docx") return docs.htmlToDocx(html);
-      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Book", target);
+      if (OFFICE_TARGETS.has(target) || IMAGE_OR_DOC_TARGETS.has(target)) return renderDocument(html, "Book", target, opts);
       return toBytes(docs.htmlToText(html));
     }
+    case "cbz": {
+      const entries = arch.unzipToFiles(bytes);
+      const pages = Object.entries(entries)
+        .filter(([name, data]) => data.length > 0 && /\.(?:png|jpe?g|gif|webp|bmp|avif|tiff?|ico|dds|tga|ppm|psd|icns)$/i.test(name))
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+      if (pages.length === 0) throw new Error("This CBZ contains no supported image pages.");
+      const prepared = await Promise.all(pages.map(async ([name, pageBytes]) => {
+        const pageType = detectFile(pageBytes, name).type;
+        if (pageType === "image-png" || pageType === "image-jpeg") return { bytes: pageBytes, name };
+        if (!pageType.startsWith("image-")) throw new Error(`Couldn't decode comic page ${name}.`);
+        return {
+          bytes: await convertImage(pageBytes, "image-png", opts.canvas, opts.image, pageType),
+          name: name.replace(/\.[^.]+$/, ".png")
+        };
+      }));
+      return target === "epub" ? docs.epubFromImages("Comic", prepared) : docs.imagesToPdf(prepared);
+    }
+    case "dxf":
+      return dxfToPdf(bytes);
     case "markdown": {
       const md = toText(bytes);
       const html = docs.markdownToHtml(md);
@@ -611,21 +652,21 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
-      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target, opts);
       return toBytes(docs.htmlToText(html));
     }
     case "rst":
-      return renderDocument(rstToHtml(toText(bytes)), "Document", target);
+      return renderDocument(rstToHtml(toText(bytes)), "Document", target, opts);
     case "tex":
-      return renderDocument(texToHtml(toText(bytes)), "Document", target);
+      return renderDocument(texToHtml(toText(bytes)), "Document", target, opts);
     case "abw":
-      return renderDocument(abwToHtml(toText(bytes)), "Document", target);
+      return renderDocument(abwToHtml(toText(bytes)), "Document", target, opts);
     case "zabw":
-      return renderDocument(zabwToHtml(bytes), "Document", target);
+      return renderDocument(zabwToHtml(bytes), "Document", target, opts);
     case "oeb":
-      return renderDocument(oebToHtml(toText(bytes)), "Book", target);
+      return renderDocument(oebToHtml(toText(bytes)), "Book", target, opts);
     case "pml":
-      return renderDocument(pmlToHtml(toText(bytes)), "Book", target);
+      return renderDocument(pmlToHtml(toText(bytes)), "Book", target, opts);
     case "html": {
       const html = toText(bytes);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
@@ -634,7 +675,7 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
-      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
+      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target, opts);
       return docs.htmlToPdf(html);
     }
     case "text": {
@@ -651,7 +692,7 @@ async function runConversion(
       }
       if (target === "markdown") return toBytes(text); // plain text is valid Markdown
       if (OFFICE_TARGETS.has(target)) {
-        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Document", target);
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Document", target, opts);
       }
       if (target === "html") {
         return toBytes(
@@ -663,21 +704,21 @@ async function runConversion(
     case "vcf": {
       const records = docs.vcfToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No VCARD blocks found in this file.");
-      return routeRecords(records, "Contacts", target);
+      return routeRecords(records, "Contacts", target, opts);
     }
     case "opml": {
       const records = docs.opmlToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No <outline> entries found in this OPML file.");
       if (target === "xml") return toBytes(toText(bytes));
       if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(records)));
-      return routeRecords(records, "Outline", target);
+      return routeRecords(records, "Outline", target, opts);
     }
     case "plist": {
       const records = docs.plistToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No <dict> blocks found in this plist.");
       if (target === "xml") return toBytes(toText(bytes));
       if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(records)));
-      return routeRecords(records, "Plist", target);
+      return routeRecords(records, "Plist", target, opts);
     }
     case "ics": {
       const records = docs.icsToRecords(toText(bytes));
@@ -843,7 +884,7 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
       if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
-        return renderTable(csv, "Spreadsheet", target);
+        return renderTable(csv, "Spreadsheet", target, opts);
       }
       return docs.csvToXlsx(csv);
     }
@@ -879,7 +920,7 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
       if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
-        return renderTable(csv, "Spreadsheet", target);
+        return renderTable(csv, "Spreadsheet", target, opts);
       }
       return toBytes(docs.csvToHtml(csv));
     }
@@ -975,7 +1016,7 @@ async function runConversion(
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
-        return renderTable(csv, "Spreadsheet", target);
+        return renderTable(csv, "Spreadsheet", target, opts);
       }
       return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
     }

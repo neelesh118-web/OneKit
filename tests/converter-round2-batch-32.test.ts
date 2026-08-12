@@ -1,0 +1,9 @@
+// @vitest-environment node
+import { strFromU8, unzipSync } from "fflate/browser";
+import { describe, expect, it } from "vitest";
+import { convertFile } from "../src/core/converter/convert";
+import { buildPptx } from "../src/core/converter/pptx";
+import { odpToSlides } from "../src/core/converter/odf";
+import { targetsFor } from "../src/core/converter/matrix";
+const enc=(s:string)=>new TextEncoder().encode(s);
+describe("round 2 batch 32: PML FB2 and presentation ODP",()=>{it("advertises ranks 5622, 5626, 5644",()=>{expect(targetsFor("pml")).toContain("fb2");expect(targetsFor("potx")).toContain("odp");expect(targetsFor("ppsx")).toContain("odp")});it("converts readable PML to FB2",async()=>{const r=await convertFile({bytes:enc("\\xTitle\\x\n\\pReadable Palm ebook content."),name:"book.pml"},"fb2");const xml=new TextDecoder().decode(r.bytes);expect(r).toMatchObject({name:"book.fb2",mime:"application/x-fictionbook+xml"});expect(xml).toContain("<FictionBook");expect(xml).toContain("Readable Palm ebook content.")});it.each(["potx","ppsx"]as const)("converts %s slides to valid ODP",async(source)=>{const bytes=buildPptx([{title:"Template deck",lines:["Readable slide"]}]);const r=await convertFile({bytes,name:`deck.${source}`},"odp");expect(r).toMatchObject({name:"deck.odp",mime:"application/vnd.oasis.opendocument.presentation"});const files=unzipSync(r.bytes);expect(strFromU8(files.mimetype!)).toBe("application/vnd.oasis.opendocument.presentation");expect(odpToSlides(r.bytes)[0]).toEqual({title:"Template deck",lines:["Readable slide"]})});it("rejects malformed PML and presentation packages",async()=>{await expect(convertFile({bytes:enc(""),name:"empty.pml"},"fb2")).rejects.toThrow(/PML|content|empty/i);for(const source of ["potx","ppsx"]as const)await expect(convertFile({bytes:enc("bad"),name:`bad.${source}`},"odp")).rejects.toThrow(/pptx|PowerPoint|corrupt/i)});});

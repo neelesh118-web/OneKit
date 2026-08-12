@@ -2,6 +2,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
 import { convertFile } from "../src/core/converter/convert";
+import { canvasOptions } from "./canvas-options";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { csvToXlsx, textToDocx } from "../src/core/converter/documents";
@@ -37,7 +38,7 @@ describe("converter batch 1 - OOXML variants", () => {
 
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: word, name: `report.${source}` }, target);
+        const result = await convertFile({ bytes: word, name: `report.${source}` }, target, canvasOptions());
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Quarterly report");
@@ -52,7 +53,7 @@ describe("converter batch 1 - OOXML variants", () => {
 
   for (const target of MATRIX.xlsm) {
     it(`xlsm -> ${target} produces a real output`, async () => {
-      const result = await convertFile({ bytes: sheet, name: "totals.xlsm" }, target);
+      const result = await convertFile({ bytes: sheet, name: "totals.xlsm" }, target, canvasOptions());
       assertOutput(target, result.bytes);
       if (["csv", "tsv", "json", "yaml", "xml", "html", "markdown", "text"].includes(target)) {
         expect(dec.decode(result.bytes)).toContain("Alpha");

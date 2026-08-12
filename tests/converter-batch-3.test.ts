@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
 import { convertFile } from "../src/core/converter/convert";
+import { canvasOptions } from "./canvas-options";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { rstToHtml, texToHtml } from "../src/core/converter/markup";
@@ -39,7 +40,7 @@ describe("converter batch 3 - RST and TeX", () => {
     });
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: fixtures[source], name: `roadmap.${source}` }, target);
+        const result = await convertFile({ bytes: fixtures[source], name: `roadmap.${source}` }, target, canvasOptions());
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Converter Roadmap");

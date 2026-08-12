@@ -2601,8 +2601,8 @@ export function htmlToLatex(html: string, title: string): string {
   }
   for (const line of text.split(/\r?\n/)) {
     const t = line.trim();
-    if (!t || /^\\[a-z]+/.test(t)) continue;
-    lines.push(t);
+    if (!t) continue;
+    lines.push(esc(t));
   }
   lines.push(`\\end{document}`);
   return lines.join("\n") + "\n";
@@ -2747,4 +2747,174 @@ export function xlsxToXltx(bytes: Uint8Array): Uint8Array {
 /** XLSX → XLTM (macro-enabled workbook template) — content-type repackage. */
 export function xlsxToXltm(bytes: Uint8Array): Uint8Array {
   return repackageOoxml(bytes, "application/vnd.ms-excel.template.macroEnabled.main+xml");
+}
+/** CSV → SVG table (for the sheet → raster pipeline). */
+export function csvToSvg(text: string): Uint8Array {
+  const rows = parseCsv(text);
+  if (rows.length === 0 || rows.every((row) => row.every((cell) => cell.trim() === ""))) {
+    throw new Error("This CSV contains no table data to render.");
+  }
+  const columns = Math.max(...rows.map((row) => row.length), 1);
+  const cellWidth = 180;
+  const rowHeight = 34;
+  const width = Math.min(4096, columns * cellWidth);
+  const height = Math.min(4096, rows.length * rowHeight);
+  const visibleColumns = Math.max(1, Math.floor(width / cellWidth));
+  const visibleRows = Math.max(1, Math.floor(height / rowHeight));
+  const cells: string[] = [];
+  for (let row = 0; row < Math.min(rows.length, visibleRows); row += 1) {
+    for (let column = 0; column < Math.min(columns, visibleColumns); column += 1) {
+      const x = column * cellWidth;
+      const y = row * rowHeight;
+      const fill = row === 0 ? "#e8eef8" : row % 2 === 0 ? "#f8fafc" : "#ffffff";
+      const value = escapeHtml((rows[row]?.[column] ?? "").slice(0, 24));
+      cells.push(`<rect x="${x}" y="${y}" width="${cellWidth}" height="${rowHeight}" fill="${fill}" stroke="#94a3b8"/>`);
+      cells.push(`<text x="${x + 8}" y="${y + 22}" font-family="Arial,sans-serif" font-size="14" font-weight="${row === 0 ? 700 : 400}" fill="#0f172a">${value}</text>`);
+    }
+  }
+  return zipText(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#fff"/>${cells.join("")}</svg>`);
+}
+
+/** Readable prose rendered as a bounded SVG page for local raster export. */
+export function textToSvg(text: string): Uint8Array {
+  const normalized = text.replace(/\r/g, "").trim();
+  if (!normalized) throw new Error("This document contains no readable text to render.");
+  const maxChars = 84;
+  const lines: string[] = [];
+  for (const paragraph of normalized.split(/\n+/)) {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    let line = "";
+    for (const word of words) {
+      if (line && `${line} ${word}`.length > maxChars) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = line ? `${line} ${word}` : word;
+      }
+    }
+    if (line) lines.push(line);
+    if (lines.length >= 180) break;
+  }
+  const width = 960;
+  const lineHeight = 26;
+  const height = Math.min(4096, Math.max(160, 80 + lines.length * lineHeight));
+  const visible = Math.max(1, Math.floor((height - 60) / lineHeight));
+  const body = lines.slice(0, visible).map((line, index) =>
+    `<text x="48" y="${58 + index * lineHeight}" font-family="Arial,sans-serif" font-size="18" fill="#111827">${escapeHtml(line)}</text>`
+  ).join("");
+  return zipText(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#fff"/>${body}</svg>`);
+}
+
+/** Plain text → DOCX template (DOTX) via the shared OOXML repackage. */
+export function textToDotx(text: string): Uint8Array {
+  return docxToDotx(textToDocx(text));
+}
+
+/** HTML → macro-enabled PPTX (PPTM) via the shared OOXML repackage. */
+export function htmlToPptm(html: string): Uint8Array {
+  return pptxToPptm(htmlToPptx(html));
+}
+
+/** Plain text → TeX document. */
+export function textToTex(text: string): string {
+  const normalized = text.replace(/\r/g, "").trim();
+  if (!normalized) throw new Error("This document contains no readable text to convert.");
+  const body = normalized.replace(/([\\{}#$%&_])/g, "\\$1").replace(/\^/g, "\\textasciicircum{}").replace(/~/g, "\\textasciitilde{}");
+  return `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\begin{document}\n${body.replace(/\n\n+/g, "\n\n\\par\n")}\n\\end{document}\n`;
+}
+
+/** Plain readable text to reStructuredText with reserved inline markers escaped. */
+export function textToRst(text: string, title = "Document"): string {
+  const normalized = text.replace(/\r/g, "").trim();
+  if (!normalized) throw new Error("This document contains no readable text to convert.");
+  const safeTitle = title.replace(/([\\*`|_])/g, "\\$1");
+  const body = normalized.replace(/([\\*`|_])/g, "\\$1");
+  return `${safeTitle}\n${"=".repeat(Math.max(3, title.length))}\n\n${body}\n`;
+}
+
+/** PDF → reStructuredText via the extracted text. */
+export async function pdfToRst(bytes: Uint8Array): Promise<string> {
+  return textToRst(await pdfToText(bytes));
+}
+
+/** Builds a valid EPUB 2 from a set of images — one page per image. */
+export function epubFromImages(title: string, images: { bytes: Uint8Array; name: string }[]): Uint8Array {
+  if (images.length === 0) throw new Error("Pick at least one image to make an EPUB.");
+  const titleText = escapeHtml(title);
+  const container = `<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`;
+  const files: Record<string, Uint8Array | [Uint8Array, { level: 0 }]> = {
+    mimetype: [zipText("application/epub+zip"), { level: 0 }],
+    "META-INF/container.xml": zipText(container)
+  };
+  const manifest: string[] = [`<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`];
+  const spine: string[] = [];
+  const nav: string[] = [];
+  images.forEach((image, index) => {
+    const sequence = String(index + 1).padStart(3, "0");
+    const jpeg = detectFromBytes(image.bytes, "unknown") === "image-jpeg";
+    const extension = jpeg ? "jpg" : "png";
+    const media = jpeg ? "image/jpeg" : "image/png";
+    const imagePath = `images/page-${sequence}.${extension}`;
+    const chapterPath = `page-${sequence}.xhtml`;
+    const imageId = `img${sequence}`;
+    const chapterId = `page${sequence}`;
+    files[`OEBPS/${imagePath}`] = sameRealmU8(image.bytes);
+    files[`OEBPS/${chapterPath}`] = zipText(`<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Page ${index + 1}</title><style>html,body{margin:0;padding:0;text-align:center;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${imagePath}" alt="Comic page ${index + 1}"/></body></html>`);
+    manifest.push(`<item id="${imageId}" href="${imagePath}" media-type="${media}"/>`, `<item id="${chapterId}" href="${chapterPath}" media-type="application/xhtml+xml"/>`);
+    spine.push(`<itemref idref="${chapterId}"/>`);
+    nav.push(`<navPoint id="n${sequence}" playOrder="${index + 1}"><navLabel><text>Page ${index + 1}</text></navLabel><content src="${chapterPath}"/></navPoint>`);
+  });
+  files["OEBPS/content.opf"] = zipText(`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${titleText}</dc:title><dc:identifier id="uid">onekit-comic-${Date.now()}</dc:identifier><dc:language>en</dc:language></metadata><manifest>${manifest.join("")}</manifest><spine toc="ncx">${spine.join("")}</spine></package>`);
+  files["OEBPS/toc.ncx"] = zipText(`<?xml version="1.0" encoding="UTF-8"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="onekit-comic"/></head><docTitle><text>${titleText}</text></docTitle><navMap>${nav.join("")}</navMap></ncx>`);
+  return zipSync(files);
+}
+
+/** EPUB → CBZ: extract every image the spine references, re-zipped as a comic. */
+export function epubImagesToCbz(bytes: Uint8Array): Uint8Array {
+  let files: Record<string, Uint8Array>;
+  try { files = unzipSync(bytes); } catch { throw new Error("Could not read this EPUB — the file may be corrupt."); }
+  const opfName = Object.keys(files).find((name) => name.toLowerCase().endsWith(".opf"));
+  if (!opfName) throw new Error("Could not find the EPUB's content.opf — this may not be a valid EPUB.");
+  const opf = strFromU8(files[opfName]!);
+  const attr = (tag: string, name: string): string | undefined => {
+    const match = tag.match(new RegExp(`\\b${name}=(?:"([^"]*)"|'([^']*)')`, "i"));
+    return match?.[1] ?? match?.[2];
+  };
+  const manifest: Record<string, string> = {};
+  for (const match of opf.matchAll(/<item\b[^>]*>/gi)) {
+    const id = attr(match[0], "id");
+    const href = attr(match[0], "href");
+    if (id && href) manifest[id] = decodeURIComponent(href.split("#")[0]!);
+  }
+  const base = opfName.includes("/") ? opfName.slice(0, opfName.lastIndexOf("/")) : "";
+  const resolve = (dir: string, href: string): string => {
+    const output: string[] = [];
+    for (const part of `${dir ? `${dir}/` : ""}${href}`.split("/")) {
+      if (!part || part === ".") continue;
+      if (part === "..") output.pop(); else output.push(part);
+    }
+    return output.join("/");
+  };
+  const pages: Record<string, Uint8Array> = {};
+  let page = 0;
+  for (const match of opf.matchAll(/<itemref\b[^>]*>/gi)) {
+    const href = manifest[attr(match[0], "idref") ?? ""];
+    if (!href) throw new Error("This EPUB's spine is incomplete and cannot become a CBZ.");
+    const chapterPath = resolve(base, href);
+    const chapter = files[chapterPath] ?? files[href];
+    if (!chapter) continue;
+    const chapterHtml = strFromU8(chapter);
+    for (const img of chapterHtml.matchAll(/<img[^>]*\bsrc=(?:"([^"]*)"|'([^']*)')/gi)) {
+      const src = img[1] ?? img[2];
+      if (!src) continue;
+      const imagePath = resolve(chapterPath.includes("/") ? chapterPath.slice(0, chapterPath.lastIndexOf("/")) : "", decodeURIComponent(src));
+      const data = files[imagePath];
+      if (!data) continue;
+      page += 1;
+      const ext = (imagePath.match(/\.([a-z0-9]+)$/i)?.[1] ?? "png").toLowerCase();
+      pages[`page-${String(page).padStart(3, "0")}.${ext}`] = sameRealmU8(data);
+    }
+  }
+  if (page === 0) throw new Error("This EPUB contains no images to turn into a comic.");
+  return zipSync(pages);
 }

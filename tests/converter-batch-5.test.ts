@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
 import { convertFile } from "../src/core/converter/convert";
+import { canvasOptions } from "./canvas-options";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { abwToHtml, oebToHtml, pmlToHtml } from "../src/core/converter/markup";
@@ -34,7 +35,7 @@ describe("converter batch 5 - ABW, OEB and PML", () => {
     });
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: fixtures[source], name: `book.${source}` }, target);
+        const result = await convertFile({ bytes: fixtures[source], name: `book.${source}` }, target, canvasOptions());
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Open Formats");
