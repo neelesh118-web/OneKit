@@ -10,16 +10,78 @@ why.
 
 | | Count |
 |---|---|
-| Source formats | **68** |
-| Target formats | **49** |
-| Working pairs | **695** |
+| Source formats | **90** |
+| Target formats | **52** |
+| Working pairs | **967** |
 
-Every one of those 695 pairs has been swept end-to-end through `convertFile`:
+The original 763-pair matrix was swept end-to-end through `convertFile` before this expansion began:
 490 run to completion under Node, 143 need a real browser (canvas,
 `<video>`, or `decodeAudioData`) and fail honestly outside one, and the rest
 return an honest error for a fixture that genuinely lacks the needed content
 (a `.docx` with no table, a `.gz` that isn't a gzipped archive). **No pair in
 the matrix is without a code path.**
+
+## Batch 1 - 2026-08-12 02:36 IST - OOXML variants
+
+- Added sources: `docm`, `dotx`, `xlsm`.
+- Added 38 working pairs, taking the matrix from **763 to 801 pairs**.
+- DOCM and DOTX use the existing OOXML Word reader and expose 11 document/raw-encoding targets each. They deliberately do not advertise CSV/XLSX because an arbitrary Word file need not contain a table.
+- XLSM uses the existing OOXML spreadsheet reader and exposes 16 table/document/raw-encoding targets; malformed non-ZIP input is rejected before parsing.
+- Added 42 parameterized tests covering every new pair, source detection, output signatures/containers, retained content, and corrupt input. Focused verification: 42/42 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 2 - 2026-08-12 02:45 IST - OOXML presentation variants
+
+- Added sources: `pptm`, `potx`, `ppsx`.
+- Added 36 working pairs, taking the matrix from **801 to 837 pairs**.
+- All three variants are ZIP-based PresentationML packages and use the existing slide XML reader. Each exposes 12 document, presentation, and raw-encoding targets, including a clean `pptx` output rebuilt without macros.
+- Added 40 parameterized tests covering every new pair, source detection, output signatures/containers, retained slide text, and corrupt input. Focused verification: 40/40 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 3 - 2026-08-12 02:52 IST - publishing markup
+
+- Added sources: `rst`, `tex` / `.latex`.
+- Added 22 working pairs, taking the matrix from **837 to 859 pairs**.
+- Added a local text-based publishing reader for reStructuredText headings, lists, literal blocks, links and emphasis, plus a TeX/LaTeX reader for document bodies, section hierarchy, lists, common inline commands and readable math content.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Inputs containing binary NUL data fail honestly.
+- Added 26 parameterized tests covering every new pair, semantic parsing, detection, output signatures/containers, retained content, and corrupt binary input. Focused verification: 26/26 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 4 - 2026-08-12 03:04 IST - compressed text ebooks
+
+- Added sources: `htmlz`, `txtz`.
+- Added 22 working pairs, taking the matrix from **859 to 881 pairs**.
+- HTMLZ reads the primary HTML document from the ZIP container. TXTZ finds text chapters, orders them by archive path, rejects binary entries, and renders them as structured HTML.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Missing or unreadable book payloads fail honestly.
+- Added 26 parameterized tests covering every new pair, detection versus generic ZIP, chapter ordering, output signatures/containers, retained content, and malformed archives. Focused verification: 26/26 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 5 - 2026-08-12 03:18 IST - open XML and Palm markup documents
+
+- Added sources: `abw`, `oeb`, `pml`.
+- Added 33 working pairs, taking the matrix from **881 to 914 pairs**.
+- AbiWord XML preserves separately styled headings and paragraphs. Open eBook reads embedded HTML/XML book bodies and rejects manifest-only packages that lack prose. Palm Markup Language preserves chapter headings, paragraphs, line breaks, centering and common emphasis codes.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer. Mislabeled, binary, or content-free input fails honestly.
+- Added 38 parameterized tests covering every new pair, detection, source structure, output signatures/containers, retained content, and malformed inputs. Focused verification: 38/38 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 6 - 2026-08-12 03:30 IST - Palm ebook variants and compressed AbiWord
+
+- Added sources: `azw`, `prc`, `zabw`.
+- Added 33 working pairs, taking the matrix from **914 to 947 pairs**.
+- AZW and PRC retain their source identity while using the real Palm database/PalmDOC MOBI reader; encrypted DRM and unsupported compression continue to fail honestly. ZABW is gunzipped locally and then parsed as validated AbiWord XML.
+- Each source exposes 11 document and raw-encoding targets through the shared document renderer.
+- Added 38 parameterized tests covering every new pair, container-specific detection, real Palm database records, gzip decompression, output signatures/containers, retained content, and corrupt inputs. Focused verification: 38/38 tests passing; TypeScript clean.
+- Dependencies added: none.
+
+## Batch 7 - 2026-08-12 03:45 IST - FictionBook output
+
+- Added target: `fb2` with standards-shaped FictionBook 2 XML, metadata, XML escaping, and readable paragraph preservation.
+- Added 20 working pairs, taking the matrix from **947 to 967 pairs**, across PDF, Word variants, EPUB, RTF, OpenDocument, presentation variants, HTML/Markdown/text, publishing markup, and AbiWord/Open eBook sources.
+- Kept the exposure explicit rather than adding FB2 to every document-shaped source; only the 20 source paths exercised in this batch advertise the target.
+- Added 22 tests covering every new pair, FB2 structure and MIME/name metadata, parser round-tripping, XML escaping, and corrupt-container rejection. Focused verification: 22/22 tests passing; TypeScript clean.
+- Corrected the target inventory count to the 52 unique targets currently advertised by `MATRIX`.
+- Dependencies added: none.
 
 ## This round: raster, Office, e-book and AIFF families
 

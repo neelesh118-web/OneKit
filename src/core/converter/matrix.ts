@@ -11,7 +11,7 @@ export type TargetFormat =
   | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif" | "image-ico"
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg"
   | "pdf" | "html" | "markdown" | "text" | "docx" | "epub"
-  | "rtf" | "odt" | "pptx"
+  | "rtf" | "odt" | "pptx" | "fb2"
   | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml"
   | "audio-aiff"
   | "zip" | "tar" | "gzip"
@@ -27,7 +27,7 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   // Not a trace: the SVG carries the picture as an embedded image.
   "image-svg": "SVG (embedded image)",
   pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", epub: "EPUB ebook",
-  rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", pptx: "PowerPoint (PPTX)",
+  rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", pptx: "PowerPoint (PPTX)", fb2: "FictionBook (FB2)",
   csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
   tsv: "TSV", xls: "Excel 97–2003 (XLS)", ods: "OpenDocument sheet (ODS)", toml: "TOML config",
   "audio-aiff": "AIFF",
@@ -95,21 +95,37 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-tiff": [...IMAGE_TARGETS.filter((t) => t !== "image-tiff"), "pdf", "txt-base64", "txt-hex"],
   "image-ico": [...IMAGE_TARGETS.filter((t) => t !== "image-ico"), "pdf", "txt-base64", "txt-hex"],
   "image-dds": [...IMAGE_TARGETS.filter((t) => t !== "image-dds"), "pdf", "txt-base64", "txt-hex"],
-  pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "docx", "epub", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
-  docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
+  pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  docm: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  dotx: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   xlsx: tableTargetsExcept("xlsx"),
+  xlsm: tableTargetsExcept("xlsx"),
   xls: tableTargetsExcept("xls"),
   ods: tableTargetsExcept("ods"),
-  epub: ["html", "text", "markdown", "pdf", "docx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
-  rtf: docTargetsExcept("rtf"),
-  odt: docTargetsExcept("odt"),
-  odp: docTargetsExcept("odt", "pptx").concat("pptx"),
-  pptx: docTargetsExcept("pptx"),
+  epub: ["html", "text", "markdown", "pdf", "docx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  rtf: docTargetsExcept("rtf").concat("fb2"),
+  odt: docTargetsExcept("odt").concat("fb2"),
+  odp: docTargetsExcept("odt", "pptx").concat("pptx", "fb2"),
+  pptx: docTargetsExcept("pptx").concat("fb2"),
+  pptm: docTargetsExcept().concat("pptx", "fb2"),
+  potx: docTargetsExcept().concat("pptx", "fb2"),
+  ppsx: docTargetsExcept().concat("pptx", "fb2"),
   fb2: docTargetsExcept(),
   mobi: docTargetsExcept(),
-  html: ["markdown", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
-  markdown: ["html", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "txt-base64", "txt-hex"],
-  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "html", "markdown", "epub", "rtf", "odt", "pptx"],
+  azw: docTargetsExcept(),
+  prc: docTargetsExcept(),
+  htmlz: docTargetsExcept(),
+  txtz: docTargetsExcept(),
+  html: ["markdown", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  markdown: ["html", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  rst: docTargetsExcept().concat("fb2"),
+  tex: docTargetsExcept().concat("fb2"),
+  abw: docTargetsExcept().concat("fb2"),
+  zabw: docTargetsExcept().concat("fb2"),
+  oeb: docTargetsExcept().concat("fb2"),
+  pml: docTargetsExcept(),
+  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "html", "markdown", "epub", "rtf", "odt", "pptx", "fb2"],
   csv: [...tableTargetsExcept("csv"), "jsonl"],
   json: [...tableTargetsExcept("json"), "text", "jsonl", "toml"],
   tsv: [...tableTargetsExcept("tsv"), "jsonl"],
@@ -183,6 +199,7 @@ export function targetExtension(target: TargetFormat): string {
     case "rtf": return "rtf";
     case "odt": return "odt";
     case "pptx": return "pptx";
+    case "fb2": return "fb2";
     case "tsv": return "tsv";
     case "xls": return "xls";
     case "ods": return "ods";

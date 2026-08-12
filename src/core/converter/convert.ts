@@ -37,10 +37,11 @@ import {
 } from "./video";
 import { base64ToText, hexToText, urlToText } from "./text";
 import { encodeAiff, parseAiff } from "./aiff";
-import { fb2ToHtml, fb2Title, mobiToHtml } from "./ebooks";
+import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { odpToSlides, odtToHtml } from "./odf";
 import { pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
+import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
@@ -92,6 +93,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   rtf: "application/rtf",
   odt: "application/vnd.oasis.opendocument.text",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  fb2: "application/x-fictionbook+xml",
   tsv: "text/tab-separated-values",
   xls: "application/vnd.ms-excel",
   ods: "application/vnd.oasis.opendocument.spreadsheet",
@@ -139,7 +141,7 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx"]);
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2"]);
 
 /** The spreadsheet containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
@@ -157,6 +159,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "rtf") return toBytes(docs.htmlToRtf(html));
   if (target === "odt") return docs.htmlToOdt(html);
   if (target === "pptx") return docs.htmlToPptx(html);
+  if (target === "fb2") return docs.htmlToFb2(html, title);
   return toBytes(docs.htmlToText(html));
 }
 
@@ -261,8 +264,8 @@ async function runConversion(
         const text = await docs.pdfToText(bytes);
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
-      // PDF → RTF / ODT / PPTX: the extracted text, in those containers.
-      if (target === "rtf" || target === "odt" || target === "pptx") {
+      // PDF → document containers: extract readable text before writing.
+      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
       // Single-file path: the first page. The Convert tab zips all pages
@@ -272,11 +275,14 @@ async function runConversion(
         if (pages.length === 0) throw new Error("This PDF has no pages to render.");
         return pages[0]!.bytes;
       }
-    case "docx": {
+    case "docx":
+    case "docm":
+    case "dotx": {
       const html = await docs.docxToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.docxToPdf(bytes);
+      if (target === "docx") return docs.htmlToDocx(html);
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
@@ -290,17 +296,30 @@ async function runConversion(
     case "odp":
       return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target);
     case "pptx":
+    case "pptm":
+    case "potx":
+    case "ppsx":
       return renderDocument(slidesToHtml(pptxToSlides(bytes), "Presentation"), "Presentation", target);
     case "fb2": {
       const xml = toText(bytes);
       return renderDocument(fb2ToHtml(xml), fb2Title(xml), target);
     }
     case "mobi":
+    case "azw":
+    case "prc":
       return renderDocument(mobiToHtml(bytes), "Book", target);
+    case "htmlz":
+      return renderDocument(htmlzToHtml(bytes), "Book", target);
+    case "txtz":
+      return renderDocument(txtzToHtml(bytes), "Book", target);
     case "xls":
+    case "xlsm":
     case "ods":
       // SheetJS reads BIFF8 and OpenDocument with the same reader the
       // .xlsx path uses, so the whole table pipeline is shared.
+      if (source === "xlsm" && !(bytes[0] === 0x50 && bytes[1] === 0x4b)) {
+        throw new Error("Could not read this .xlsm - the file is not a valid OOXML package.");
+      }
       return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target);
     case "epub": {
       const html = docs.epubToHtml(bytes);
@@ -323,6 +342,18 @@ async function runConversion(
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
+    case "rst":
+      return renderDocument(rstToHtml(toText(bytes)), "Document", target);
+    case "tex":
+      return renderDocument(texToHtml(toText(bytes)), "Document", target);
+    case "abw":
+      return renderDocument(abwToHtml(toText(bytes)), "Document", target);
+    case "zabw":
+      return renderDocument(zabwToHtml(bytes), "Document", target);
+    case "oeb":
+      return renderDocument(oebToHtml(toText(bytes)), "Book", target);
+    case "pml":
+      return renderDocument(pmlToHtml(toText(bytes)), "Book", target);
     case "html": {
       const html = toText(bytes);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));

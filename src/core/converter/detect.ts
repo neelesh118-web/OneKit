@@ -7,10 +7,10 @@
 export type FileType =
   | "image-png" | "image-jpeg" | "image-webp" | "image-gif" | "image-bmp" | "image-avif" | "image-svg"
   | "image-tiff" | "image-ico" | "image-dds"
-  | "pdf" | "docx" | "xlsx" | "epub"
-  | "rtf" | "odt" | "odp" | "ods" | "pptx" | "xls"
-  | "fb2" | "mobi" | "audio-aiff" | "audio-aac" | "audio-midi"
-  | "html" | "markdown" | "text"
+  | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
+  | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
+  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "audio-aiff" | "audio-aac" | "audio-midi"
+  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -26,12 +26,18 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-png": "PNG image", "image-jpeg": "JPEG image", "image-webp": "WebP image",
   "image-gif": "GIF image", "image-bmp": "BMP image", "image-avif": "AVIF image", "image-svg": "SVG image",
   "image-tiff": "TIFF image", "image-ico": "ICO icon", "image-dds": "DDS texture",
-  pdf: "PDF document", docx: "Word document", xlsx: "Excel workbook", epub: "EPUB ebook",
+  pdf: "PDF document", docx: "Word document", docm: "Macro-enabled Word document",
+  dotx: "Word template", xlsx: "Excel workbook", xlsm: "Macro-enabled Excel workbook", epub: "EPUB ebook",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
-  ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", xls: "Excel 97–2003 workbook",
-  fb2: "FictionBook (FB2)", mobi: "MOBI ebook", "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
+  ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", pptm: "Macro-enabled PowerPoint deck",
+  potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
+  fb2: "FictionBook (FB2)", mobi: "MOBI ebook", azw: "Kindle AZW ebook", prc: "Palm PRC ebook",
+  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook",
+  "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
-  html: "HTML page", markdown: "Markdown", text: "Plain text",
+  html: "HTML page", markdown: "Markdown", rst: "reStructuredText", tex: "TeX/LaTeX",
+  abw: "AbiWord document", zabw: "Compressed AbiWord document", oeb: "Open eBook",
+  pml: "Palm Markup Language ebook", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
   "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font", "font-otf": "OpenType font",
@@ -50,11 +56,14 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-png": ["png"], "image-jpeg": ["jpg", "jpeg", "jfif"], "image-webp": ["webp"],
   "image-gif": ["gif"], "image-bmp": ["bmp"], "image-avif": ["avif"], "image-svg": ["svg"],
   "image-tiff": ["tif", "tiff"], "image-ico": ["ico", "cur"], "image-dds": ["dds"],
-  pdf: ["pdf"], docx: ["docx"], xlsx: ["xlsx"], epub: ["epub"],
-  rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"], xls: ["xls"],
-  fb2: ["fb2"], mobi: ["mobi", "azw", "prc"],
+  pdf: ["pdf"], docx: ["docx"], docm: ["docm"], dotx: ["dotx"],
+  xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
+  rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
+  pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
+  fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], htmlz: ["htmlz"], txtz: ["txtz"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
-  html: ["html", "htm"], markdown: ["md", "markdown"], text: ["txt"],
+  html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
+  abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
   "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"], "font-otf": ["otf"],
@@ -126,7 +135,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
-  if (hasPrefix(bytes, [0x1f, 0x8b])) return "gzip";
+  if (hasPrefix(bytes, [0x1f, 0x8b])) return fallback === "zabw" ? "zabw" : "gzip";
   if (hasPrefix(bytes, [0x00, 0x01, 0x00, 0x00])) return "font-ttf";
   if (asciiAt(bytes, 0, "OTTO")) return "font-otf";
   if (asciiAt(bytes, 0, "wOFF")) return "font-woff";
@@ -139,7 +148,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // AIFF and AIFF-C share the IFF "FORM" wrapper.
   if (asciiAt(bytes, 0, "FORM") && (asciiAt(bytes, 8, "AIFF") || asciiAt(bytes, 8, "AIFC"))) return "audio-aiff";
   // MOBI/AZW e-books are Palm databases with a book type/creator pair.
-  if (asciiAt(bytes, 60, "BOOKMOBI") || asciiAt(bytes, 60, "TEXtREAd")) return "mobi";
+  if (asciiAt(bytes, 60, "BOOKMOBI") || asciiAt(bytes, 60, "TEXtREAd")) {
+    if (fallback === "azw" || fallback === "prc") return fallback;
+    return "mobi";
+  }
   // MP4/MOV/M4A share the ftyp box — the brand tells video from audio.
   if (asciiAt(bytes, 4, "ftypM4A")) return "audio-m4a";
   if (asciiAt(bytes, 4, "ftypisom") || asciiAt(bytes, 4, "ftypmp42") || asciiAt(bytes, 4, "ftypavc1") ||
@@ -165,10 +177,20 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // ZIP container — probe for Office/EPUB flavours.
   if (hasPrefix(bytes, [0x50, 0x4b, 0x03, 0x04])) {
     const window = textWindow(bytes, 0, 600);
-    if (window.includes("[Content_Types].xml") && window.includes("word/")) return "docx";
-    if (window.includes("[Content_Types].xml") && window.includes("xl/")) return "xlsx";
-    if (window.includes("[Content_Types].xml") && window.includes("ppt/")) return "pptx";
+    if (window.includes("[Content_Types].xml") && window.includes("word/")) {
+      if (fallback === "docm" || fallback === "dotx") return fallback;
+      return "docx";
+    }
+    if (window.includes("[Content_Types].xml") && window.includes("xl/")) {
+      if (fallback === "xlsm") return fallback;
+      return "xlsx";
+    }
+    if (window.includes("[Content_Types].xml") && window.includes("ppt/")) {
+      if (fallback === "pptm" || fallback === "potx" || fallback === "ppsx") return fallback;
+      return "pptx";
+    }
     if (window.includes("mimetypeapplication/epub")) return "epub";
+    if (fallback === "htmlz" || fallback === "txtz") return fallback;
     // OpenDocument packages name their flavour in the stored mimetype entry.
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.presentation")) return "odp";
@@ -177,8 +199,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     // probe window (common in small files) is still that format, not a generic
     // ZIP — trust the extension rather than mislabeling it.
     if (
-      fallback === "docx" || fallback === "xlsx" || fallback === "epub" ||
-      fallback === "pptx" || fallback === "odt" || fallback === "odp" || fallback === "ods"
+      fallback === "docx" || fallback === "docm" || fallback === "dotx" ||
+      fallback === "xlsx" || fallback === "xlsm" || fallback === "epub" ||
+      fallback === "pptx" || fallback === "pptm" || fallback === "potx" || fallback === "ppsx" ||
+      fallback === "odt" || fallback === "odp" || fallback === "ods"
     ) {
       return fallback;
     }
