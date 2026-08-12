@@ -157,3 +157,12 @@
 - Tests: 9 focused cases validate XLSM package content types and cell round-trips, image signatures/MIME/names, and DRM/corrupt AZW rejection.
 
 - Ranks 1115-1239 remain skipped where they require unsupported RocketBook/SNB/TCR/legacy StarOffice/iWork/KF8 or proprietary encoders; JPEG aliases already map to the existing image-jpeg target and are not double-counted.
+
+## Batch 18
+
+- Added 18 demand-ranked pairs: FB2, Markdown, ODP, ODS, ODT, and XLSM to GIF/SVG/WebP (ranks 1293-1520).
+- Pair total: 1,378.
+- Formats: validated ebook/markup/OpenDocument/spreadsheet content returns locally generated SVG directly or feeds the existing GIF/WebP encoders.
+- Tests: focused real-file cases cover all 18 conversions and matrix exposure, signatures/MIME/names, plus blank, corrupt, and malformed source rejection.
+
+- Interleaved KEY/NUMBERS/PAGES/HEIC/legacy DOC/PPT/MOBI-writer targets through rank 1520 remain skipped because their proprietary parsers, codecs, or writers are unavailable locally.

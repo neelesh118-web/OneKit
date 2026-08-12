@@ -12,7 +12,8 @@ const imageOptions: ConvertOptions = {
   canvas: {
     canvasFactory: () => ({
       width: 1, height: 1, getContext: () => ({
-        translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {}
+        translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {},
+        getImageData: () => ({ width: 1, height: 1, data: new Uint8ClampedArray([0, 0, 0, 255]), colorSpace: "srgb" }) as ImageData
       }),
       toBlob: (callback: (blob: Blob | null) => void, mime?: string) => callback(new Blob([new Uint8Array([1])], { type: mime ?? "application/octet-stream" }))
     }) as unknown as HTMLCanvasElement,

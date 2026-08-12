@@ -345,21 +345,24 @@ async function runConversion(
     }
     case "rtf": {
       const html = rtfToHtml(toText(bytes));
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);
     }
     case "odt": {
       const html = odtToHtml(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);
     }
     case "odp": {
       const html = slidesToHtml(odpToSlides(bytes), "Presentation");
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Presentation", target);
@@ -380,7 +383,8 @@ async function runConversion(
     case "fb2": {
       const xml = toText(bytes);
       const html = fb2ToHtml(xml);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, fb2Title(xml), target);
@@ -472,7 +476,8 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
