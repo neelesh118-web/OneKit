@@ -108,8 +108,48 @@ for the Convert tab is the next batch. Also open: `image → markdown`,
 `image → odt/rtf` (same embedding pattern as DOCX/PPTX, straightforward
 follow-on), and further audio/video container gaps.
 
+### Batch 2 — image → text via the bundled offline OCR engine
+
+**Pairs: 1,473 → 1,504 (+31). Sources: 113 (unchanged).**
+
+The extension already ships a 100%-local OCR engine
+(`src/core/ocr.ts` — tesseract.js + bundled WASM core and English
+traineddata, no network, used by the standalone "Read text from image"
+tool) — reusing it for the Convert tab's `image → text` pairs is a
+genuine conversion, not a stub. Added `runOcr` (`convert.ts`): builds a
+`data:` URL from the (rasterized-if-needed) image bytes via a new
+shared helper `imageBytesToDataUrl` (`images.ts`), then calls
+`ocr.ocrImageDataUrl`, resolving the extension's asset-URL resolver
+(`browser.runtime.getURL`/`chrome.runtime.getURL`) from `globalThis` —
+no new import of `wxt/browser` into the host-agnostic converter core,
+same defensive-global pattern the rest of `convert.ts` already uses
+for canvas/video/audio. Outside the extension runtime (Node, tests,
+other hosts) it throws an honest "OCR needs the extension runtime…"
+error instead of a fake empty result — same shape as the existing
+video/audio browser-only capabilities. Injectable via
+`opts.ocr.recognize` for testing, same pattern as
+`opts.canvas`/`opts.audioDecoder`.
+
+Wired to `text` for every OCR-capable raster source (PNG, JPEG, WebP,
+GIF, BMP, AVIF, TIFF, ICO, DDS, TGA, PPM, PSD, ICNS, all 16 RAW preview
+sources, EPS, PS) — **not** SVG, whose `text` target already means
+"the SVG's own markup" (existing, unrelated behaviour, left untouched).
+PNG/JPEG/WebP/GIF/BMP/AVIF and RAW previews (already JPEG) need no
+canvas — OCR runs straight off the original bytes; TIFF/ICO/DDS/TGA/
+PPM/PSD/ICNS/EPS/PS rasterize through the existing canvas pipeline
+first, same as their DOCX/PPTX/HTML siblings.
+
+**Tests added:** extended `tests/converter-image-office.test.ts` (+5:
+PNG and RAW→text with an injected OCR engine, the honest
+no-runtime-available rejection, SVG's unchanged markup-text behaviour,
+matrix membership) and `tests/converter-eps.test.ts` (+1: EPS's TIFF
+preview rasterized then OCR'd, with the existing fake-canvas fixture).
+
+**Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
+183 test files, 1,509 tests, all green.
+
 ---
 
-**Current total: 1,473 pairs across 113 source formats.** Backlog has
+**Current total: 1,504 pairs across 113 source formats.** Backlog has
 6,553 demand-ranked rows in this domain; the batch loop continues
 top-down from the gap list above.

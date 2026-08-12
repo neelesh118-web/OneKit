@@ -59,9 +59,10 @@ const IMAGE_TARGETS: TargetFormat[] = [
  * Raster images can also be packed into a PDF (smallpdf/pdfresizer), or
  * embedded as a real picture in a Word/PowerPoint page — not a text
  * placeholder, an actual `<w:drawing>`/`<p:pic>` the image round-trips
- * through.
+ * through. "text" is real OCR (tesseract.js, bundled offline engine) —
+ * not a filename dump.
  */
-const IMAGE_AND_PDF: TargetFormat[] = [...IMAGE_TARGETS, "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"];
+const IMAGE_AND_PDF: TargetFormat[] = [...IMAGE_TARGETS, "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"];
 
 /**
  * Prose documents all funnel through HTML, so they can be written back
@@ -101,13 +102,13 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-bmp": IMAGE_AND_PDF,
   "image-avif": IMAGE_AND_PDF,
   "image-svg": [...IMAGE_TARGETS.filter((t) => t !== "image-svg"), "text", "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-tiff": [...IMAGE_TARGETS.filter((t) => t !== "image-tiff"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-ico": [...IMAGE_TARGETS.filter((t) => t !== "image-ico"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-dds": [...IMAGE_TARGETS.filter((t) => t !== "image-dds"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-tga": [...IMAGE_TARGETS.filter((t) => t !== "image-tga"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-ppm": [...IMAGE_TARGETS.filter((t) => t !== "image-ppm"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
-  "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "docx", "pptx", "html", "txt-base64", "txt-hex"],
+  "image-tiff": [...IMAGE_TARGETS.filter((t) => t !== "image-tiff"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
+  "image-ico": [...IMAGE_TARGETS.filter((t) => t !== "image-ico"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
+  "image-dds": [...IMAGE_TARGETS.filter((t) => t !== "image-dds"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
+  "image-tga": [...IMAGE_TARGETS.filter((t) => t !== "image-tga"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
+  "image-ppm": [...IMAGE_TARGETS.filter((t) => t !== "image-ppm"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
+  "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
+  "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "docx", "pptx", "html", "text", "txt-base64", "txt-hex"],
   pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   docm: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],

@@ -248,6 +248,16 @@ describe("EPS/PS → image via the orchestrator", () => {
     expect(result.mime).toBe("image/png");
   });
 
+  it("runs OCR on an EPS's embedded TIFF preview (rasterized first, then recognized)", async () => {
+    const eps = binaryEps(tinyTiff(2, 2));
+    const result = await convertFile({ bytes: eps, name: "art.eps" }, "text", {
+      canvas: fakeCanvasDeps(),
+      ocr: { recognize: async (dataUrl) => (dataUrl.startsWith("data:image/png;base64,") ? "scanned text" : "") }
+    });
+    expect(result.name).toBe("art.txt");
+    expect(new TextDecoder().decode(result.bytes)).toBe("scanned text");
+  });
+
   it("gives an honest error for a PostScript file with no embedded preview", async () => {
     const bytes = toBytes("%!PS-Adobe-3.0 EPSF-3.0\n%%BoundingBox: 0 0 100 100\n");
     await expect(convertFile({ bytes, name: "vector.eps" }, "pdf")).rejects.toThrow(/No embedded preview/);

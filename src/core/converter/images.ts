@@ -328,3 +328,24 @@ export async function rasterizeForEmbed(
   }
   return out;
 }
+
+/**
+ * Rasterizes image bytes to a `data:` URL — the shape both HTML
+ * embedding and OCR (tesseract.js `recognize()`) need. PNG/JPEG pass
+ * through untouched; everything else re-encodes through the canvas
+ * pipeline first, same as every other embedder.
+ */
+export async function imageBytesToDataUrl(
+  bytes: Uint8Array,
+  name: string,
+  rasterize: (bytes: Uint8Array, name: string) => Promise<Uint8Array> = defaultImageRasterizer
+): Promise<string> {
+  const ready = await rasterize(bytes, name);
+  const type = detectFromBytes(ready, "unknown");
+  const mime = type === "image-jpeg" ? "image/jpeg" : type === "image-png" ? "image/png" : null;
+  if (!mime) throw new Error(`Couldn't prepare ${name} — the file is unsupported or corrupt.`);
+  let bin = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < ready.length; i += chunk) bin += String.fromCharCode(...ready.subarray(i, i + chunk));
+  return `data:${mime};base64,${btoa(bin)}`;
+}

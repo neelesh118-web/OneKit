@@ -224,6 +224,50 @@ describe("images → HTML (real embedded picture, self-contained page)", () => {
   });
 });
 
+describe("images → text (OCR via the bundled tesseract.js engine)", () => {
+  it("runs OCR on a real PNG through convertFile with an injected engine", async () => {
+    const png = tinyPng(6, 6, 1, 2, 3);
+    const result = await convertFile(
+      { bytes: png, name: "receipt.png" },
+      "text",
+      { ocr: { recognize: async (dataUrl) => (dataUrl.startsWith("data:image/png;base64,") ? "Total: $12.34" : "") } }
+    );
+    expect(result.name).toBe("receipt.txt");
+    expect(new TextDecoder().decode(result.bytes)).toBe("Total: $12.34");
+  });
+
+  it("runs OCR on a camera RAW's embedded JPEG preview — no canvas needed", async () => {
+    const preview = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 1, 2, 3, 0xff, 0xd9]);
+    const tiffHeader = new Uint8Array([0x49, 0x49, 0x2a, 0x00, 0x08, 0, 0, 0]);
+    const raw = new Uint8Array([...tiffHeader, ...new Uint8Array(20), ...preview]);
+    const result = await convertFile(
+      { bytes: raw, name: "shot.cr2" },
+      "text",
+      { ocr: { recognize: async (dataUrl) => (dataUrl.startsWith("data:image/jpeg;base64,") ? "hello raw" : "") } }
+    );
+    expect(new TextDecoder().decode(result.bytes)).toBe("hello raw");
+  });
+
+  it("gives an honest error when no OCR engine is available (e.g. outside the extension runtime)", async () => {
+    const png = tinyPng(3, 3, 9, 9, 9);
+    await expect(convertFile({ bytes: png, name: "x.png" }, "text")).rejects.toThrow(
+      /OCR needs the extension runtime/
+    );
+  });
+
+  it("still returns raw SVG markup (not OCR) for svg → text — unchanged existing behaviour", async () => {
+    const svg = encoder.encode('<svg xmlns="http://www.w3.org/2000/svg"><text>Hi</text></svg>');
+    const result = await convertFile({ bytes: svg, name: "vector.svg" }, "text");
+    expect(new TextDecoder().decode(result.bytes)).toContain("<svg");
+  });
+
+  it("lists text as a target for OCR-capable raster sources but not for SVG's own markup-text special case", () => {
+    for (const source of ["image-png", "image-jpeg", "image-tiff", "image-icns", "raw-nef"] as const) {
+      expect(targetsFor(source)).toContain("text");
+    }
+  });
+});
+
 describe("converter dispatch — image → DOCX/PPTX end to end", () => {
   it("converts a real PNG through convertFile into a DOCX", async () => {
     const result = await convertFile({ bytes: tinyPng(10, 10, 50, 60, 70), name: "photo.png" }, "docx");

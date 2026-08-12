@@ -5,7 +5,7 @@
  */
 import { detectFile, TYPE_LABELS, type FileType } from "./detect";
 import { TARGET_LABELS, targetExtension, targetsFor, type TargetFormat } from "./matrix";
-import { convertImage, type ImageConvertSettings, type ImageTarget } from "./images";
+import { convertImage, imageBytesToDataUrl, type ImageConvertSettings, type ImageTarget } from "./images";
 import { convertFont, type FontTarget } from "./fonts";
 import {
   anyToFlac,
@@ -73,6 +73,8 @@ export interface ConvertOptions {
   video?: VideoToVideoDeps;
   /** Injectable audio-capture deps for video → audio (defaults to OfflineAudioContext). */
   videoAudio?: VideoAudioDeps;
+  /** Injectable OCR engine for image → text (defaults to the bundled tesseract.js, real browser only). */
+  ocr?: { recognize?: (dataUrl: string) => Promise<string> };
 }
 
 export const MIME_BY_TARGET: Record<TargetFormat, string> = {
@@ -225,6 +227,32 @@ export async function convertFile(
   };
 }
 
+/**
+ * Reads text out of a real picture via OCR — the bundled tesseract.js
+ * engine (WASM + English traineddata, no network), the same one the
+ * standalone OCR tool uses. Only available where the extension runtime
+ * can locate its own asset files (`browser.runtime.getURL`); Node and
+ * other hosts get an honest error instead of a fake empty result.
+ */
+async function runOcr(bytes: Uint8Array, name: string, opts: ConvertOptions): Promise<string> {
+  const dataUrl = await imageBytesToDataUrl(bytes, name);
+  const recognize =
+    opts.ocr?.recognize ??
+    (async (url: string) => {
+      const g = globalThis as {
+        browser?: { runtime?: { getURL?: (p: string) => string } };
+        chrome?: { runtime?: { getURL?: (p: string) => string } };
+      };
+      const getUrl = g.browser?.runtime?.getURL ?? g.chrome?.runtime?.getURL;
+      if (!getUrl) {
+        throw new Error("OCR needs the extension runtime to locate its offline engine files — not available here.");
+      }
+      const ocr = await import("../ocr");
+      return ocr.ocrImageDataUrl(url, getUrl);
+    });
+  return recognize(dataUrl);
+}
+
 async function runConversion(
   source: FileType,
   target: TargetFormat,
@@ -256,6 +284,7 @@ async function runConversion(
       if (target === "docx") return docs.imagesToDocx([{ bytes, name: "image" }]);
       if (target === "pptx") return imagesToPptx([{ bytes, name: "image" }]);
       if (target === "html") return docs.imageToHtml({ bytes, name: "image" });
+      if (target === "text") return toBytes(await runOcr(bytes, "image", opts));
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
@@ -293,6 +322,7 @@ async function runConversion(
       if (target === "docx") return docs.imagesToDocx([{ bytes: preview, name: "image" }]);
       if (target === "pptx") return imagesToPptx([{ bytes: preview, name: "image" }]);
       if (target === "html") return docs.imageToHtml({ bytes: preview, name: "image" });
+      if (target === "text") return toBytes(await runOcr(preview, "image", opts));
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
     }
     case "eps":
@@ -306,11 +336,12 @@ async function runConversion(
         const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
         return docs.imagesToPdf([{ bytes: png, name: "image" }]);
       }
-      if (target === "docx" || target === "pptx" || target === "html") {
+      if (target === "docx" || target === "pptx" || target === "html" || target === "text") {
         const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
         if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
         if (target === "pptx") return imagesToPptx([{ bytes: png, name: "image" }]);
-        return docs.imageToHtml({ bytes: png, name: "image" });
+        if (target === "html") return docs.imageToHtml({ bytes: png, name: "image" });
+        return toBytes(await runOcr(png, "image", opts));
       }
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-tiff");
     }
