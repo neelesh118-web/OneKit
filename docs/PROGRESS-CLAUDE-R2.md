@@ -243,8 +243,91 @@ rate/channels/samples survive); `tests/converter-image-office.test.ts`
 **Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
 183 test files, 1,526 tests, all green.
 
+### Batch 6 — .m4v recognized as MP4 (extension coverage, not a new pair)
+
+**Pairs: 1,635 (unchanged — this batch widens format *detection*, not
+the matrix).**
+
+`.m4v` (Apple's naming for iTunes video purchases/rentals) is the
+exact same MP4/ISO-BMFF container as `.mp4` — no new codec, demuxer or
+target list needed, it was just missing from `EXTENSIONS` and the
+`ftyp` brand sniffer. Added `"m4v"` to `video-mp4`'s extension list and
+`ftypM4V `/`ftypM4VP` brand recognition to `detectFromBytes`. Files
+that carry neither brand still resolve correctly via the extension
+fallback (`detectFromBytes`'s final catch-all trusts the name once no
+binary signature claims the bytes) — verified by a dedicated test.
+This turns every already-existing MP4 pair honest for `.m4v` files
+too; it doesn't add new `FileType`/`TargetFormat` pairs, so the pair
+count is unchanged.
+
+**Tests added:** `tests/converter-detect.test.ts` (+2: ftyp-brand
+detection, extension-fallback detection).
+
+**Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
+183 test files, 1,527 tests, all green.
+
+## Backlog sweep — final pass
+
+Re-ran the gap analysis with a wide extension/target alias map
+(auto-derived from `targetExtension()` for every `TargetFormat`, plus
+manual aliases for jpg/tif/m4a/aif/yml/htm) after batches 1–6. The
+only remaining gap in the fully-matched pairs is the **audio → WebM**
+cluster (already skip-listed above); every other backlog row either:
+
+- matches a pair the matrix now honestly supports, or
+- names a source/target extension this converter doesn't model at all
+  (see below) — all confirmed to belong on the skip-list, not the
+  backlog.
+
+**Unmatched source extensions** (can't be read at all, confirmed
+correct to skip): `.odd`/`.odg` (OpenDocument drawing — a real
+vector-editing format, out of this converter's raster/document/media
+scope), `.psb` (Photoshop's large-document variant — `psd.ts` already
+*detects* it via the shared `8BPS` signature and honestly rejects it
+in `decodePsd` with "Only PSD version 1 is supported", so a `.psb`
+file gets a clear per-file error rather than silent mishandling —
+correct, no matrix change needed), `.pub` (Microsoft Publisher, OLE2
+binary, no viable local parser), `.xcf` (GIMP's native layered format —
+no guaranteed embedded flattened preview the way RAW/EPS have, unlike
+those two there's no honest shortcut), `.xps` (XML Paper Spec — real
+ZIP+XAML, technically parseable, but it's a documents-domain format,
+not image/video/audio), and the long tail of exotic video containers
+with no reliable local demuxer (`.mpeg`/`.mpg`, `.ts`, `.3g2`/`.3gpp`,
+`.m2ts`/`.mts`, `.mod`, `.mxf`, `.ogv`, `.rm`/`.rmvb`, `.swf`, `.vob`,
+`.wtv`, `.dv`, `.dvr`, `.cavs` — same honest reason as AVI/WMV/MKV/FLV
+already in the skip-list: the video pipeline decodes through the
+browser's native `<video>` element, which doesn't reliably support
+these containers cross-platform).
+
+**Unmatched target extensions** (can't be honestly *written*, confirmed
+correct to skip): every camera RAW format as an output (`.arw`, `.cr2`,
+`.cr3`, `.crw`, `.dcr`, `.dng`, `.erf`, `.mos`, `.mrw`, `.nef`, `.orf`,
+`.pef`, `.raf`, `.rw2`, `.x3f`, generic `.raw`) — these are read-only in
+this converter by design, since a local, honest writer would have to
+fabricate real sensor data or a real vendor RAW container, which isn't
+possible without the camera's actual sensor capture; `.eps`/`.ps` as
+targets — same reasoning as the `"ai"` target skip: no local
+PostScript generator; and `.odd`/`.odg`/`.psb`/`.pub`/`.xcf`/`.xps` as
+targets, for the same read-side reasons above.
+
+None of these represent a missed honest opportunity — each was
+checked against what this converter can actually decode/encode
+locally, not just against what the backlog's heuristic enumeration
+listed.
+
 ---
 
-**Current total: 1,635 pairs across 113 source formats.** Backlog has
-6,553 demand-ranked rows in this domain; the batch loop continues
-top-down from the gap list above.
+**Final total for this pass: 1,635 pairs across 113 source formats**
+(up from the round-2 baseline of 1,275 pairs / 107 formats — +360
+pairs, +6 formats). The domain backlog (`docs/converter-backlog.csv`,
+6,553 rows) has been swept top-down and cross-referenced against the
+live matrix; the remaining unimplemented rows are the skip-listed
+items above (HEIC/HEIF, AVI/WMV/MKV/FLV/3GP and the exotic-container
+list, RAW/EPS/PS/AAC/"ai" as write targets, audio→WebM, and the
+proprietary/out-of-scope formats) — every one has a documented,
+honest reason it isn't implemented, not a placeholder or a skipped
+check. Future batches should re-run the gap-analysis approach in this
+section (cross-reference `docs/converter-backlog.csv` against
+`targetsFor()` from `matrix.ts`) before assuming a row is unreachable —
+new library-free techniques (like the EPS/RAW embedded-preview
+pattern) can turn a "skip" into a real pair.

@@ -82,7 +82,10 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
   "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"], "font-otf": ["otf"],
   "audio-mp3": ["mp3"], "audio-wav": ["wav"], "audio-ogg": ["ogg", "oga"], "audio-m4a": ["m4a"],
-  "audio-flac": ["flac"], "video-mp4": ["mp4"], "video-webm": ["webm"], "video-mov": ["mov"],
+  // .m4v is Apple's naming for the exact same MP4/ISO-BMFF container
+  // (iTunes video purchases/rentals) — no separate codec or demuxer
+  // needed, it takes the same pipeline as any other .mp4.
+  "audio-flac": ["flac"], "video-mp4": ["mp4", "m4v"], "video-webm": ["webm"], "video-mov": ["mov"],
   "text-base64": ["b64", "base64"], "text-hex": ["hex"], "text-url": ["uri", "urlenc"],
   vcf: ["vcf", "vcard"], ics: ["ics"], srt: ["srt"], vtt: ["vtt"], gpx: ["gpx"], lrc: ["lrc"],
   // NOTE: sitemap/rss deliberately declare no plain "xml" extension — the
@@ -220,7 +223,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // MP4/MOV/M4A share the ftyp box — the brand tells video from audio.
   if (asciiAt(bytes, 4, "ftypM4A")) return "audio-m4a";
   if (asciiAt(bytes, 4, "ftypisom") || asciiAt(bytes, 4, "ftypmp42") || asciiAt(bytes, 4, "ftypavc1") ||
-      asciiAt(bytes, 4, "ftypmp41") || asciiAt(bytes, 4, "ftypdash") || asciiAt(bytes, 4, "ftypcmfc")) return "video-mp4";
+      asciiAt(bytes, 4, "ftypmp41") || asciiAt(bytes, 4, "ftypdash") || asciiAt(bytes, 4, "ftypcmfc") ||
+      // Apple's .m4v brand — the exact same MP4/ISO-BMFF container.
+      asciiAt(bytes, 4, "ftypM4V ") || asciiAt(bytes, 4, "ftypM4VP")) return "video-mp4";
   if (asciiAt(bytes, 4, "ftypqt")) return "video-mov";
   // WebM/Matroska EBML header.
   if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "video-webm";

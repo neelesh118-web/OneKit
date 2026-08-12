@@ -64,6 +64,14 @@ describe("converter detectFromBytes (via detectFile)", () => {
     expect(detectFile(bytes("00 00 00 14 66 74 79 70 71 74 20 20"), "x.bin").type).toBe("video-mov");
     // WebM/Matroska EBML header.
     expect(detectFile(bytes("1a 45 df a3 93 42 82 88 77 65 62 6d"), "x.bin").type).toBe("video-webm");
+    // ftypM4V  → Apple's .m4v brand, the same MP4 container.
+    expect(detectFile(bytes("00 00 00 18 66 74 79 70 4d 34 56 20"), "x.bin").type).toBe("video-mp4");
+  });
+
+  it("detects .m4v as MP4 by extension even without a recognized ftyp brand", () => {
+    expect(detectFromName("movie.m4v")).toBe("video-mp4");
+    // Bytes with no matching magic at all fall back to the extension.
+    expect(detectFile(bytes("de ad be ef"), "movie.m4v").type).toBe("video-mp4");
   });
 
   it("falls back to the name for text-ish formats", () => {
