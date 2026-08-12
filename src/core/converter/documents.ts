@@ -705,6 +705,39 @@ export function epubFromHtml(title: string, chapterHtml: string): Uint8Array {
   });
 }
 
+/** Builds an EPUB whose spine contains one full-page comic image per chapter. */
+export function epubFromImages(title: string, images: { bytes: Uint8Array; name: string }[]): Uint8Array {
+  if (images.length === 0) throw new Error("Pick at least one image to make an EPUB.");
+  const enc = (value: string): Uint8Array => new TextEncoder().encode(value);
+  const titleText = escapeXml(title);
+  const container = `<?xml version="1.0" encoding="UTF-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`;
+  const files: Record<string, Uint8Array | [Uint8Array, { level: 0 }]> = {
+    mimetype: [enc("application/epub+zip"), { level: 0 }],
+    "META-INF/container.xml": enc(container)
+  };
+  const manifest: string[] = [`<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`];
+  const spine: string[] = [];
+  const nav: string[] = [];
+  images.forEach((image, index) => {
+    const sequence = String(index + 1).padStart(3, "0");
+    const jpeg = detectFromBytes(image.bytes, "unknown") === "image-jpeg";
+    const extension = jpeg ? "jpg" : "png";
+    const media = jpeg ? "image/jpeg" : "image/png";
+    const imagePath = `images/page-${sequence}.${extension}`;
+    const chapterPath = `page-${sequence}.xhtml`;
+    const imageId = `img${sequence}`;
+    const chapterId = `page${sequence}`;
+    files[`OEBPS/${imagePath}`] = image.bytes;
+    files[`OEBPS/${chapterPath}`] = enc(`<?xml version="1.0" encoding="UTF-8"?><html xmlns="http://www.w3.org/1999/xhtml"><head><title>Page ${index + 1}</title><style>html,body{margin:0;padding:0;text-align:center;background:#fff}img{max-width:100%;height:auto}</style></head><body><img src="${imagePath}" alt="Comic page ${index + 1}"/></body></html>`);
+    manifest.push(`<item id="${imageId}" href="${imagePath}" media-type="${media}"/>`, `<item id="${chapterId}" href="${chapterPath}" media-type="application/xhtml+xml"/>`);
+    spine.push(`<itemref idref="${chapterId}"/>`);
+    nav.push(`<navPoint id="n${sequence}" playOrder="${index + 1}"><navLabel><text>Page ${index + 1}</text></navLabel><content src="${chapterPath}"/></navPoint>`);
+  });
+  files["OEBPS/content.opf"] = enc(`<?xml version="1.0" encoding="UTF-8"?><package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="uid"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>${titleText}</dc:title><dc:identifier id="uid">onekit-comic-${Date.now()}</dc:identifier><dc:language>en</dc:language></metadata><manifest>${manifest.join("")}</manifest><spine toc="ncx">${spine.join("")}</spine></package>`);
+  files["OEBPS/toc.ncx"] = enc(`<?xml version="1.0" encoding="UTF-8"?><ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="onekit-comic"/></head><docTitle><text>${titleText}</text></docTitle><navMap>${nav.join("")}</navMap></ncx>`);
+  return zipSync(files);
+}
+
 /* INI → JSON ---------------------------------------------------------- */
 
 /**

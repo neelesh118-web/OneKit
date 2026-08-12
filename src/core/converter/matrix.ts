@@ -125,7 +125,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   prc: docTargetsExcept(),
   htmlz: docTargetsExcept(),
   txtz: docTargetsExcept(),
-  cbz: ["pdf"],
+  cbz: ["pdf", "epub"],
   dxf: ["pdf"],
   html: ["markdown", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "image-png", "image-jpeg", "txt-base64", "txt-hex"],
   markdown: ["html", "text", "pdf", "docx", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],

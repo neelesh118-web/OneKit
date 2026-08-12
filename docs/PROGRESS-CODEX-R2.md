@@ -81,3 +81,14 @@
 - Pair total: 1,298.
 - Formats: BIFF8 XLS and OOXML XLSX first-sheet parsing feed the styled table SVG and existing raster encoders.
 - Tests: real XLS/XLSX workbooks to both raster signatures, output metadata, pair milestone, empty-sheet rejection, and corrupt-workbook rejection.
+
+## Batch 10
+
+- Added 1 demand-ranked pair: CBZ to EPUB (backlog rank 312).
+- Pair total: 1,299.
+- Formats: naturally ordered comic images are embedded as real EPUB assets with one XHTML spine item and navigation point per page.
+- Tests: package MIME/signature, image manifest/assets, natural page ordering, spine/navigation counts, pair milestone, and corrupt/empty archive rejection.
+
+- Ranks 203–218 DJVU/DOT/HWP/HWPX/LWP/SDW/WPD/WPS/PAGES to/from PDF: these require unsupported legacy or proprietary document/layout parsers and writers.
+- Ranks 227–282 legacy DOC/PPT targets and EPUB to MOBI: binary Office writers and a PalmDB/MOBI writer are unavailable locally.
+- Ranks 306–311 AZW3/AZW4/CBC/CBR conversions: KF8/AZW4 parsing, comic collection semantics, and RAR decompression are unavailable locally.

@@ -376,7 +376,7 @@ async function runConversion(
           name: name.replace(/\.[^.]+$/, ".png")
         };
       }));
-      return docs.imagesToPdf(prepared);
+      return target === "epub" ? docs.epubFromImages("Comic", prepared) : docs.imagesToPdf(prepared);
     }
     case "dxf":
       return dxfToPdf(bytes);
