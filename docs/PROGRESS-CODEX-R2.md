@@ -274,3 +274,12 @@
 - Tests: 16 focused cases validate native image signatures/MIME/names, ODF MIME and content parts, matrix exposure, and corrupt, DRM-protected, blank, or unreadable input rejection. TypeScript and the complete repository suite passed with exit code 0.
 
 - Proprietary VSD/WMF/WPD/WPS and spreadsheet targets, camera-RAW output, legacy Office writers, and unsupported ebook/document formats through rank 4286 remain honest skips.
+
+## Batch 31
+
+- Added 3 demand-ranked matrix pairs: RTF to PSD/TIFF (ranks 4287 and 4289/4290, with one TIFF target covering both filename aliases) and HTMLZ to FB2 (rank 5446).
+- Pair total: 1,474.
+- Formats: validated RTF body text feeds native local PSD/TIFF pixel encoders; parsed HTMLZ content is written as structured FictionBook XML.
+- Tests: 7 focused cases validate native signatures/MIME/names, FB2 XML and readable content, matrix exposure, and blank, corrupt, or HTML-free archive rejection. TypeScript and the complete repository suite passed with exit code 0.
+
+- Camera-RAW synthesis, proprietary Pages/AZW3/CBR formats, unavailable AZW/RAR writers, and dishonest prose-to-comic conversion through rank 5446 remain honest skips.

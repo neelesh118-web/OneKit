@@ -362,6 +362,10 @@ async function runConversion(
         const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? "";
         return renderDocument(body, "Document", target);
       }
+      if (target === "image-psd" || target === "image-tiff") {
+        const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? "";
+        return convertImage(docs.textToSvg(docs.htmlToText(body)), target, opts.canvas, opts.image, "image-svg");
+      }
       if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
