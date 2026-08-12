@@ -51,3 +51,10 @@
 - Pair total: 1,284.
 - Formats: DOCX content extraction feeds a word-wrapped, XML-safe, bounded SVG page and the existing JPEG/PNG encoders.
 - Tests: readable SVG layout/escaping, real DOCX-to-raster signatures and metadata, pair milestone, and text-free-document rejection.
+
+## Batch 6
+
+- Added 2 demand-ranked pairs: EPUB to JPG and PNG (backlog ranks 147–148).
+- Pair total: 1,286.
+- Formats: EPUB spine content extraction feeds the bounded text-to-SVG renderer and existing JPEG/PNG encoders.
+- Tests: real EPUB package conversion to both raster signatures, output metadata, pair milestone, and corrupt-package rejection.

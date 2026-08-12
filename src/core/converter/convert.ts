@@ -385,6 +385,9 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.epubToPdf(bytes);
       if (target === "docx") return docs.htmlToDocx(html);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Book", target);
       return toBytes(docs.htmlToText(html));
     }

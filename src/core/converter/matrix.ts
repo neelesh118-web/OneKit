@@ -111,7 +111,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   xlsm: tableTargetsExcept("xlsx"),
   xls: tableTargetsExcept("xls"),
   ods: tableTargetsExcept("ods"),
-  epub: ["html", "text", "markdown", "pdf", "docx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  epub: ["html", "text", "markdown", "pdf", "docx", "rtf", "odt", "pptx", "fb2", "image-png", "image-jpeg", "txt-base64", "txt-hex"],
   rtf: docTargetsExcept("rtf").concat("fb2"),
   odt: docTargetsExcept("odt").concat("fb2"),
   odp: docTargetsExcept("odt", "pptx").concat("pptx", "fb2"),
