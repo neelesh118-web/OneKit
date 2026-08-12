@@ -27,8 +27,8 @@ export type FileType =
   | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
   | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
   | "image-qoi" | "image-farbfeld" | "image-pcx"
-  | "audio-au"
-  | "opml" | "plist"
+  | "audio-au" | "audio-voc"
+  | "opml" | "plist" | "ssv" | "psv" | "dif" | "gnumeric"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -68,8 +68,9 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
   "image-pbm": "PBM bitmap", "image-pgm": "PGM grayscale image", "image-pam": "PAM image", "image-xbm": "X11 XBM bitmap",
   "image-qoi": "QOI image", "image-farbfeld": "Farbfeld image", "image-pcx": "PCX image",
-  "audio-au": "Sun AU audio",
-  opml: "OPML outline", plist: "Apple plist",
+  "audio-au": "Sun AU audio", "audio-voc": "Creative Voice audio",
+  opml: "OPML outline", plist: "Apple plist", ssv: "SSV spreadsheet", psv: "PSV spreadsheet",
+  dif: "DIF spreadsheet", gnumeric: "gnumeric spreadsheet",
   "image-icns": "Apple icon (ICNS)",
   unknown: "Unknown format"
 };
@@ -115,8 +116,8 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
   "image-pbm": ["pbm"], "image-pgm": ["pgm"], "image-pam": ["pam"], "image-xbm": ["xbm"],
   "image-qoi": ["qoi"], "image-farbfeld": ["ff", "farbfeld"], "image-pcx": ["pcx"],
-  "audio-au": ["au", "snd"],
-  opml: ["opml"], plist: ["plist"],
+  "audio-au": ["au", "snd"], "audio-voc": ["voc"],
+  opml: ["opml"], plist: ["plist"], ssv: ["ssv"], psv: ["psv"], dif: ["dif"], gnumeric: ["gnumeric"],
   unknown: []
 };
 
@@ -216,8 +217,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "farbfeld")) return "image-farbfeld";
   // PCX: ZSoft header (0x0A manufacturer, version 5, RLE encoding 1).
   if (bytes.length >= 4 && bytes[0] === 0x0a && bytes[1] === 5 && bytes[2] === 1) return "image-pcx";
-  // Sun AU: ".snd" magic.
+  // Sun AU: ".snd" magic. Creative Voice: "Creative Voice File" header.
   if (asciiAt(bytes, 0, ".snd")) return "audio-au";
+  if (asciiAt(bytes, 0, "Creative Voice File")) return "audio-voc";
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   // PostScript: either the binary "DOS EPS" wrapper (C5 D0 D3 C6) or plain
@@ -331,6 +333,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   const trimmed = head.trimStart();
   if (trimmed.startsWith("<opml") || trimmed.startsWith("<?xml") && trimmed.includes("<opml")) return "opml";
   if (trimmed.startsWith("<?xml") && trimmed.includes("<plist")) return "plist";
+  // DIF: "TABLE" then a version line. gnumeric: XML with gnm namespace.
+  if (/^TABLE[\s\n]*[012]/.test(trimmed)) return "dif";
+  if (trimmed.startsWith("<?xml") && trimmed.includes("<gnm:Workbook")) return "gnumeric";
   if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml") && trimmed.includes("<svg")) return "image-svg";
   if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")) {
     return trimmed.includes("netscape-bookmark") ? "bookmarks" : "html";

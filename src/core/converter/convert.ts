@@ -41,6 +41,7 @@ import { extractRawPreviewJpeg } from "./raw-photo";
 import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { encodeAu, parseAu } from "./au";
+import { encodeVoc, isVoc, parseVoc } from "./voc";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { mobiFromHtml } from "./ebooks-write";
 import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml } from "./odf";
@@ -108,6 +109,12 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   html: "text/html",
   markdown: "text/markdown",
   text: "text/plain",
+  htmlz: "application/zip",
+  txtz: "application/zip",
+  org: "text/x-org",
+  textile: "text/x-textile",
+  mediawiki: "text/x-wiki",
+  asciidoc: "text/asciidoc",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   epub: "application/epub+zip",
   rtf: "application/rtf",
@@ -125,6 +132,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   opml: "text/x-opml",
   "audio-aiff": "audio/aiff",
   "audio-au": "audio/basic",
+  "audio-voc": "audio/x-voc",
   csv: "text/csv",
   json: "application/json",
   yaml: "application/yaml",
@@ -171,7 +179,10 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "opml", "txt-url"]);
+const OFFICE_TARGETS = new Set<TargetFormat>([
+  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "opml", "txt-url",
+  "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc"
+]);
 
 /** The spreadsheet/data containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl"]);
@@ -194,6 +205,12 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "mobi" || target === "azw") return await mobiFromHtml(html, { title });
   if (target === "opml") return toBytes(docs.htmlToOpml(html, title));
   if (target === "txt-url") return toBytes(txt.textToUrl(docs.htmlToText(html)));
+  if (target === "htmlz") return docs.htmlToHtmlz(html, title);
+  if (target === "txtz") return docs.htmlToTxtz(html, title);
+  if (target === "org") return toBytes(docs.htmlToOrg(html, title));
+  if (target === "textile") return toBytes(docs.htmlToTextile(html, title));
+  if (target === "mediawiki") return toBytes(docs.htmlToMediawiki(html, title));
+  if (target === "asciidoc") return toBytes(docs.htmlToAsciidoc(html, title));
   return toBytes(docs.htmlToText(html));
 }
 
@@ -209,6 +226,13 @@ function wavToAu(wav: Uint8Array): Uint8Array {
   const parsed = parseWav(wav);
   if (!parsed.ok) throw new Error(parsed.error);
   return encodeAu(parsed.value.sampleRate, parsed.value.channels, parsed.value.samples);
+}
+
+/** Any PCM WAV → VOC, the same bridge for the Creative Voice format. */
+function wavToVoc(wav: Uint8Array): Uint8Array {
+  const parsed = parseWav(wav);
+  if (!parsed.ok) throw new Error(parsed.error);
+  return encodeVoc(parsed.value.sampleRate, parsed.value.channels, parsed.value.samples);
 }
 
 /**
@@ -584,7 +608,9 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
+      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        return renderDocument(docs.recordsToHtml(records), "Contacts", target);
+      }
       return toBytes(docs.recordsToHtml(records));
     }
     case "opml": {
@@ -596,9 +622,11 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       if (target === "xml") return toBytes(toText(bytes));
       if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(records)));
+      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        return renderDocument(docs.recordsToHtml(records), "Outline", target);
+      }
       return toBytes(docs.recordsToHtml(records));
     }
     case "plist": {
@@ -610,9 +638,11 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
       if (target === "xml") return toBytes(toText(bytes));
       if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(records)));
+      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        return renderDocument(docs.recordsToHtml(records), "Plist", target);
+      }
       return toBytes(docs.recordsToHtml(records));
     }
     case "ics": {
@@ -624,7 +654,9 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
+      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        return renderDocument(docs.recordsToHtml(records), "Calendar", target);
+      }
       return toBytes(docs.recordsToHtml(records));
     }
     case "srt":
@@ -927,7 +959,11 @@ async function runConversion(
     case "gedcom":
     case "mbox":
     case "ldif":
-    case "cue": {
+    case "cue":
+    case "ssv":
+    case "psv":
+    case "dif":
+    case "gnumeric": {
       const text = toText(bytes);
       const records =
         source === "qif"
@@ -940,7 +976,15 @@ async function runConversion(
                 ? docs.mboxToRecords(text)
                 : source === "ldif"
                   ? docs.ldifToRecords(text)
-                  : docs.cueToRecords(text);
+                  : source === "cue"
+                    ? docs.cueToRecords(text)
+                    : source === "ssv"
+                      ? docs.ssvToRecords(text)
+                      : source === "psv"
+                        ? docs.psvToRecords(text)
+                        : source === "dif"
+                          ? docs.difToRecords(text)
+                          : docs.gnumericToRecords(text);
       if (records.length === 0) {
         throw new Error(`No records found in this ${TYPE_LABELS[source]} file.`);
       }
@@ -949,6 +993,12 @@ async function runConversion(
       if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
       if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
       if (target === "text") return toBytes(docs.recordsToText(records));
+      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        return renderDocument(docs.recordsToHtml(records), "Data", target);
+      }
+      if (SHEET_TARGETS.has(target)) {
+        return renderTable(docs.recordsToCsv(records), "Data", target);
+      }
       return toBytes(docs.recordsToHtml(records));
     }
     case "xlsx": {
@@ -1009,6 +1059,7 @@ async function runConversion(
       if (target === "audio-flac") return wavToFlac(bytes);
       if (target === "audio-aiff") return wavToAiff(bytes);
       if (target === "audio-au") return wavToAu(bytes);
+      if (target === "audio-voc") return wavToVoc(bytes);
       if (target === "audio-ogg") return wavToOgg(bytes);
       if (target === "audio-mp4") return wavToMp4(bytes);
       return normalizeWav(bytes);
@@ -1017,6 +1068,7 @@ async function runConversion(
       if (target === "audio-flac") return anyToFlac(bytes, decode);
       if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
       if (target === "audio-au") return wavToAu(await anyToWav(bytes, decode));
+      if (target === "audio-voc") return wavToVoc(await anyToWav(bytes, decode));
       if (target === "audio-ogg") return anyToOgg(bytes, decode);
       if (target === "audio-mp4") return anyToMp4(bytes, decode);
       return anyToWav(bytes, decode);
@@ -1030,6 +1082,7 @@ async function runConversion(
       if (target === "audio-flac") return anyToFlac(bytes, decode);
       if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
       if (target === "audio-au") return wavToAu(await anyToWav(bytes, decode));
+      if (target === "audio-voc") return wavToVoc(await anyToWav(bytes, decode));
       if (target === "audio-ogg") return anyToOgg(bytes, decode);
       if (target === "audio-mp4") return anyToMp4(bytes, decode);
       return anyToWav(bytes, decode);
@@ -1047,6 +1100,7 @@ async function runConversion(
       if (target === "audio-ogg") return wavToOgg(wav);
       if (target === "audio-mp4") return wavToMp4(wav);
       if (target === "audio-au") return encodeAu(parsed.sampleRate, parsed.channels, parsed.samples);
+      if (target === "audio-voc") return encodeVoc(parsed.sampleRate, parsed.channels, parsed.samples);
       // AIFF → AIFF: re-encodes through the same parse/re-encode pass as
       // every other target here — a real normalization pass (canonical
       // form), not a byte-identical no-op.
@@ -1066,8 +1120,26 @@ async function runConversion(
       if (target === "audio-aiff") return encodeAiff(parsed);
       if (target === "audio-ogg") return wavToOgg(wav);
       if (target === "audio-mp4") return wavToMp4(wav);
+      if (target === "audio-voc") return encodeVoc(parsed.sampleRate, parsed.channels, parsed.samples);
       // AU → AU: same canonical re-encode pass as every other target.
       if (target === "audio-au") return encodeAu(parsed.sampleRate, parsed.channels, parsed.samples);
+      return wav;
+    }
+    case "audio-voc": {
+      // VOC is block-based PCM — parse it, then reuse the WAV pipeline.
+      const parsed = parseVoc(bytes);
+      const wav = samplesToWav(parsed.sampleRate, parsed.channels, parsed.samples);
+      if (target === "audio-mp3") {
+        const result = wavToMp3(wav);
+        if (!result.ok) throw new Error(result.error);
+        return result.value;
+      }
+      if (target === "audio-flac") return wavToFlac(wav);
+      if (target === "audio-aiff") return wavToAiff(wav);
+      if (target === "audio-au") return wavToAu(wav);
+      if (target === "audio-ogg") return wavToOgg(wav);
+      if (target === "audio-mp4") return wavToMp4(wav);
+      if (target === "audio-voc") return encodeVoc(parsed.sampleRate, parsed.channels, parsed.samples);
       return wav;
     }
     case "audio-midi": {
@@ -1080,6 +1152,7 @@ async function runConversion(
       if (target === "audio-flac") return wavToFlac(wav);
       if (target === "audio-aiff") return wavToAiff(wav);
       if (target === "audio-au") return wavToAu(wav);
+      if (target === "audio-voc") return wavToVoc(wav);
       if (target === "audio-ogg") return wavToOgg(wav);
       if (target === "audio-mp4") return wavToMp4(wav);
       return wav;

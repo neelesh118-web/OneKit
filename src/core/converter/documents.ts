@@ -2307,3 +2307,270 @@ export function plistToRecords(plist: string): Record<string, string>[] {
   if (dicts.length === 0) throw new Error("No <dict> blocks found in this plist.");
   return dicts.map(parseDict);
 }
+
+
+/* HTML → text-markup writers (org, textile, mediawiki, asciidoc) --------- */
+
+function markupTitle(title: string): string {
+  return title.replace(/\n/g, " ");
+}
+
+/** HTML → Emacs org-mode. Headings become * outlines, lists become - items. */
+export function htmlToOrg(html: string, title: string): string {
+  const text = htmlToText(html);
+  const lines: string[] = [`#+TITLE: ${markupTitle(title)}`, ""];
+  // Rebuild outline from headings — the same heading pass htmlToOpml uses.
+  const tags = html.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi) ?? [];
+  for (const tag of tags) {
+    const m = tag.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+    if (!m) continue;
+    const level = Number(m[1]);
+    const t = htmlToText(m[2]!).trim();
+    if (!t) continue;
+    lines.push(`${"*".repeat(level)} ${t}`);
+  }
+  lines.push("");
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || /^[*-]/.test(t)) continue;
+    lines.push(t);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** HTML → Textile (Redmine/Wiki markup). */
+export function htmlToTextile(html: string, title: string): string {
+  const lines: string[] = [`h1. ${markupTitle(title)}`, ""];
+  const tags = html.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi) ?? [];
+  for (const tag of tags) {
+    const m = tag.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+    if (!m) continue;
+    const level = Number(m[1]);
+    const t = htmlToText(m[2]!).trim();
+    if (!t) continue;
+    lines.push(`h${Math.min(level + 1, 6)}. ${t}`);
+  }
+  lines.push("");
+  for (const line of htmlToText(html).split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || /^h\d\./.test(t)) continue;
+    lines.push(`* ${t}`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** HTML → MediaWiki markup. */
+export function htmlToMediawiki(html: string, title: string): string {
+  const lines: string[] = [`== ${markupTitle(title)} ==`, ""];
+  const tags = html.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi) ?? [];
+  for (const tag of tags) {
+    const m = tag.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+    if (!m) continue;
+    const level = Number(m[1]);
+    const t = htmlToText(m[2]!).trim();
+    if (!t) continue;
+    const eq = Math.min(level + 1, 6);
+    lines.push(`${"=".repeat(eq)} ${t} ${"=".repeat(eq)}`);
+  }
+  lines.push("");
+  for (const line of htmlToText(html).split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || /^=/.test(t)) continue;
+    lines.push(`* ${t}`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** HTML → AsciiDoc. */
+export function htmlToAsciidoc(html: string, title: string): string {
+  const lines: string[] = [`= ${markupTitle(title)}`, ":toc:", ""];
+  const tags = html.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi) ?? [];
+  for (const tag of tags) {
+    const m = tag.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+    if (!m) continue;
+    const level = Number(m[1]);
+    const t = htmlToText(m[2]!).trim();
+    if (!t) continue;
+    lines.push(`${"=".repeat(Math.min(level + 1, 6))} ${t}`);
+  }
+  lines.push("");
+  for (const line of htmlToText(html).split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || /^=/.test(t)) continue;
+    lines.push(t);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/* HTMLZ / TXTZ container writers ----------------------------------------- */
+
+/** HTML → HTMLZ: an ebook that zips the document as index.html (mirror of htmlzToHtml). */
+export function htmlToHtmlz(html: string, title: string): Uint8Array {
+  const wrapped = html.startsWith("<!doctype") || html.startsWith("<html")
+    ? html
+    : `<!doctype html><html><head><meta charset="utf-8"><title>${escapeXml(title)}</title></head><body>${html}</body></html>`;
+  return zipSync({ "index.html": strToU8(wrapped) });
+}
+
+/** HTML → TXTZ: an ebook that zips the plain text as index.txt (mirror of txtzToHtml). */
+export function htmlToTxtz(html: string, _title: string): Uint8Array {
+  return zipSync({ "index.txt": strToU8(htmlToText(html)) });
+}
+
+/* SSV / PSV / DIF / gnumeric record parsers ------------------------------ */
+
+/**
+ * Semicolon-separated values — the CSV variant European locales export.
+ * Same parse rules as CSV, different delimiter.
+ */
+export function ssvToRecords(ssv: string): Record<string, string>[] {
+  const rows = parseDelimited(ssv, ";");
+  return rowsToRecords(rows);
+}
+
+/** Pipe-separated values (the classic PSV interchange form). */
+export function psvToRecords(psv: string): Record<string, string>[] {
+  const rows = parseDelimited(psv, "|");
+  return rowsToRecords(rows);
+}
+
+function parseDelimited(text: string, delim: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  const push = (): void => {
+    row.push(field);
+    field = "";
+  };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === delim) {
+      push();
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      push();
+      if (row.some((f) => f.trim() !== "")) rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  push();
+  if (row.some((f) => f.trim() !== "")) rows.push(row);
+  return rows;
+}
+
+function rowsToRecords(rows: string[][]): Record<string, string>[] {
+  if (rows.length === 0 || rows[0]!.length === 0) return [];
+  const headers = rows[0]!;
+  return rows
+    .slice(1)
+    .filter((r) => !(r.length === 1 && r[0] === ""))
+    .map((r) => {
+      const obj: Record<string, string> = {};
+      headers.forEach((h, i) => {
+        obj[h.trim()] = (r[i] ?? "").trim();
+      });
+      return obj;
+    });
+}
+
+/**
+ * Data Interchange Format (.dif) — the classic spreadsheet interchange
+ * format. Header is `TABLE` + `VECTORS`/`TUPLES`, then per-row `VECTOR`/
+ * `DATA`/`0`/`1` cells (numeric or quoted string).
+ */
+export function difToRecords(dif: string): Record<string, string>[] {
+  const lines = dif.replace(/\r/g, "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const rows: string[][] = [];
+  let current: string[] = [];
+  let inData = false;
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (line === "TABLE" || line === "VECTORS" || line === "TUPLES") {
+      i += 2; // skip marker + its number-pair line
+      continue;
+    }
+    if (line === "DATA") {
+      inData = true;
+      i++;
+      continue;
+    }
+    if (!inData) {
+      i++;
+      continue;
+    }
+    if (line === "BOT") {
+      if (current.length) rows.push(current);
+      current = [];
+      i++;
+      continue;
+    }
+    if (line === "EOT" || line === "EOD") {
+      if (current.length) rows.push(current);
+      current = [];
+      break;
+    }
+    if (/^-?\d+,-?\d+$/.test(line)) {
+      const type = Number(line.split(",")[0]);
+      i++;
+      if (type === 1) {
+        // String cell — the next line is the quoted value.
+        const val = (lines[i] ?? "").replace(/^"/, "").replace(/"$/, "").replace(/""/g, '"');
+        current.push(val);
+        i++;
+      }
+      // Numeric cells (type 0) carry no value line.
+      continue;
+    }
+    i++;
+  }
+  if (current.length) rows.push(current);
+  if (rows.length < 2) return [];
+  const headers = rows[0]!;
+  return rows
+    .slice(1)
+    .map((row) => {
+      const obj: Record<string, string> = {};
+      headers.forEach((h, idx) => {
+        obj[h] = row[idx] ?? "";
+      });
+      return obj;
+    })
+    .filter((r) => Object.values(r).some((v) => v !== ""));
+}
+
+/** gnumeric (.gnumeric) is an XML spreadsheet — parse sheets into records. */
+export function gnumericToRecords(xml: string): Record<string, string>[] {
+  // Real files use <gnm:Row gnm:r="n"> wrappers around <gnm:Cell
+  // gnm:Text="…"/>. Split on row boundaries, then pull the cell texts.
+  const unescape = (s: string) =>
+    s.replace(/&#10;/g, "\n").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+  const parts = xml.split(/<gnm:Row\b[^>]*>/gi);
+  const rows: string[][] = [];
+  for (let r = 1; r < parts.length; r++) {
+    const rowXml = parts[r]!.split(/<\/gnm:Row>/i)[0] ?? "";
+    const cells = [...rowXml.matchAll(/<gnm:Cell\b[^>]*gnm:Text="([^"]*)"/gi)]
+      .map((m) => unescape(m[1]!));
+    if (cells.length) rows.push(cells);
+  }
+  if (rows.length < 2) return [];
+  const headers = rows[0]!;
+  return rows
+    .slice(1)
+    .map((row) => {
+      const record: Record<string, string> = {};
+      headers.forEach((h, idx) => { record[h] = row[idx] ?? ""; });
+      return record;
+    })
+    .filter((r) => Object.values(r).some((v) => v !== ""));
+}

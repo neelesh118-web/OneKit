@@ -229,11 +229,12 @@ describe("base64/hex decode → real file conversion", () => {
   });
 
   it("rejects a target the decoded file can't reach, honestly", async () => {
-    // A base64 string holding a VCF — fb2 is advertised for base64 input but
-    // not reachable from a decoded contact file, so the error names the truth.
+    // A base64 string holding a VCF — image-png is advertised for base64
+    // input but not reachable from a decoded contact file, so the error
+    // names the truth.
     const vcf = toBytes("BEGIN:VCARD\nVERSION:3.0\nFN:Jane Doe\nEND:VCARD\n");
     await expect(
-      convertFile({ bytes: toBytes(bytesToBase64(vcf)), name: "contact.b64" }, "fb2")
+      convertFile({ bytes: toBytes(bytesToBase64(vcf)), name: "contact.b64" }, "image-png")
     ).rejects.toThrow(/decoded file is a VCF contacts/);
   });
 
