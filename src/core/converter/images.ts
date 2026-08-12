@@ -16,6 +16,8 @@ import {
   encodeTga,
   encodeTiff,
   icoToDecodable,
+  jpegSize,
+  pngSize,
   svgFromPng,
   type RgbaImage
 } from "./raster";
@@ -282,5 +284,47 @@ export function icoFromPng(png: Uint8Array, size: number): Uint8Array {
   v.setUint32(14, png.length, true); // payload size
   v.setUint32(18, 22, true); // offset to payload
   out.set(png, 22);
+  return out;
+}
+
+/**
+ * The default "get me embeddable bytes" step shared by every embedder
+ * (PDF/DOCX/PPTX pages): PNG and JPEG pass through untouched — everything
+ * else is decoded and re-encoded as PNG via the canvas pipeline.
+ */
+export async function defaultImageRasterizer(bytes: Uint8Array, name: string): Promise<Uint8Array> {
+  const type = detectFromBytes(bytes, "unknown");
+  if (type === "image-png" || type === "image-jpeg") return bytes;
+  try {
+    return await convertImage(bytes, "image-png");
+  } catch {
+    throw new Error(`Couldn't prepare ${name} for the document.`);
+  }
+}
+
+/**
+ * Rasterizes a batch of images to embeddable PNG/JPEG bytes plus their
+ * pixel size — the shared prep step for embedding real pictures into a
+ * DOCX or PPTX package (as opposed to PDF, which uses pdf-lib's own
+ * embedPng/embedJpg and doesn't need the size ahead of time).
+ */
+export async function rasterizeForEmbed(
+  files: { bytes: Uint8Array; name: string }[],
+  rasterize: (bytes: Uint8Array, name: string) => Promise<Uint8Array>
+): Promise<{ name: string; bytes: Uint8Array; ext: "png" | "jpeg"; width: number; height: number }[]> {
+  const out: { name: string; bytes: Uint8Array; ext: "png" | "jpeg"; width: number; height: number }[] = [];
+  for (const file of files) {
+    const ready = await rasterize(file.bytes, file.name);
+    const type = detectFromBytes(ready, "unknown");
+    if (type === "image-jpeg") {
+      const { width, height } = jpegSize(ready);
+      out.push({ name: file.name, bytes: ready, ext: "jpeg", width, height });
+    } else if (type === "image-png") {
+      const { width, height } = pngSize(ready);
+      out.push({ name: file.name, bytes: ready, ext: "png", width, height });
+    } else {
+      throw new Error(`Couldn't embed ${file.name} in the document.`);
+    }
+  }
   return out;
 }

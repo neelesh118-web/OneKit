@@ -75,10 +75,36 @@ describe("camera RAW detection", () => {
     expect(detectFromBytes(bytes, "unknown")).toBe("raw-raf");
   });
 
+  it("detects Canon CR3 by its ISO-BMFF ftyp brand, independent of extension", () => {
+    // Box size (4 bytes, unused by the sniffer) + "ftyp" + "crx " brand.
+    const bytes = concat(new Uint8Array([0, 0, 0, 0x18]), toBytes("ftypcrx "), new Uint8Array(50));
+    expect(detectFile(bytes, "photo.cr3").type).toBe("raw-cr3");
+    expect(detectFromBytes(bytes, "unknown")).toBe("raw-cr3");
+  });
+
+  it("detects Canon CRW by its CIFF HEAPCCDR header, independent of extension", () => {
+    const bytes = concat(new Uint8Array([0x49, 0x49, 0x1a, 0x00, 0x08, 0, 0, 0]), toBytes("HEAPCCDR"), new Uint8Array(50));
+    expect(detectFile(bytes, "photo.crw").type).toBe("raw-crw");
+    expect(detectFromBytes(bytes, "unknown")).toBe("raw-crw");
+  });
+
+  it("detects Minolta MRW by its \\0MRM header, independent of extension", () => {
+    const bytes = concat(new Uint8Array([0x00, 0x4d, 0x52, 0x4d]), new Uint8Array(50));
+    expect(detectFile(bytes, "photo.mrw").type).toBe("raw-mrw");
+    expect(detectFromBytes(bytes, "unknown")).toBe("raw-mrw");
+  });
+
+  it("detects Sigma X3F by its FOVb header, independent of extension", () => {
+    const bytes = concat(toBytes("FOVb"), new Uint8Array(50));
+    expect(detectFile(bytes, "photo.x3f").type).toBe("raw-x3f");
+    expect(detectFromBytes(bytes, "unknown")).toBe("raw-x3f");
+  });
+
   it("offers the full photo target list for every RAW source", () => {
     for (const type of [
       "raw-cr2", "raw-nef", "raw-arw", "raw-dng", "raw-orf", "raw-pef",
-      "raw-rw2", "raw-dcr", "raw-erf", "raw-3fr", "raw-mos", "raw-raf"
+      "raw-rw2", "raw-dcr", "raw-erf", "raw-3fr", "raw-mos", "raw-raf",
+      "raw-cr3", "raw-crw", "raw-mrw", "raw-x3f"
     ] as const) {
       const targets = targetsFor(type);
       expect(targets).toContain("image-png");
@@ -168,6 +194,21 @@ describe("RAW → image via the orchestrator", () => {
     const header = toBytes("FUJIFILMCCD-RAW 0201");
     const raw = concat(header, new Uint8Array(40), preview);
     const result = await convertFile({ bytes: raw, name: "shot.raf" }, "pdf");
+    expect(result.name).toBe("shot.pdf");
+    expect(result.mime).toBe("application/pdf");
+    expect(result.bytes[0]).toBe(0x25); // %PDF
+  });
+
+  it("converts a CR3's embedded preview to a real PDF page", async () => {
+    // A genuine tiny 1×1 JFIF JPEG (real bytes pdf-lib can decode and embed).
+    const tinyJpegB64 =
+      "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgICAgMCAgIDAwMDBAYEBAQEBAgGBgUGCQgKCgkICQkKDA8MCgsOCwkJDRENDg8QEBEQCgwSExIQEw8QEBD/2wBDAQMDAwQDBAgEBAgQCwkLEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBD/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAj/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k=";
+    const bin = atob(tinyJpegB64);
+    const preview = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) preview[i] = bin.charCodeAt(i);
+    const header = concat(new Uint8Array([0, 0, 0, 0x18]), toBytes("ftypcrx "));
+    const raw = concat(header, new Uint8Array(40), preview);
+    const result = await convertFile({ bytes: raw, name: "shot.cr3" }, "pdf");
     expect(result.name).toBe("shot.pdf");
     expect(result.mime).toBe("application/pdf");
     expect(result.bytes[0]).toBe(0x25); // %PDF

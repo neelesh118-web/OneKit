@@ -9,6 +9,8 @@
  */
 import { strFromU8, unzipSync, zipSync } from "fflate/browser";
 import { escapeXml, runTextLines } from "./xml-text";
+import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
+import { fitEmu } from "./raster";
 
 export interface Slide {
   /** The slide's first line, used as its heading. */
@@ -295,4 +297,113 @@ export function buildPptx(slides: Slide[]): Uint8Array {
     );
   });
   return zipSync(files);
+}
+
+/* Images → PPTX (real embedded pictures) -------------------------------- */
+
+/** One slide holding a single picture, centred and scaled to fit. */
+function pictureSlideXml(rId: string, name: string, cx: number, cy: number): string {
+  const x = Math.round((SLIDE_W - cx) / 2);
+  const y = Math.round((SLIDE_H - cy) / 2);
+  const pic =
+    `<p:pic>` +
+    `<p:nvPicPr><p:cNvPr id="2" name="${escapeXml(name)}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>` +
+    `<p:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>` +
+    `<p:spPr><a:xfrm><a:off x="${x}" y="${y}"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr>` +
+    `</p:pic>`;
+  return (
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<p:sld xmlns:a="${DML}" xmlns:r="${DOC_RELS}" xmlns:p="${PML}"><p:cSld>` +
+    spTree(pic) +
+    `</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>`
+  );
+}
+
+/**
+ * Builds a .pptx where each slide holds one real embedded picture — the
+ * way PowerPoint stores a picture, not a text placeholder — fitted to
+ * the slide without upscaling. Reuses the same master/layout/theme
+ * boilerplate as the text-slide writer, so it opens the same way.
+ */
+export async function imagesToPptx(
+  files: { bytes: Uint8Array; name: string }[],
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<Uint8Array> {
+  if (files.length === 0) throw new Error("Pick at least one image to put in the presentation.");
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
+  const prepared = await rasterizeForEmbed(files, rasterize);
+  const MARGIN = 457200; // 0.5in
+  const CONTENT_W = SLIDE_W - MARGIN * 2;
+  const CONTENT_H = SLIDE_H - MARGIN * 2;
+
+  const slideOverrides = prepared
+    .map(
+      (_, i) =>
+        `<Override PartName="/ppt/slides/slide${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`
+    )
+    .join("");
+  const mediaExts = new Set(prepared.map((img) => (img.ext === "jpeg" ? "jpg" : "png")));
+  const mediaDefaults = [...mediaExts]
+    .map((ext) => `<Default Extension="${ext}" ContentType="image/${ext === "jpg" ? "jpeg" : ext}"/>`)
+    .join("");
+
+  const files_: Record<string, Uint8Array> = {};
+  files_["[Content_Types].xml"] = enc(
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+      `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+      `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+      `<Default Extension="xml" ContentType="application/xml"/>` +
+      mediaDefaults +
+      `<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>` +
+      `<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>` +
+      `<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>` +
+      `<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>` +
+      slideOverrides +
+      `</Types>`
+  );
+  files_["_rels/.rels"] = enc(relsXml([{ id: "rId1", type: "officeDocument", target: "ppt/presentation.xml" }]));
+
+  const slideIds = prepared.map((_, i) => `<p:sldId id="${256 + i}" r:id="rId${i + 2}"/>`).join("");
+  files_["ppt/presentation.xml"] = enc(
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+      `<p:presentation xmlns:a="${DML}" xmlns:r="${DOC_RELS}" xmlns:p="${PML}">` +
+      `<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>` +
+      `<p:sldIdLst>${slideIds}</p:sldIdLst>` +
+      `<p:sldSz cx="${SLIDE_W}" cy="${SLIDE_H}"/><p:notesSz cx="${SLIDE_H}" cy="${SLIDE_W}"/>` +
+      `</p:presentation>`
+  );
+  files_["ppt/_rels/presentation.xml.rels"] = enc(
+    relsXml([
+      { id: "rId1", type: "slideMaster", target: "slideMasters/slideMaster1.xml" },
+      ...prepared.map((_, i) => ({ id: `rId${i + 2}`, type: "slide", target: `slides/slide${i + 1}.xml` })),
+      { id: `rId${prepared.length + 2}`, type: "theme", target: "theme/theme1.xml" }
+    ])
+  );
+  files_["ppt/slideMasters/slideMaster1.xml"] = enc(slideMasterXml());
+  files_["ppt/slideMasters/_rels/slideMaster1.xml.rels"] = enc(
+    relsXml([
+      { id: "rId1", type: "slideLayout", target: "../slideLayouts/slideLayout1.xml" },
+      { id: "rId2", type: "theme", target: "../theme/theme1.xml" }
+    ])
+  );
+  files_["ppt/slideLayouts/slideLayout1.xml"] = enc(slideLayoutXml());
+  files_["ppt/slideLayouts/_rels/slideLayout1.xml.rels"] = enc(
+    relsXml([{ id: "rId1", type: "slideMaster", target: "../slideMasters/slideMaster1.xml" }])
+  );
+  files_["ppt/theme/theme1.xml"] = enc(themeXml());
+  prepared.forEach((img, i) => {
+    const { cx, cy } = fitEmu(img.width, img.height, CONTENT_W, CONTENT_H);
+    const mediaExt = img.ext === "jpeg" ? "jpg" : "png";
+    const mediaName = `image${i + 1}.${mediaExt}`;
+    files_[`ppt/media/${mediaName}`] = img.bytes;
+    files_[`ppt/slides/slide${i + 1}.xml`] = enc(pictureSlideXml("rId2", img.name, cx, cy));
+    files_[`ppt/slides/_rels/slide${i + 1}.xml.rels`] = enc(
+      relsXml([
+        { id: "rId1", type: "slideLayout", target: "../slideLayouts/slideLayout1.xml" },
+        { id: "rId2", type: "image", target: `../media/${mediaName}` }
+      ])
+    );
+  });
+  return zipSync(files_);
 }

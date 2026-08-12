@@ -37,10 +37,11 @@ import {
 } from "./video";
 import { base64ToText, hexToText, urlToText } from "./text";
 import { extractRawPreviewJpeg } from "./raw-photo";
+import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { odpToSlides, odtToHtml } from "./odf";
-import { pptxToSlides, slidesToHtml } from "./pptx";
+import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
@@ -252,13 +253,20 @@ async function runConversion(
     case "image-psd":
     case "image-icns":
       if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
+      if (target === "docx") return docs.imagesToDocx([{ bytes, name: "image" }]);
+      if (target === "pptx") return imagesToPptx([{ bytes, name: "image" }]);
+      if (target === "html") return docs.imageToHtml({ bytes, name: "image" });
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
-      if (target === "pdf") {
-        // Rasterize to PNG first, then pack into a PDF (reuses both pipelines).
+      // SVG embeds directly — the browser renders it natively, no rasterization needed.
+      if (target === "html") return docs.wrapImageAsHtml(bytes, "image/svg+xml", "image");
+      if (target === "pdf" || target === "docx" || target === "pptx") {
+        // Rasterize to PNG first, then pack into the container (reuses both pipelines).
         const png = await convertImage(bytes, "image-png", opts.canvas, opts.image, source);
-        return docs.imagesToPdf([{ bytes: png, name: "image" }]);
+        if (target === "pdf") return docs.imagesToPdf([{ bytes: png, name: "image" }]);
+        if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
+        return imagesToPptx([{ bytes: png, name: "image" }]);
       }
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "raw-cr2":
@@ -272,13 +280,39 @@ async function runConversion(
     case "raw-erf":
     case "raw-3fr":
     case "raw-mos":
-    case "raw-raf": {
+    case "raw-raf":
+    case "raw-cr3":
+    case "raw-crw":
+    case "raw-mrw":
+    case "raw-x3f": {
       // RAW sensor data can't be demosaiced in pure TS — extract the
       // camera's own embedded JPEG preview and run it through the same
       // pipeline as any other photo.
       const preview = extractRawPreviewJpeg(bytes);
       if (target === "pdf") return docs.imagesToPdf([{ bytes: preview, name: "image" }]);
+      if (target === "docx") return docs.imagesToDocx([{ bytes: preview, name: "image" }]);
+      if (target === "pptx") return imagesToPptx([{ bytes: preview, name: "image" }]);
+      if (target === "html") return docs.imageToHtml({ bytes: preview, name: "image" });
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
+    }
+    case "eps":
+    case "ps": {
+      // Full PostScript rasterisation is out of scope (no local PS
+      // interpreter) — but the "DOS EPS" binary wrapper some exporters
+      // write embeds a real TIFF preview. Extracting it is a genuine
+      // conversion; files with no such preview throw an honest error.
+      const preview = extractEpsPreviewTiff(bytes);
+      if (target === "pdf") {
+        const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
+        return docs.imagesToPdf([{ bytes: png, name: "image" }]);
+      }
+      if (target === "docx" || target === "pptx" || target === "html") {
+        const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
+        if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
+        if (target === "pptx") return imagesToPptx([{ bytes: png, name: "image" }]);
+        return docs.imageToHtml({ bytes: png, name: "image" });
+      }
+      return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-tiff");
     }
     case "pdf":
       if (target === "text") return toBytes(await docs.pdfToText(bytes));

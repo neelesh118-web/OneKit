@@ -5,7 +5,10 @@ import {
   decodeTiff,
   encodeBmp,
   encodeTiff,
+  fitEmu,
   icoToDecodable,
+  jpegSize,
+  pngSize,
   svgFromPng,
   type RgbaImage
 } from "../src/core/converter/raster";
@@ -399,5 +402,90 @@ describe("converter SVG wrapper", () => {
     const base64 = /base64,([^"]+)"/.exec(svg)![1]!;
     const decoded = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
     expect(Array.from(decoded)).toEqual(Array.from(png));
+  });
+});
+
+/** Builds a minimal but real PNG (signature + IHDR + IDAT + IEND). */
+function tinyPng(width: number, height: number): Uint8Array {
+  const encoder = new TextEncoder();
+  const CRC_TABLE: number[] = (() => {
+    const table: number[] = [];
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      table[n] = c >>> 0;
+    }
+    return table;
+  })();
+  const crc32 = (bytes: Uint8Array): number => {
+    let c = 0xffffffff;
+    for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+  };
+  const chunk = (type: string, body: Uint8Array): Uint8Array => {
+    const out = new Uint8Array(12 + body.length);
+    new DataView(out.buffer).setUint32(0, body.length, false);
+    out.set(encoder.encode(type), 4);
+    out.set(body, 8);
+    new DataView(out.buffer).setUint32(8 + body.length, crc32(new Uint8Array([...encoder.encode(type), ...body])), false);
+    return out;
+  };
+  const ihdr = new Uint8Array(13);
+  new DataView(ihdr.buffer).setUint32(0, width, false);
+  new DataView(ihdr.buffer).setUint32(4, height, false);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // color type: RGB
+  // pngSize only reads the IHDR chunk, so the IDAT payload can stay empty.
+  return new Uint8Array([
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ...chunk("IHDR", ihdr),
+    ...chunk("IDAT", new Uint8Array(0)),
+    ...chunk("IEND", new Uint8Array(0))
+  ]);
+}
+
+/** Builds a minimal but real baseline JPEG (SOI + APP0 + SOF0 + EOI). */
+function tinyJpeg(width: number, height: number): Uint8Array {
+  const bytes: number[] = [0xff, 0xd8]; // SOI
+  // APP0/JFIF
+  bytes.push(0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00);
+  // SOF0: precision=8, height, width, 1 component
+  bytes.push(0xff, 0xc0, 0x00, 0x0b, 0x08, (height >> 8) & 0xff, height & 0xff, (width >> 8) & 0xff, width & 0xff, 0x01, 0x01, 0x11, 0x00);
+  bytes.push(0xff, 0xd9); // EOI
+  return new Uint8Array(bytes);
+}
+
+describe("converter raster dimensions and EMU fit", () => {
+  it("reads width/height straight out of a PNG's IHDR chunk", () => {
+    expect(pngSize(tinyPng(37, 51))).toEqual({ width: 37, height: 51 });
+  });
+
+  it("rejects bytes too short to hold an IHDR chunk", () => {
+    expect(() => pngSize(new Uint8Array(10))).toThrow(/too short/);
+  });
+
+  it("reads width/height out of a JPEG's SOF0 marker", () => {
+    expect(jpegSize(tinyJpeg(64, 48))).toEqual({ width: 64, height: 48 });
+  });
+
+  it("skips other segments (like APP0) to find the SOF marker", () => {
+    // tinyJpeg already interleaves an APP0 segment before SOF0.
+    expect(jpegSize(tinyJpeg(9, 7))).toEqual({ width: 9, height: 7 });
+  });
+
+  it("honestly rejects a JPEG with no SOF marker", () => {
+    expect(() => jpegSize(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]))).toThrow(/Could not read/);
+  });
+
+  it("scales pixel dimensions to EMU without upscaling", () => {
+    // 100×50 px at 9525 EMU/px = 952500×476250, well inside the box.
+    expect(fitEmu(100, 50, 5000000, 5000000)).toEqual({ cx: 952500, cy: 476250 });
+  });
+
+  it("shrinks to fit when the image is larger than the box", () => {
+    const { cx, cy } = fitEmu(2000, 1000, 500000, 500000);
+    expect(cx).toBeLessThanOrEqual(500000);
+    expect(cy).toBeLessThanOrEqual(500000);
+    expect(cx / cy).toBeCloseTo(2, 5); // aspect ratio preserved
   });
 });

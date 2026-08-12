@@ -661,3 +661,51 @@ export function svgFromPng(png: Uint8Array, width: number, height: number): Uint
     `</svg>\n`;
   return new TextEncoder().encode(svg);
 }
+
+/* Raster dimensions ---------------------------------------------------- */
+
+/** EMU per pixel at 96 DPI — the OOXML/Office screen-density convention. */
+export const EMU_PER_PX = 9525;
+
+/** Scale-to-fit pixel dimensions into an EMU box (DOCX/PPTX pages), never upscaling. */
+export function fitEmu(widthPx: number, heightPx: number, maxW: number, maxH: number): { cx: number; cy: number } {
+  const w = Math.max(1, widthPx) * EMU_PER_PX;
+  const h = Math.max(1, heightPx) * EMU_PER_PX;
+  const scale = Math.min(maxW / w, maxH / h, 1);
+  return { cx: Math.round(w * scale), cy: Math.round(h * scale) };
+}
+
+/** Reads the pixel size straight out of a PNG's IHDR chunk. */
+export function pngSize(bytes: Uint8Array): { width: number; height: number } {
+  if (bytes.length < 24) throw new Error("Not a valid PNG — too short to hold an IHDR chunk.");
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return { width: view.getUint32(16, false), height: view.getUint32(20, false) };
+}
+
+/** Reads the pixel size out of a JPEG's SOFn marker, scanning past other segments. */
+export function jpegSize(bytes: Uint8Array): { width: number; height: number } {
+  let i = 2; // past the SOI marker (FF D8)
+  while (i + 3 < bytes.length) {
+    if (bytes[i] !== 0xff) {
+      i++;
+      continue;
+    }
+    const marker = bytes[i + 1]!;
+    // Markers with no payload: standalone (TEM) or restart markers.
+    if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+      i += 2;
+      continue;
+    }
+    if (marker === 0xd9) break; // EOI
+    const len = (bytes[i + 2]! << 8) | bytes[i + 3]!;
+    // SOFn markers (baseline/progressive/etc.) carry the frame's dimensions.
+    // C4/C8/CC are DHT/JPG/DAC, not start-of-frame, despite being in range.
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const height = (bytes[i + 5]! << 8) | bytes[i + 6]!;
+      const width = (bytes[i + 7]! << 8) | bytes[i + 8]!;
+      return { width, height };
+    }
+    i += 2 + len;
+  }
+  throw new Error("Could not read this JPEG's dimensions.");
+}

@@ -22,6 +22,8 @@ export type FileType =
   | "mbox" | "ldif" | "cue"
   | "raw-cr2" | "raw-nef" | "raw-arw" | "raw-dng" | "raw-orf" | "raw-pef" | "raw-rw2"
   | "raw-dcr" | "raw-erf" | "raw-3fr" | "raw-mos" | "raw-raf"
+  | "raw-cr3" | "raw-crw" | "raw-mrw" | "raw-x3f"
+  | "eps" | "ps"
   | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
   | "unknown";
 
@@ -56,6 +58,9 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "raw-dng": "Adobe DNG", "raw-orf": "Olympus RAW (ORF)", "raw-pef": "Pentax RAW (PEF)",
   "raw-rw2": "Panasonic RAW (RW2)", "raw-dcr": "Kodak RAW (DCR)", "raw-erf": "Epson RAW (ERF)",
   "raw-3fr": "Hasselblad RAW (3FR)", "raw-mos": "Leaf RAW (MOS)", "raw-raf": "Fujifilm RAW (RAF)",
+  "raw-cr3": "Canon RAW (CR3)", "raw-crw": "Canon RAW (CRW)", "raw-mrw": "Minolta RAW (MRW)",
+  "raw-x3f": "Sigma RAW (X3F)",
+  eps: "Encapsulated PostScript (EPS)", ps: "PostScript (PS)",
   "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
   "image-icns": "Apple icon (ICNS)",
   unknown: "Unknown format"
@@ -94,6 +99,8 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "raw-cr2": ["cr2"], "raw-nef": ["nef"], "raw-arw": ["arw"], "raw-dng": ["dng"],
   "raw-orf": ["orf"], "raw-pef": ["pef"], "raw-rw2": ["rw2"], "raw-dcr": ["dcr"],
   "raw-erf": ["erf"], "raw-3fr": ["3fr"], "raw-mos": ["mos"], "raw-raf": ["raf"],
+  "raw-cr3": ["cr3"], "raw-crw": ["crw"], "raw-mrw": ["mrw"], "raw-x3f": ["x3f"],
+  eps: ["eps", "epsf"], ps: ["ps"],
   "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
   unknown: []
 };
@@ -153,6 +160,16 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 4, "ftypavif") || asciiAt(bytes, 4, "ftypavis")) return "image-avif";
   // Fujifilm RAF carries its own ASCII header, not a TIFF byte-order mark.
   if (asciiAt(bytes, 0, "FUJIFILMCCD-RAW")) return "raw-raf";
+  // Canon CR3 is an ISO base media (MP4-family) container with its own brand.
+  if (asciiAt(bytes, 4, "ftypcrx ")) return "raw-cr3";
+  // Canon CRW: the old CIFF format — byte-order mark, then "HEAPCCDR" at offset 8.
+  if ((hasPrefix(bytes, [0x49, 0x49]) || hasPrefix(bytes, [0x4d, 0x4d])) && asciiAt(bytes, 8, "HEAPCCDR")) {
+    return "raw-crw";
+  }
+  // Minolta MRW: "\0MRM" header.
+  if (hasPrefix(bytes, [0x00, 0x4d, 0x52, 0x4d])) return "raw-mrw";
+  // Sigma X3F: "FOVb" header.
+  if (asciiAt(bytes, 0, "FOVb")) return "raw-x3f";
   // TIFF byte-order marks; most camera RAW formats are TIFF/EP containers
   // that share them byte-for-byte with baseline TIFF. The extension is what
   // tells them apart — trust it when it names one of the known RAW kinds,
@@ -177,6 +194,12 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x50, 0x36]) || hasPrefix(bytes, [0x50, 0x33])) return "image-ppm"; // "P6"/"P3"
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
+  // PostScript: either the binary "DOS EPS" wrapper (C5 D0 D3 C6) or plain
+  // ASCII PostScript starting with the %!PS-Adobe header — .eps and plain
+  // .ps share the exact same header, so the extension breaks the tie.
+  if (hasPrefix(bytes, [0xc5, 0xd0, 0xd3, 0xc6]) || asciiAt(bytes, 0, "%!PS-Adobe")) {
+    return fallback === "ps" ? "ps" : "eps";
+  }
   if (hasPrefix(bytes, [0x1f, 0x8b])) return fallback === "zabw" ? "zabw" : "gzip";
   if (hasPrefix(bytes, [0x00, 0x01, 0x00, 0x00])) return "font-ttf";
   if (asciiAt(bytes, 0, "OTTO")) return "font-otf";

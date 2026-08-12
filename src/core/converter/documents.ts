@@ -6,7 +6,9 @@
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { toArrayBuffer } from "./util";
 import { detectFromBytes } from "./detect";
-import { convertImage } from "./images";
+import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
+import { fitEmu } from "./raster";
+import { bytesToBase64 } from "./text";
 // Make pdfjs's worker available on the main thread so extraction works in
 // extension popups, Node, and tests without spawning a worker.
 import * as pdfjsWorkerModule from "pdfjs-dist/legacy/build/pdf.worker.mjs";
@@ -158,17 +160,7 @@ export async function imagesToPdf(
   deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
 ): Promise<Uint8Array> {
   if (files.length === 0) throw new Error("Pick at least one image to make a PDF.");
-  const rasterize =
-    deps.rasterize ??
-    (async (b: Uint8Array, name: string) => {
-      const type = detectFromBytes(b, "unknown");
-      if (type === "image-png" || type === "image-jpeg") return b;
-      try {
-        return await convertImage(b, "image-png");
-      } catch {
-        throw new Error(`Couldn't prepare ${name} for the PDF.`);
-      }
-    });
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
   const doc = await PDFDocument.create();
   const maxW = 595.28; // A4 portrait points
   const maxH = 841.89;
@@ -189,6 +181,131 @@ export async function imagesToPdf(
     page.drawImage(image, { x: (maxW - w) / 2, y: (maxH - h) / 2, width: w, height: h });
   }
   return doc.save();
+}
+
+const DOCX_RELS_NS = "http://schemas.openxmlformats.org/package/2006/relationships";
+const DOCX_DOC_RELS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+/** A single inline picture, wrapped in its own paragraph. */
+function docxDrawingParagraph(rId: string, id: number, name: string, cx: number, cy: number): string {
+  return (
+    `<w:p><w:r><w:drawing>` +
+    `<wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0">` +
+    `<wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:docPr id="${id}" name="${escapeXml(name)}"/>` +
+    `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+    `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">` +
+    `<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:nvPicPr><pic:cNvPr id="${id}" name="${escapeXml(name)}"/><pic:cNvPicPr/></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+    `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>` +
+    `</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`
+  );
+}
+
+/**
+ * Images → DOCX: embeds one real picture per page (a page break separates
+ * each), fitted to a Letter page's content area without upscaling. This
+ * is a real embedded image the way Word stores one — not a text
+ * placeholder — so the picture round-trips through any Office reader.
+ */
+export async function imagesToDocx(
+  files: { bytes: Uint8Array; name: string }[],
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<Uint8Array> {
+  if (files.length === 0) throw new Error("Pick at least one image to put in the document.");
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
+  const prepared = await rasterizeForEmbed(files, rasterize);
+  // A4 page (11906×16838 twips) minus 1440-twip margins on every side,
+  // converted to EMU (1 twip = 635 EMU) — matches buildDocx's page setup.
+  const CONTENT_W = 5731510;
+  const CONTENT_H = 8863330;
+
+  const media: Record<string, Uint8Array> = {};
+  const relEntries: string[] = [];
+  const contentTypeExts = new Set<string>();
+  const bodyParts: string[] = [];
+  prepared.forEach((img, i) => {
+    const { cx, cy } = fitEmu(img.width, img.height, CONTENT_W, CONTENT_H);
+    const rId = `rId${i + 1}`;
+    const mediaExt = img.ext === "jpeg" ? "jpg" : "png";
+    const mediaName = `image${i + 1}.${mediaExt}`;
+    media[`word/media/${mediaName}`] = img.bytes;
+    contentTypeExts.add(mediaExt);
+    relEntries.push(`<Relationship Id="${rId}" Type="${DOCX_DOC_RELS}/image" Target="media/${mediaName}"/>`);
+    if (i > 0) bodyParts.push(`<w:p><w:r><w:br w:type="page"/></w:r></w:p>`);
+    bodyParts.push(docxDrawingParagraph(rId, 100 + i, img.name, cx, cy));
+  });
+
+  const documentXml =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="${DOCX_DOC_RELS}">` +
+    `<w:body>${bodyParts.join("")}` +
+    `<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>` +
+    `</w:body></w:document>`;
+  const contentTypes =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
+    `<Default Extension="xml" ContentType="application/xml"/>` +
+    [...contentTypeExts]
+      .map((ext) => `<Default Extension="${ext}" ContentType="image/${ext === "jpg" ? "jpeg" : ext}"/>`)
+      .join("") +
+    `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
+    `</Types>`;
+  const rootRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<Relationships xmlns="${DOCX_RELS_NS}">` +
+    `<Relationship Id="rId1" Type="${DOCX_DOC_RELS}/officeDocument" Target="word/document.xml"/>` +
+    `</Relationships>`;
+  const docRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
+    `<Relationships xmlns="${DOCX_RELS_NS}">${relEntries.join("")}</Relationships>`;
+
+  const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
+  return zipSync({
+    "[Content_Types].xml": enc(contentTypes),
+    "_rels/.rels": enc(rootRels),
+    "word/document.xml": enc(documentXml),
+    "word/_rels/document.xml.rels": enc(docRels),
+    ...media
+  });
+}
+
+/**
+ * Wraps already-encoded image bytes in a minimal, real HTML page — the
+ * picture itself, embedded as a data: URI, viewable in any browser with
+ * no server and no extra files. A genuine embed, not a placeholder link.
+ */
+export function wrapImageAsHtml(bytes: Uint8Array, mime: string, title: string): Uint8Array {
+  const base64 = bytesToBase64(bytes);
+  const safeTitle = escapeHtml(title);
+  const html =
+    `<!doctype html>\n<html><head><meta charset="utf-8"><title>${safeTitle}</title>` +
+    `<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#111}` +
+    `img{max-width:100%;max-height:100vh;height:auto;display:block}</style></head>\n` +
+    `<body><img src="data:${mime};base64,${base64}" alt="${safeTitle}"></body></html>\n`;
+  return new TextEncoder().encode(html);
+}
+
+/**
+ * Images → HTML: rasterizes non-PNG/JPEG sources first, then embeds the
+ * real picture bytes in a standalone page (see wrapImageAsHtml). SVG
+ * sources should call wrapImageAsHtml directly with the original bytes
+ * instead — no rasterization needed, the browser renders SVG natively.
+ */
+export async function imageToHtml(
+  file: { bytes: Uint8Array; name: string },
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<Uint8Array> {
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
+  const ready = await rasterize(file.bytes, file.name);
+  const type = detectFromBytes(ready, "unknown");
+  const mime = type === "image-jpeg" ? "image/jpeg" : type === "image-png" ? "image/png" : null;
+  if (!mime) throw new Error(`Couldn't embed ${file.name} in the page.`);
+  return wrapImageAsHtml(ready, mime, file.name);
 }
 
 /* Text-ish → PDF ----------------------------------------------------- */
