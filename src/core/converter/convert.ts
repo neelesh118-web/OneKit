@@ -340,6 +340,8 @@ async function runConversion(
       if (target === "pdf") return docs.docxToPdf(bytes);
       if (target === "docx") return docs.htmlToDocx(html);
       if (target === "dotx") return docs.textToDotx(docs.htmlToText(html));
+      if (target === "rst") return toBytes(docs.htmlToText(html));
+      if (target === "tex") return toBytes(docs.textToTex(docs.htmlToText(html)));
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
@@ -549,6 +551,8 @@ async function runConversion(
       const html = toText(bytes);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "text") return toBytes(docs.htmlToText(html));
+      if (target === "rst") return toBytes(docs.textToRst(docs.htmlToText(html), "HTML document"));
+      if (target === "tex") return toBytes(docs.textToTex(docs.htmlToText(html)));
       if (target === "docx") return docs.htmlToDocx(html);
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));

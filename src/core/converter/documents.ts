@@ -2035,6 +2035,23 @@ export function htmlToPptx(html: string): Uint8Array {
   return buildPptx(textToSlides(htmlToText(html)));
 }
 
+/** Plain readable text → a standalone TeX document. */
+export function textToTex(text: string): string {
+  const normalized = text.replace(/\r/g, "").trim();
+  if (!normalized) throw new Error("This document contains no readable text to convert.");
+  const body = normalized.replace(/([\\{}#$%&_])/g, "\\$1").replace(/\^/g, "\\textasciicircum{}").replace(/~/g, "\\textasciitilde{}");
+  return `\\documentclass{article}\n\\usepackage[utf8]{inputenc}\n\\begin{document}\n${body.replace(/\n\n+/g, "\n\n\\par\n")}\n\\end{document}\n`;
+}
+
+/** Plain readable text to reStructuredText with reserved inline markers escaped. */
+export function textToRst(text: string, title = "Document"): string {
+  const normalized = text.replace(/\r/g, "").trim();
+  if (!normalized) throw new Error("This document contains no readable text to convert.");
+  const safeTitle = title.replace(/([\\*`|_])/g, "\\$1");
+  const body = normalized.replace(/([\\*`|_])/g, "\\$1");
+  return `${safeTitle}\n${"=".repeat(Math.max(3, title.length))}\n\n${body}\n`;
+}
+
 /** HTML → OpenDocument presentation, preserving slide order and text. */
 export function htmlToOdp(html: string): Uint8Array {
   return buildOdp(textToSlides(htmlToText(html)));

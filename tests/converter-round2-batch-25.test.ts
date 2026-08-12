@@ -1,0 +1,8 @@
+// @vitest-environment node
+import { describe, expect, it } from "vitest";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
+import { textToDotx } from "../src/core/converter/documents";
+import { targetsFor } from "../src/core/converter/matrix";
+const enc=(s:string)=>new TextEncoder().encode(s);
+function canvas():ConvertOptions{let w=1,h=1;const c={translate(){},rotate(){},scale(){},drawImage(){},getImageData:()=>({width:w,height:h,data:new Uint8ClampedArray(w*h*4),colorSpace:"srgb"})as ImageData};return{canvas:{canvasFactory:()=>({get width(){return w},set width(v:number){w=v},get height(){return h},set height(v:number){h=v},getContext:()=>c,toBlob(cb:(b:Blob|null)=>void,mime?:string){cb(new Blob([enc("RIFF0000WEBP")],{type:mime??"image/webp"}))}})as unknown as HTMLCanvasElement,decode:async()=>({width:10,height:10,close(){}})as ImageBitmap}}}
+describe("round 2 batch 25: DOTX modern images",()=>{const bytes=textToDotx("Template heading\nReadable template content.");it("advertises ranks 2950, 2955, 2956",()=>expect(targetsFor("dotx")).toEqual(expect.arrayContaining(["image-gif","image-svg","image-webp"])));it.each([["image-gif","gif","image/gif","GIF89a"],["image-svg","svg","image/svg+xml","<svg"],["image-webp","webp","image/webp","RIFF"]]as const)("converts DOTX to %s",async(target,ext,mime,sig)=>{const r=await convertFile({bytes,name:"template.dotx"},target,canvas());expect(r).toMatchObject({name:`template.${ext}`,mime});expect(new TextDecoder().decode(r.bytes.slice(0,100))).toContain(sig)});it("rejects corrupt DOTX",async()=>{await expect(convertFile({bytes:enc("bad"),name:"bad.dotx"},"image-svg")).rejects.toThrow(/docx|corrupt/i)});});

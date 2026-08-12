@@ -220,3 +220,12 @@
 - Tests: 13 focused cases validate SVG/WebP signatures and metadata, DOTX OOXML package parts and readable text, matrix exposure, and empty, malformed, or corrupt input rejection. The complete suite passed 1,777 tests across 227 files.
 
 - HEIC encoding, legacy binary DOC/PPT output, MOBI writing, and proprietary AI/AZW4/CBC/CGM/CHM and related formats through rank 2933 remain skipped where local implementation is unavailable.
+
+## Batch 25
+
+- Added 7 demand-ranked pairs: DOCX to RST/TeX (ranks 2937/2939), DOTX to GIF/SVG/WebP (ranks 2950/2955/2956), and HTML to RST/TeX (ranks 3084/3086).
+- Pair total: 1,435.
+- Formats: validated Word content emits readable reStructuredText and standalone escaped TeX; Word templates use the existing direct-SVG and GIF/WebP raster pipeline; semantic HTML text feeds reusable escaped RST and TeX writers.
+- Tests: 14 focused cases validate structured text, reserved-character escaping, real image signatures/MIME/names, matrix exposure, and blank, malformed, or corrupt input rejection. The complete repository suite passed with exit code 0.
+
+- Proprietary HWP/HWPX/LWP/SDW/WPD/WPS writers, legacy DOT/DPS/POT/PPS/PPT, HEIC, MOBI writing, and related unsupported formats through rank 3086 remain honest skips.
