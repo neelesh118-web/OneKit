@@ -101,3 +101,21 @@
 - Tests: real PDF input to all five format signatures/MIME/names, matrix milestone, and corrupt-PDF rejection for a newly exposed target.
 
 - Ranks 361–419 proprietary/legacy ebook, raw-photo, Office, and vector targets remain skipped where no honest parser or encoder exists; PDF to camera RAW and proprietary document containers cannot be synthesized locally.
+
+## Batch 12
+
+- Added 4 demand-ranked pairs: XLSM to XLSX (backlog rank 423) and CSV to GIF/SVG/WebP (ranks 447, 451, 453).
+- Pair total: 1,308.
+- Formats: macro-enabled OOXML sheets are rewritten as standard macro-free XLSX; styled CSV table SVG is returned directly or passed through existing GIF/WebP encoders.
+- Tests: real XLSM-to-XLSX package/data verification, all three CSV image signatures/MIME/names, matrix milestone, empty-CSV rejection, and corrupt-XLSM rejection.
+
+## Batch 13
+
+- Added 24 demand-ranked pairs: DOCX and EPUB to GIF/SVG/WebP (ranks 461-475); HTML, MOBI, and TXT to GIF/SVG/WebP (ranks 490-582); and PPTX, XLS, and XLSX to GIF/SVG/WebP (ranks 564-616).
+- Pair total: 1,332.
+- Formats: document, ebook, presentation, text, and spreadsheet renderers now return their locally generated SVG directly or feed it through the existing GIF/WebP encoders.
+- Tests: 28 focused cases cover all 24 matrix entries and conversions, real signatures/MIME/names, and honest empty/corrupt input rejection.
+
+- Interleaved legacy PPT/DOC targets through rank 616 remain skipped because the project has no honest binary Office writer; raster and modern OOXML outputs remain supported.
+
+- Ranks 429–436 Illustrator targets and legacy DOC targets at 446/454–460 remain skipped because complete native AI and binary DOC parsing/writing is unavailable locally.

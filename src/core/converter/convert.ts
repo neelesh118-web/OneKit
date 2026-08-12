@@ -322,8 +322,11 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
-      if (target === "image-png" || target === "image-jpeg") {
-        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif" || target === "image-svg") {
+        const svg = docs.textToSvg(docs.htmlToText(html));
+        return target === "image-svg"
+          ? svg
+          : convertImage(svg, target, opts.canvas, opts.image, "image-svg");
       }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
@@ -339,7 +342,8 @@ async function runConversion(
     case "potx":
     case "ppsx": {
       const html = slidesToHtml(pptxToSlides(bytes), "Presentation");
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Presentation", target);
@@ -352,7 +356,8 @@ async function runConversion(
     case "azw":
     case "prc": {
       const html = mobiToHtml(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Book", target);
@@ -389,7 +394,8 @@ async function runConversion(
         throw new Error("Could not read this .xlsm - the file is not a valid OOXML package.");
       }
       const csv = await docs.xlsxToCsv(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.csvToSvg(csv);
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
       }
       return renderTable(csv, "Spreadsheet", target);
@@ -400,8 +406,11 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.epubToPdf(bytes);
       if (target === "docx") return docs.htmlToDocx(html);
-      if (target === "image-png" || target === "image-jpeg") {
-        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif" || target === "image-svg") {
+        const svg = docs.textToSvg(docs.htmlToText(html));
+        return target === "image-svg"
+          ? svg
+          : convertImage(svg, target, opts.canvas, opts.image, "image-svg");
       }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Book", target);
       return toBytes(docs.htmlToText(html));
@@ -441,7 +450,8 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
@@ -453,7 +463,8 @@ async function runConversion(
       if (target === "txt-hex") return toBytes(txt.textToHex(text));
       if (target === "pdf") return docs.textToPdf(text);
       if (target === "docx") return docs.textToDocx(text);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(text);
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");
       }
       if (target === "epub") {
@@ -668,7 +679,8 @@ async function runConversion(
     }
     case "csv": {
       const csv = toText(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.csvToSvg(csv);
+      if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif") {
         return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
       }
       if (target === "json") return toBytes(JSON.stringify(docs.csvToJson(csv), null, 2));
@@ -805,7 +817,8 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.csvToSvg(csv);
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
       }
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
