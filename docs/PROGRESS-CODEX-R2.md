@@ -247,3 +247,12 @@
 - Tests: 14 focused cases validate image signatures/MIME/names, PPTM content type and slide-text round-trip, matrix exposure, and corrupt or DRM-protected rejection. TypeScript and the complete repository suite passed with exit code 0.
 
 - Legacy PPT/DOC, proprietary SDA/SDC/SDW/WPD/WPS/ZABW/iWork targets, HEIC, and nonsensical camera-RAW document outputs through rank 3454 remain honest skips.
+
+## Batch 28
+
+- Added 6 demand-ranked pairs: RST to GIF/SVG/WebP (ranks 3501/3506/3507) and TeX to GIF/SVG/WebP (ranks 3615/3620/3621).
+- Pair total: 1,457.
+- Formats: parsed reStructuredText and TeX content strips synthetic parser headings, returns SVG directly, and feeds local GIF/WebP encoders for raster output.
+- Tests: 20 focused cases plus the legacy matrix suite validate all six outputs, signatures/MIME/names, matrix exposure, and blank-input rejection. TypeScript and the complete repository suite passed with exit code 0.
+
+- RocketBook and proprietary SDA/SDC/SDW/WPD/WPS/iWork formats, HEIC, legacy PPT, MOBI writing, and dishonest RAW targets through rank 3621 remain honest skips.

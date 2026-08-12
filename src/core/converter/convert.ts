@@ -509,17 +509,17 @@ async function runConversion(
     }
     case "rst": {
       const html = rstToHtml(toText(bytes));
-      if (target === "image-png" || target === "image-jpeg") {
-        const text = docs.htmlToText(html).replace(/^reStructuredText\s*/i, "").trim();
-        return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-svg" || target === "image-webp") {
+        const svg = docs.textToSvg(docs.htmlToText(html).replace(/^reStructuredText\s*/i, "").trim());
+        return target === "image-svg" ? svg : convertImage(svg, target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);
     }
     case "tex": {
       const html = texToHtml(toText(bytes));
-      if (target === "image-png" || target === "image-jpeg") {
-        const text = docs.htmlToText(html).replace(/^TeX document\s*/i, "").trim();
-        return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-svg" || target === "image-webp") {
+        const svg = docs.textToSvg(docs.htmlToText(html).replace(/^TeX document\s*/i, "").trim());
+        return target === "image-svg" ? svg : convertImage(svg, target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);
     }
