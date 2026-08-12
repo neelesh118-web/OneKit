@@ -382,13 +382,18 @@ async function runConversion(
       return dxfToPdf(bytes);
     case "xls":
     case "xlsm":
-    case "ods":
+    case "ods": {
       // SheetJS reads BIFF8 and OpenDocument with the same reader the
       // .xlsx path uses, so the whole table pipeline is shared.
       if (source === "xlsm" && !(bytes[0] === 0x50 && bytes[1] === 0x4b)) {
         throw new Error("Could not read this .xlsm - the file is not a valid OOXML package.");
       }
-      return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target);
+      const csv = await docs.xlsxToCsv(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderTable(csv, "Spreadsheet", target);
+    }
     case "epub": {
       const html = docs.epubToHtml(bytes);
       if (target === "html") return toBytes(html);
@@ -800,6 +805,9 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
+      }
       if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
         return renderTable(csv, "Spreadsheet", target);
       }

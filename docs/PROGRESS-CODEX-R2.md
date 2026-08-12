@@ -74,3 +74,10 @@
 - Tests: real PPTX and TXT inputs to both raster signatures, output metadata, pair milestone, empty-text rejection, and corrupt-PPTX rejection.
 
 - Ranks 178–180 PPT to DOCX/JPG/PNG: legacy binary PowerPoint needs an OLE presentation parser and renderer; modern PPTX remains supported.
+
+## Batch 9
+
+- Added 4 demand-ranked pairs: XLS to JPG/PNG (backlog ranks 197–198) and XLSX to JPG/PNG (ranks 200–201).
+- Pair total: 1,298.
+- Formats: BIFF8 XLS and OOXML XLSX first-sheet parsing feed the styled table SVG and existing raster encoders.
+- Tests: real XLS/XLSX workbooks to both raster signatures, output metadata, pair milestone, empty-sheet rejection, and corrupt-workbook rejection.
