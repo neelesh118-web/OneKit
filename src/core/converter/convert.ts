@@ -93,6 +93,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   rtf: "application/rtf",
   odt: "application/vnd.oasis.opendocument.text",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  fb2: "application/x-fictionbook+xml",
   tsv: "text/tab-separated-values",
   xls: "application/vnd.ms-excel",
   ods: "application/vnd.oasis.opendocument.spreadsheet",
@@ -140,7 +141,7 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx"]);
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2"]);
 
 /** The spreadsheet containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
@@ -158,6 +159,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "rtf") return toBytes(docs.htmlToRtf(html));
   if (target === "odt") return docs.htmlToOdt(html);
   if (target === "pptx") return docs.htmlToPptx(html);
+  if (target === "fb2") return docs.htmlToFb2(html, title);
   return toBytes(docs.htmlToText(html));
 }
 
@@ -262,8 +264,8 @@ async function runConversion(
         const text = await docs.pdfToText(bytes);
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
-      // PDF → RTF / ODT / PPTX: the extracted text, in those containers.
-      if (target === "rtf" || target === "odt" || target === "pptx") {
+      // PDF → document containers: extract readable text before writing.
+      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
       // Single-file path: the first page. The Convert tab zips all pages

@@ -1844,6 +1844,33 @@ export function htmlToPptx(html: string): Uint8Array {
   return buildPptx(textToSlides(htmlToText(html)));
 }
 
+/** HTML → FictionBook 2 XML, preserving readable text as paragraphs. */
+export function htmlToFb2(html: string, title: string): Uint8Array {
+  const paragraphs = htmlToText(html)
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `      <p>${escapeXml(line)}</p>`)
+    .join("\n") || "      <p></p>";
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0">
+  <description>
+    <title-info>
+      <genre>nonfiction</genre>
+      <author><first-name>OneKit</first-name><last-name>Converter</last-name></author>
+      <book-title>${escapeXml(title)}</book-title>
+      <lang>en</lang>
+    </title-info>
+  </description>
+  <body>
+    <section>
+${paragraphs}
+    </section>
+  </body>
+</FictionBook>`;
+  return new TextEncoder().encode(xml);
+}
+
 /** Slide decks (PPTX/ODP) → the HTML every other document target flows through. */
 export function slidesToDocumentHtml(slides: Slide[], title: string): string {
   return slidesToHtml(slides, title);
