@@ -41,7 +41,7 @@ import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { mobiFromHtml } from "./ebooks-write";
-import { imagesToOdt, odpToSlides, odtToHtml } from "./odf";
+import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
 import { imageToRtfDocument, rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
@@ -107,6 +107,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   epub: "application/epub+zip",
   rtf: "application/rtf",
   odt: "application/vnd.oasis.opendocument.text",
+  odp: "application/vnd.oasis.opendocument.presentation",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   fb2: "application/x-fictionbook+xml",
   tsv: "text/tab-separated-values",
@@ -156,7 +157,7 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2", "mobi", "azw"]);
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw"]);
 
 /** The spreadsheet containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
@@ -173,6 +174,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "epub") return docs.epubFromHtml(title, html);
   if (target === "rtf") return toBytes(docs.htmlToRtf(html));
   if (target === "odt") return docs.htmlToOdt(html);
+  if (target === "odp") return docs.htmlToOdp(html);
   if (target === "pptx") return docs.htmlToPptx(html);
   if (target === "fb2") return docs.htmlToFb2(html, title);
   if (target === "mobi" || target === "azw") return await mobiFromHtml(html, { title });
@@ -322,6 +324,7 @@ async function runConversion(
       if (target === "text") return toBytes(await runOcr(bytes, "image", opts));
       if (target === "markdown") return docs.imageToMarkdown({ bytes, name: "image" });
       if (target === "odt") return imagesToOdt([{ bytes, name: "image" }]);
+      if (target === "odp") return imagesToOdp([{ bytes, name: "image" }]);
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes, name: "image" }));
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
@@ -329,12 +332,13 @@ async function runConversion(
       // SVG embeds directly — the browser renders it natively, no rasterization needed.
       if (target === "html") return docs.wrapImageAsHtml(bytes, "image/svg+xml", "image");
       if (target === "markdown") return docs.wrapImageAsMarkdown(bytes, "image/svg+xml", "image");
-      if (target === "pdf" || target === "docx" || target === "pptx" || target === "odt" || target === "rtf") {
+      if (target === "pdf" || target === "docx" || target === "pptx" || target === "odt" || target === "odp" || target === "rtf") {
         // Rasterize to PNG first, then pack into the container (reuses both pipelines).
         const png = await convertImage(bytes, "image-png", opts.canvas, opts.image, source);
         if (target === "pdf") return docs.imagesToPdf([{ bytes: png, name: "image" }]);
         if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
         if (target === "odt") return imagesToOdt([{ bytes: png, name: "image" }]);
+        if (target === "odp") return imagesToOdp([{ bytes: png, name: "image" }]);
         if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
         return imagesToPptx([{ bytes: png, name: "image" }]);
       }
@@ -366,6 +370,7 @@ async function runConversion(
       if (target === "text") return toBytes(await runOcr(preview, "image", opts));
       if (target === "markdown") return docs.imageToMarkdown({ bytes: preview, name: "image" });
       if (target === "odt") return imagesToOdt([{ bytes: preview, name: "image" }]);
+      if (target === "odp") return imagesToOdp([{ bytes: preview, name: "image" }]);
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: preview, name: "image" }));
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
     }
@@ -382,7 +387,7 @@ async function runConversion(
       }
       if (
         target === "docx" || target === "pptx" || target === "html" || target === "text" ||
-        target === "markdown" || target === "odt" || target === "rtf"
+        target === "markdown" || target === "odt" || target === "odp" || target === "rtf"
       ) {
         const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
         if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
@@ -390,6 +395,7 @@ async function runConversion(
         if (target === "html") return docs.imageToHtml({ bytes: png, name: "image" });
         if (target === "markdown") return docs.imageToMarkdown({ bytes: png, name: "image" });
         if (target === "odt") return imagesToOdt([{ bytes: png, name: "image" }]);
+        if (target === "odp") return imagesToOdp([{ bytes: png, name: "image" }]);
         if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
         return toBytes(await runOcr(png, "image", opts));
       }
@@ -408,7 +414,7 @@ async function runConversion(
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
       // PDF → document containers: extract readable text before writing.
-      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2" || target === "mobi" || target === "azw") {
+      if (target === "rtf" || target === "odt" || target === "odp" || target === "pptx" || target === "fb2" || target === "mobi" || target === "azw") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
       // Single-file path: render page 1 as PNG, then push it through the

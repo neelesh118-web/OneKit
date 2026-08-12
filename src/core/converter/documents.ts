@@ -45,7 +45,7 @@ export function xlsmToXlsx(bytes: Uint8Array): Uint8Array {
   );
   return zipSync(files);
 }
-import { buildOdt } from "./odf";
+import { buildOdt, slidesToOdp } from "./odf";
 import { buildPptx, slidesToHtml, textToSlides, type Slide } from "./pptx";
 
 const turndown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
@@ -2010,6 +2010,11 @@ export function htmlToOdt(html: string): Uint8Array {
  */
 export function htmlToPptx(html: string): Uint8Array {
   return buildPptx(textToSlides(htmlToText(html)));
+}
+
+/** HTML → ODP presentation, one text slide per section (same shape as pptx). */
+export function htmlToOdp(html: string): Uint8Array {
+  return slidesToOdp(textToSlides(htmlToText(html)));
 }
 
 /** HTML → FictionBook 2 XML, preserving readable text as paragraphs. */
