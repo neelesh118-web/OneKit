@@ -98,6 +98,9 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-icns": "image/icns",
   mobi: "application/x-mobipocket-ebook",
   azw: "application/vnd.amazon.ebook",
+  prc: "application/x-mobipocket-ebook",
+  pdb: "application/vnd.palm",
+  tex: "application/x-tex",
   "image-pbm": "image/x-portable-bitmap",
   "image-pgm": "image/x-portable-graymap",
   "image-pam": "image/x-portable-arbitrary-map",
@@ -105,6 +108,8 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-qoi": "image/qoi",
   "image-farbfeld": "image/farbfeld",
   "image-pcx": "image/x-pcx",
+  "image-xpm": "image/x-xpixmap",
+  "image-wbmp": "image/vnd.wap.wbmp",
   pdf: "application/pdf",
   html: "text/html",
   markdown: "text/markdown",
@@ -116,11 +121,16 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   mediawiki: "text/x-wiki",
   asciidoc: "text/asciidoc",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  docm: "application/vnd.ms-word.document.macroEnabled.main+xml",
+  dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml",
   epub: "application/epub+zip",
   rtf: "application/rtf",
   odt: "application/vnd.oasis.opendocument.text",
   odp: "application/vnd.oasis.opendocument.presentation",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  pptm: "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml",
+  potx: "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml",
+  ppsx: "application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml",
   fb2: "application/x-fictionbook+xml",
   tsv: "text/tab-separated-values",
   xls: "application/vnd.ms-excel",
@@ -138,6 +148,9 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   yaml: "application/yaml",
   xml: "application/xml",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xlsm: "application/vnd.ms-excel.sheet.macroEnabled.main+xml",
+  xltx: "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml",
+  xltm: "application/vnd.ms-excel.template.macroEnabled.main+xml",
   zip: "application/zip",
   tar: "application/x-tar",
   gzip: "application/gzip",
@@ -148,7 +161,9 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "audio-wav": "audio/wav",
   "audio-flac": "audio/flac",
   "audio-ogg": "audio/ogg",
+  "audio-oga": "audio/ogg",
   "audio-mp4": "audio/mp4",
+  "audio-m4b": "audio/mp4",
   "video-webm": "video/webm",
   "video-mp4": "video/mp4",
   "video-mov": "video/quicktime",
@@ -161,6 +176,8 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   kml: "application/vnd.google-earth.kml+xml",
   gpx: "application/gpx+xml",
   jsonl: "application/x-ndjson",
+  vcf: "text/vcard",
+  ics: "text/calendar",
   "txt-base64": "text/plain",
   "txt-hex": "text/plain",
   "txt-url": "text/plain"
@@ -180,12 +197,12 @@ function baseName(name: string): string {
 
 /** The document containers written by the Office writers. */
 const OFFICE_TARGETS = new Set<TargetFormat>([
-  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "opml", "txt-url",
-  "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc"
+  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "prc", "pdb", "tex", "opml", "txt-url",
+  "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "docm", "dotx", "pptm", "potx", "ppsx"
 ]);
 
 /** The spreadsheet/data containers every table and record source can produce. */
-const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl"]);
+const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "xltx", "xltm", "tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl", "vcf", "ics"]);
 
 /**
  * Every prose source funnels through HTML, so one renderer serves them
@@ -196,13 +213,19 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
   if (target === "pdf") return docs.htmlToPdf(html);
   if (target === "docx") return docs.htmlToDocx(html);
+  if (target === "docm") return docs.docxToDocm(docs.htmlToDocx(html));
+  if (target === "dotx") return docs.docxToDotx(docs.htmlToDocx(html));
   if (target === "epub") return docs.epubFromHtml(title, html);
   if (target === "rtf") return toBytes(docs.htmlToRtf(html));
   if (target === "odt") return docs.htmlToOdt(html);
   if (target === "odp") return docs.htmlToOdp(html);
   if (target === "pptx") return docs.htmlToPptx(html);
+  if (target === "pptm") return docs.pptxToPptm(docs.htmlToPptx(html));
+  if (target === "potx") return docs.pptxToPotx(docs.htmlToPptx(html));
+  if (target === "ppsx") return docs.pptxToPpsx(docs.htmlToPptx(html));
   if (target === "fb2") return docs.htmlToFb2(html, title);
-  if (target === "mobi" || target === "azw") return await mobiFromHtml(html, { title });
+  if (target === "mobi" || target === "azw" || target === "prc" || target === "pdb") return await mobiFromHtml(html, { title });
+  if (target === "tex") return toBytes(docs.htmlToLatex(html, title));
   if (target === "opml") return toBytes(docs.htmlToOpml(html, title));
   if (target === "txt-url") return toBytes(txt.textToUrl(docs.htmlToText(html)));
   if (target === "htmlz") return docs.htmlToHtmlz(html, title);
@@ -212,6 +235,30 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "mediawiki") return toBytes(docs.htmlToMediawiki(html, title));
   if (target === "asciidoc") return toBytes(docs.htmlToAsciidoc(html, title));
   return toBytes(docs.htmlToText(html));
+}
+
+/**
+ * Every record-shaped source (contacts, feeds, playlists, money…) funnels
+ * through the same routes: sheets via renderTable, documents via
+ * renderDocument, contacts/calendar via the vCard/iCal writers.
+ */
+async function routeRecords(
+  records: Record<string, string>[],
+  title: string,
+  target: TargetFormat
+): Promise<Uint8Array> {
+  if (target === "json") return toBytes(JSON.stringify(records, null, 2));
+  if (target === "csv") return toBytes(docs.recordsToCsv(records));
+  if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
+  if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
+  if (target === "text") return toBytes(docs.recordsToText(records));
+  if (target === "vcf") return toBytes(docs.recordsToVcf(records));
+  if (target === "ics") return toBytes(docs.recordsToIcs(records));
+  if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+    return renderDocument(docs.recordsToHtml(records), title, target);
+  }
+  if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), title, target);
+  return toBytes(docs.recordsToHtml(records));
 }
 
 /** Any PCM WAV → AIFF, the shared bridge for every audio and video source. */
@@ -254,6 +301,11 @@ async function renderTable(csv: string, title: string, target: TargetFormat): Pr
   if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
   if (target === "sql") return toBytes(docs.recordsToSql(docs.csvToJson(csv) as Record<string, string>[], title));
   if (target === "properties") return toBytes(docs.recordsToProperties(docs.csvToJson(csv) as Record<string, string>[]));
+  if (target === "xlsm") return docs.xlsxToXlsm(await docs.csvToXlsx(csv));
+  if (target === "xltx") return docs.xlsxToXltx(await docs.csvToXlsx(csv));
+  if (target === "xltm") return docs.xlsxToXltm(await docs.csvToXlsx(csv));
+  if (target === "vcf") return toBytes(docs.recordsToVcf(docs.csvToJson(csv) as Record<string, string>[]));
+  if (target === "ics") return toBytes(docs.recordsToIcs(docs.csvToJson(csv) as Record<string, string>[]));
   if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
   if (target === "pdf") return docs.csvToPdf(csv);
   return renderDocument(docs.csvToHtml(csv), title, target);
@@ -372,15 +424,24 @@ async function runConversion(
     case "image-qoi":
     case "image-farbfeld":
     case "image-pcx":
+    case "image-xpm":
+    case "image-wbmp":
       if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
       if (target === "docx") return docs.imagesToDocx([{ bytes, name: "image" }]);
+      if (target === "docm") return docs.docxToDocm(await docs.imagesToDocx([{ bytes, name: "image" }]));
+      if (target === "dotx") return docs.docxToDotx(await docs.imagesToDocx([{ bytes, name: "image" }]));
       if (target === "pptx") return imagesToPptx([{ bytes, name: "image" }]);
+      if (target === "pptm") return docs.pptxToPptm(await imagesToPptx([{ bytes, name: "image" }]));
+      if (target === "potx") return docs.pptxToPotx(await imagesToPptx([{ bytes, name: "image" }]));
+      if (target === "ppsx") return docs.pptxToPpsx(await imagesToPptx([{ bytes, name: "image" }]));
       if (target === "html") return docs.imageToHtml({ bytes, name: "image" });
       if (target === "text") return toBytes(await runOcr(bytes, "image", opts));
       if (target === "markdown") return docs.imageToMarkdown({ bytes, name: "image" });
       if (target === "odt") return imagesToOdt([{ bytes, name: "image" }]);
       if (target === "odp") return imagesToOdp([{ bytes, name: "image" }]);
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes, name: "image" }));
+      if (target === "prc" || target === "pdb") return await mobiFromHtml(toText(await docs.imageToHtml({ bytes, name: "image" })), { title: "Image" });
+      if (target === "tex") return toBytes(docs.htmlToLatex(toText(await docs.imageToHtml({ bytes, name: "image" })), "Image"));
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
@@ -602,62 +663,26 @@ async function runConversion(
     case "vcf": {
       const records = docs.vcfToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No VCARD blocks found in this file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
-        return renderDocument(docs.recordsToHtml(records), "Contacts", target);
-      }
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Contacts", target);
     }
     case "opml": {
       const records = docs.opmlToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No <outline> entries found in this OPML file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
       if (target === "xml") return toBytes(toText(bytes));
       if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(records)));
-      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
-        return renderDocument(docs.recordsToHtml(records), "Outline", target);
-      }
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Outline", target);
     }
     case "plist": {
       const records = docs.plistToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No <dict> blocks found in this plist.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
       if (target === "xml") return toBytes(toText(bytes));
       if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(records)));
-      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
-        return renderDocument(docs.recordsToHtml(records), "Plist", target);
-      }
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Plist", target);
     }
     case "ics": {
       const records = docs.icsToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No VEVENT blocks found in this file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
-        return renderDocument(docs.recordsToHtml(records), "Calendar", target);
-      }
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Calendar", target);
     }
     case "srt":
     case "vtt": {
@@ -674,19 +699,17 @@ async function runConversion(
       if (target === "sbv") return toBytes(docs.cuesToSbv(cues));
       if (target === "ttml") return toBytes(docs.cuesToTtml(cues));
       if (target === "text") return toBytes(docs.subtitlesToText(sub));
-      return toBytes(source === "srt" ? docs.srtToVtt(sub) : docs.vttToSrt(sub));
+      if (target === "srt" || target === "vtt") return toBytes(source === "srt" ? docs.srtToVtt(sub) : docs.vttToSrt(sub));
+      if (SHEET_TARGETS.has(target) || target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        const records = cues.map((c) => ({ index: c.index, start: c.start, end: c.end, text: c.text }));
+        return routeRecords(records, "Subtitles", target);
+      }
+      return toBytes(docs.subtitlesToText(sub));
     }
     case "m3u": {
       const records = docs.m3uToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No playlist entries found in this file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "eml": {
       const eml = toText(bytes);
@@ -700,83 +723,44 @@ async function runConversion(
       const body = docs.emlToRecords(eml)[0]!.body;
       if (target === "markdown") return toBytes(body);
       if (target === "docx") return docs.textToDocx(body);
+      if (target === "vcf" || target === "ics" || SHEET_TARGETS.has(target) || target === "epub" || OFFICE_TARGETS.has(target)) {
+        return routeRecords(docs.emlToRecords(eml) as unknown as Record<string, string>[], "Email", target);
+      }
       return toBytes(body);
     }
     case "torrent": {
       const records = docs.torrentToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No file records found in this torrent.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "gpx": {
       const gpx = toText(bytes);
       if (target === "kml") return toBytes(docs.gpxToKml(gpx));
       const records = docs.gpxToRecords(gpx);
       if (records.length === 0) throw new Error("No track points found in this GPX file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "kml": {
       const kml = toText(bytes);
       if (target === "gpx") return toBytes(docs.kmlToGpx(kml));
       const records = docs.kmlToRecords(kml);
       if (records.length === 0) throw new Error("No placemarks with coordinates found in this KML file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "bookmarks": {
       const records = docs.bookmarksToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No bookmarked links found in this file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "bibtex": {
       const records = docs.bibToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No @type{key, …} entries found in this BibTeX file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "jsonl": {
       const records = docs.jsonlToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No parseable JSON lines found in this file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "lrc": {
       const lrc = toText(bytes);
@@ -807,31 +791,21 @@ async function runConversion(
         if (target === "sbv") return toBytes(docs.cuesToSbv(cues));
         return toBytes(docs.cuesToTtml(cues));
       }
+      if (SHEET_TARGETS.has(target) || target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+        const records = docs.lrcToCues(lrc).map((c) => ({ time: String(c.timeMs), text: c.text }));
+        return routeRecords(records, "Lyrics", target);
+      }
       return toBytes(docs.lrcToText(lrc));
     }
     case "sitemap": {
       const records = docs.sitemapToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No <url> entries found in this sitemap.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "rss": {
       const records = docs.rssToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No feed items found in this file.");
-      if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), "Records", target);
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx") return docs.htmlToDocx(docs.recordsToHtml(records));
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Records", target);
     }
     case "text-base64": {
       // text/pdf keep the pure-text decode (a base64 string of prose).
@@ -988,18 +962,7 @@ async function runConversion(
       if (records.length === 0) {
         throw new Error(`No records found in this ${TYPE_LABELS[source]} file.`);
       }
-      if (target === "json") return toBytes(JSON.stringify(records, null, 2));
-      if (target === "csv") return toBytes(docs.recordsToCsv(records));
-      if (target === "xlsx") return docs.csvToXlsx(docs.recordsToCsv(records));
-      if (target === "markdown") return toBytes(docs.recordsToMarkdown(records));
-      if (target === "text") return toBytes(docs.recordsToText(records));
-      if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
-        return renderDocument(docs.recordsToHtml(records), "Data", target);
-      }
-      if (SHEET_TARGETS.has(target)) {
-        return renderTable(docs.recordsToCsv(records), "Data", target);
-      }
-      return toBytes(docs.recordsToHtml(records));
+      return routeRecords(records, "Data", target);
     }
     case "xlsx": {
       if (target === "csv") return toBytes(await docs.xlsxToCsv(bytes));
@@ -1060,8 +1023,8 @@ async function runConversion(
       if (target === "audio-aiff") return wavToAiff(bytes);
       if (target === "audio-au") return wavToAu(bytes);
       if (target === "audio-voc") return wavToVoc(bytes);
-      if (target === "audio-ogg") return wavToOgg(bytes);
-      if (target === "audio-mp4") return wavToMp4(bytes);
+      if (target === "audio-ogg" || target === "audio-oga") return wavToOgg(bytes);
+      if (target === "audio-mp4" || target === "audio-m4b") return wavToMp4(bytes);
       return normalizeWav(bytes);
     case "audio-mp3": {
       const decode = opts.audioDecoder ?? decodeAudioInBrowser;
@@ -1069,8 +1032,8 @@ async function runConversion(
       if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
       if (target === "audio-au") return wavToAu(await anyToWav(bytes, decode));
       if (target === "audio-voc") return wavToVoc(await anyToWav(bytes, decode));
-      if (target === "audio-ogg") return anyToOgg(bytes, decode);
-      if (target === "audio-mp4") return anyToMp4(bytes, decode);
+      if (target === "audio-ogg" || target === "audio-oga") return anyToOgg(bytes, decode);
+      if (target === "audio-mp4" || target === "audio-m4b") return anyToMp4(bytes, decode);
       return anyToWav(bytes, decode);
     }
     case "audio-ogg":
@@ -1083,8 +1046,8 @@ async function runConversion(
       if (target === "audio-aiff") return wavToAiff(await anyToWav(bytes, decode));
       if (target === "audio-au") return wavToAu(await anyToWav(bytes, decode));
       if (target === "audio-voc") return wavToVoc(await anyToWav(bytes, decode));
-      if (target === "audio-ogg") return anyToOgg(bytes, decode);
-      if (target === "audio-mp4") return anyToMp4(bytes, decode);
+      if (target === "audio-ogg" || target === "audio-oga") return anyToOgg(bytes, decode);
+      if (target === "audio-mp4" || target === "audio-m4b") return anyToMp4(bytes, decode);
       return anyToWav(bytes, decode);
     }
     case "audio-aiff": {
@@ -1097,8 +1060,8 @@ async function runConversion(
         return result.value;
       }
       if (target === "audio-flac") return wavToFlac(wav);
-      if (target === "audio-ogg") return wavToOgg(wav);
-      if (target === "audio-mp4") return wavToMp4(wav);
+      if (target === "audio-ogg" || target === "audio-oga") return wavToOgg(wav);
+      if (target === "audio-mp4" || target === "audio-m4b") return wavToMp4(wav);
       if (target === "audio-au") return encodeAu(parsed.sampleRate, parsed.channels, parsed.samples);
       if (target === "audio-voc") return encodeVoc(parsed.sampleRate, parsed.channels, parsed.samples);
       // AIFF → AIFF: re-encodes through the same parse/re-encode pass as
@@ -1118,8 +1081,8 @@ async function runConversion(
       }
       if (target === "audio-flac") return wavToFlac(wav);
       if (target === "audio-aiff") return encodeAiff(parsed);
-      if (target === "audio-ogg") return wavToOgg(wav);
-      if (target === "audio-mp4") return wavToMp4(wav);
+      if (target === "audio-ogg" || target === "audio-oga") return wavToOgg(wav);
+      if (target === "audio-mp4" || target === "audio-m4b") return wavToMp4(wav);
       if (target === "audio-voc") return encodeVoc(parsed.sampleRate, parsed.channels, parsed.samples);
       // AU → AU: same canonical re-encode pass as every other target.
       if (target === "audio-au") return encodeAu(parsed.sampleRate, parsed.channels, parsed.samples);
@@ -1153,8 +1116,8 @@ async function runConversion(
       if (target === "audio-aiff") return wavToAiff(wav);
       if (target === "audio-au") return wavToAu(wav);
       if (target === "audio-voc") return wavToVoc(wav);
-      if (target === "audio-ogg") return wavToOgg(wav);
-      if (target === "audio-mp4") return wavToMp4(wav);
+      if (target === "audio-ogg" || target === "audio-oga") return wavToOgg(wav);
+      if (target === "audio-mp4" || target === "audio-m4b") return wavToMp4(wav);
       return wav;
     }
     case "video-mp4":
@@ -1187,8 +1150,8 @@ async function runConversion(
       if (target === "audio-flac") return wavToFlac(await videoToWav(bytes, opts.videoAudio));
       if (target === "audio-aiff") return wavToAiff(await videoToWav(bytes, opts.videoAudio));
       if (target === "audio-au") return wavToAu(await videoToWav(bytes, opts.videoAudio));
-      if (target === "audio-ogg") return wavToOgg(await videoToWav(bytes, opts.videoAudio));
-      if (target === "audio-mp4") return wavToMp4(await videoToWav(bytes, opts.videoAudio));
+      if (target === "audio-ogg" || target === "audio-oga") return wavToOgg(await videoToWav(bytes, opts.videoAudio));
+      if (target === "audio-mp4" || target === "audio-m4b") return wavToMp4(await videoToWav(bytes, opts.videoAudio));
       return videoToGif(bytes, opts.videoFrames);
     default:
       throw new Error("Unsupported conversion.");

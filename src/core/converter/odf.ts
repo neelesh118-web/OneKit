@@ -8,11 +8,11 @@
  * paragraphs, lists and slide order are.
  */
 import { strFromU8, unzipSync, zipSync } from "fflate/browser";
+import { sameRealmU8, zipText } from "./zip-realm";
 import { escapeXml, innerTextLines, xmlFragmentText } from "./xml-text";
 import { linesToSlide, type Slide } from "./pptx";
 import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
 
-const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 
 const MIME_TEXT = "application/vnd.oasis.opendocument.text";
 
@@ -134,11 +134,11 @@ export function buildOdt(paragraphs: string[]): Uint8Array {
     `<office:meta><meta:generator>OneKit</meta:generator></office:meta></office:document-meta>`;
   return zipSync({
     // Stored, not deflated, and first in the archive.
-    mimetype: [enc(MIME_TEXT), { level: 0 }],
-    "META-INF/manifest.xml": enc(manifest),
-    "content.xml": enc(content),
-    "styles.xml": enc(styles),
-    "meta.xml": enc(meta)
+    mimetype: [zipText(MIME_TEXT), { level: 0 }],
+    "META-INF/manifest.xml": zipText(manifest),
+    "content.xml": zipText(content),
+    "styles.xml": zipText(styles),
+    "meta.xml": zipText(meta)
   });
 }
 
@@ -169,7 +169,7 @@ export async function imagesToOdt(
     const ext = img.ext === "jpeg" ? "jpg" : "png";
     const mediaType = img.ext === "jpeg" ? "image/jpeg" : "image/png";
     const path = `Pictures/image${i + 1}.${ext}`;
-    media[path] = img.bytes;
+    media[path] = sameRealmU8(img.bytes);
     manifestEntries.push(`<manifest:file-entry manifest:full-path="${path}" manifest:media-type="${mediaType}"/>`);
     const w = Math.max(0.01, img.width * PX_TO_CM).toFixed(3);
     const h = Math.max(0.01, img.height * PX_TO_CM).toFixed(3);
@@ -213,11 +213,11 @@ export async function imagesToOdt(
     `<office:meta><meta:generator>OneKit</meta:generator></office:meta></office:document-meta>`;
 
   return zipSync({
-    mimetype: [enc(MIME_TEXT), { level: 0 }],
-    "META-INF/manifest.xml": enc(manifest),
-    "content.xml": enc(content),
-    "styles.xml": enc(styles),
-    "meta.xml": enc(meta),
+    mimetype: [zipText(MIME_TEXT), { level: 0 }],
+    "META-INF/manifest.xml": zipText(manifest),
+    "content.xml": zipText(content),
+    "styles.xml": zipText(styles),
+    "meta.xml": zipText(meta),
     ...media
   });
 }
@@ -247,11 +247,11 @@ function presentationPackage(content: string, manifestEntries: string[], media: 
     `<office:meta><meta:generator>OneKit</meta:generator></office:meta></office:document-meta>`;
   return zipSync({
     // Stored, not deflated, and first in the archive.
-    mimetype: [enc(MIME_PRESENTATION), { level: 0 }],
-    "META-INF/manifest.xml": enc(manifest),
-    "content.xml": enc(content),
-    "styles.xml": enc(styles),
-    "meta.xml": enc(meta),
+    mimetype: [zipText(MIME_PRESENTATION), { level: 0 }],
+    "META-INF/manifest.xml": zipText(manifest),
+    "content.xml": zipText(content),
+    "styles.xml": zipText(styles),
+    "meta.xml": zipText(meta),
     ...media
   });
 }
@@ -312,7 +312,7 @@ export async function imagesToOdp(
     const ext = img.ext === "jpeg" ? "jpg" : "png";
     const mediaType = img.ext === "jpeg" ? "image/jpeg" : "image/png";
     const path = `Pictures/image${i + 1}.${ext}`;
-    media[path] = img.bytes;
+    media[path] = sameRealmU8(img.bytes);
     manifestEntries.push(`<manifest:file-entry manifest:full-path="${path}" manifest:media-type="${mediaType}"/>`);
     const w = Math.max(0.01, img.width * PX_TO_CM).toFixed(3);
     const h = Math.max(0.01, img.height * PX_TO_CM).toFixed(3);

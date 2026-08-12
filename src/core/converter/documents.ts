@@ -21,6 +21,7 @@ import XLSX from "../../vendor/xlsx.mjs";
 import * as yaml from "js-yaml";
 import { XMLParser } from "fast-xml-parser";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate/browser";
+import { sameRealmU8, zipText } from "./zip-realm";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { textToRtf } from "./rtf";
 
@@ -286,13 +287,14 @@ export async function imagesToDocx(
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n` +
     `<Relationships xmlns="${DOCX_RELS_NS}">${relEntries.join("")}</Relationships>`;
 
-  const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
+  const mediaRealm: Record<string, Uint8Array> = {};
+  for (const [name, bytes] of Object.entries(media)) mediaRealm[name] = sameRealmU8(bytes);
   return zipSync({
-    "[Content_Types].xml": enc(contentTypes),
-    "_rels/.rels": enc(rootRels),
-    "word/document.xml": enc(documentXml),
-    "word/_rels/document.xml.rels": enc(docRels),
-    ...media
+    "[Content_Types].xml": zipText(contentTypes),
+    "_rels/.rels": zipText(rootRels),
+    "word/document.xml": zipText(documentXml),
+    "word/_rels/document.xml.rels": zipText(docRels),
+    ...mediaRealm
   });
 }
 
@@ -526,11 +528,10 @@ export function buildDocx(paragraphs: string[]): Uint8Array {
     `<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">` +
     `<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"word/document.xml\"/>` +
     `</Relationships>`;
-  const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
   return zipSync({
-    "[Content_Types].xml": enc(contentTypes),
-    "_rels/.rels": enc(rels),
-    "word/document.xml": enc(documentXml)
+    "[Content_Types].xml": zipText(contentTypes),
+    "_rels/.rels": zipText(rels),
+    "word/document.xml": zipText(documentXml)
   });
 }
 
@@ -777,7 +778,6 @@ export function jsonToText(jsonText: string): string {
  * Readers (and our own epubToHtml) can open the result.
  */
 export function epubFromHtml(title: string, chapterHtml: string): Uint8Array {
-  const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
   const titleText = escapeXml(title);
   const container =
     `<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n` +
@@ -808,11 +808,11 @@ export function epubFromHtml(title: string, chapterHtml: string): Uint8Array {
     `<!DOCTYPE html><html xmlns=\"http://www.w3.org/1999/xhtml\">` +
     `<head><title>${titleText}</title></head><body>${chapterHtml}</body></html>`;
   return zipSync({
-    mimetype: [enc("application/epub+zip"), { level: 0 }],
-    "META-INF/container.xml": enc(container),
-    "OEBPS/content.opf": enc(opf),
-    "OEBPS/toc.ncx": enc(ncx),
-    "OEBPS/chapter-01.xhtml": enc(chapter)
+    mimetype: [zipText("application/epub+zip"), { level: 0 }],
+    "META-INF/container.xml": zipText(container),
+    "OEBPS/content.opf": zipText(opf),
+    "OEBPS/toc.ncx": zipText(ncx),
+    "OEBPS/chapter-01.xhtml": zipText(chapter)
   });
 }
 
@@ -2573,4 +2573,178 @@ export function gnumericToRecords(xml: string): Record<string, string>[] {
       return record;
     })
     .filter((r) => Object.values(r).some((v) => v !== ""));
+}
+
+/* LaTeX / vCard / iCalendar / OOXML-variant writers --------------------- */
+
+/** HTML → LaTeX: headings, paragraphs, emphasis, itemize. */
+export function htmlToLatex(html: string, title: string): string {
+  const esc = (s: string): string =>
+    s.replace(/\\/g, "\\textbackslash{}").replace(/([#$%&_{}])/g, "\\$1").replace(/~/g, "\\textasciitilde{}").replace(/\^/g, "\\textasciicircum{}");
+  const text = htmlToText(html);
+  const lines: string[] = [
+    `\\documentclass{article}`,
+    `\\title{${esc(markupTitle(title))}}`,
+    `\\begin{document}`,
+    `\\maketitle`,
+  ];
+  const tags = html.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi) ?? [];
+  for (const tag of tags) {
+    const m = tag.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+    if (!m) continue;
+    const level = Number(m[1]);
+    const t = htmlToText(m[2]!).trim();
+    if (!t) continue;
+    if (level <= 2) lines.push(`\\section{${esc(t)}}`);
+    else if (level === 3) lines.push(`\\subsection{${esc(t)}}`);
+    else lines.push(`\\subsubsection{${esc(t)}}`);
+  }
+  for (const line of text.split(/\r?\n/)) {
+    const t = line.trim();
+    if (!t || /^\\[a-z]+/.test(t)) continue;
+    lines.push(t);
+  }
+  lines.push(`\\end{document}`);
+  return lines.join("\n") + "\n";
+}
+
+/** Records (row objects) → a vCard 3.0 file, one VCARD block per row. */
+export function recordsToVcf(records: Record<string, string>[]): string {
+  const parts: string[] = [];
+  const pick = (r: Record<string, string>, ...keys: string[]): string => {
+    for (const k of keys) {
+      const v = r[k];
+      if (v && v.trim() !== "") return v;
+    }
+    return "";
+  };
+  const esc = (s: string): string => s.replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n");
+  records.forEach((r, i) => {
+    const name = pick(r, "name", "Name", "fullname", "fullName", "displayname", "displayName");
+    const first = pick(r, "firstname", "firstName", "first");
+    const last = pick(r, "lastname", "lastName", "last");
+    const email = pick(r, "email", "Email", "mail");
+    const phone = pick(r, "phone", "Phone", "tel", "mobile");
+    const org = pick(r, "org", "Org", "company", "organization");
+    const title = pick(r, "title", "jobTitle", "role");
+    const fn = name || `${first} ${last}`.trim() || `Contact ${i + 1}`;
+    parts.push("BEGIN:VCARD", "VERSION:3.0", `FN:${esc(fn)}`);
+    if (first || last) parts.push(`N:${esc(last)};${esc(first)};;;`);
+    if (email) parts.push(`EMAIL:${esc(email)}`);
+    if (phone) parts.push(`TEL:${esc(phone)}`);
+    if (org) parts.push(`ORG:${esc(org)}`);
+    if (title) parts.push(`TITLE:${esc(title)}`);
+    parts.push("END:VCARD");
+  });
+  return parts.join("\n") + "\n";
+}
+
+/** Records (row objects) → an iCalendar .ics file, one VEVENT per row. */
+export function recordsToIcs(records: Record<string, string>[]): string {
+  const now = new Date();
+  const stamp = `${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, "0")}${String(now.getUTCDate()).padStart(2, "0")}T${String(now.getUTCHours()).padStart(2, "0")}${String(now.getUTCMinutes()).padStart(2, "0")}${String(now.getUTCSeconds()).padStart(2, "0")}Z`;
+  const pick = (r: Record<string, string>, ...keys: string[]): string => {
+    for (const k of keys) {
+      const v = r[k];
+      if (v && v.trim() !== "") return v;
+    }
+    return "";
+  };
+  const toIcsDate = (s: string): string => {
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) {
+      return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}T${String(d.getUTCHours()).padStart(2, "0")}${String(d.getUTCMinutes()).padStart(2, "0")}00Z`;
+    }
+    return s;
+  };
+  const esc = (s: string): string => s.replace(/([\\;,])/g, "\\$1").replace(/\n/g, "\\n");
+  const fold = (s: string): string => s.length <= 75 ? s : s.match(/.{1,74}/g)!.join("\r\n ");
+  const parts: string[] = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//OneKit//Local Converter//EN", "CALSCALE:GREGORIAN"];
+  records.forEach((r, i) => {
+    const summary = pick(r, "summary", "title", "Title", "name", "event");
+    const startRaw = pick(r, "start", "startDate", "date", "when", "dtstart");
+    const endRaw = pick(r, "end", "endDate", "until", "dtend");
+    const location = pick(r, "location", "place", "where");
+    const desc = pick(r, "description", "desc", "notes", "details");
+    if (!startRaw) return;
+    const start = toIcsDate(startRaw);
+    const end = endRaw ? toIcsDate(endRaw) : "";
+    parts.push(
+      "BEGIN:VEVENT",
+      `UID:onekit-${i}-${Math.abs(hashCode(startRaw))}@local`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${start}`,
+      ...(end ? [`DTEND:${end}`] : []),
+      ...(summary ? [`SUMMARY:${esc(summary)}`] : []),
+      ...(location ? [`LOCATION:${esc(location)}`] : []),
+      ...(desc ? [`DESCRIPTION:${esc(desc)}`] : []),
+      "END:VEVENT"
+    );
+  });
+  parts.push("END:VCALENDAR");
+  return parts.map(fold).join("\r\n") + "\r\n";
+}
+
+function hashCode(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return h;
+}
+
+/**
+ * Repackages an OOXML package (docx/pptx/xlsx) under a different
+ * content-type — the honest basis for the macro/template/slideshow
+ * variants, which differ only in their declared type. The zip keeps every
+ * part; only the [Content_Types].xml Override is swapped.
+ */
+export function repackageOoxml(bytes: Uint8Array, contentType: string): Uint8Array {
+  const files = unzipSync(bytes);
+  const ct = strFromU8(files["[Content_Types].xml"] ?? new Uint8Array());
+  const replaced = ct.replace(
+    /<Override[^>]*ContentType="[^"]*(?:document\.main|sheet\.main|presentation\.main)[^"]*"[^>]*\/>/i,
+    `<Override PartName="${/\/word\/document\.xml|word\/document\.xml/.test(ct) ? "/word/document.xml" : /xl\/workbook\.xml/.test(ct) ? "/xl/workbook.xml" : "/ppt/presentation.xml"}" ContentType="${contentType}"/>`
+  );
+  if (replaced === ct) throw new Error("Not an OOXML package (no main-part content-type found).");
+  files["[Content_Types].xml"] = zipText(replaced);
+  return zipSync(files);
+}
+
+/** DOCX → DOCM (macro-enabled Word) — content-type repackage. */
+export function docxToDocm(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.ms-word.document.macroEnabled.main+xml");
+}
+
+/** DOCX → DOTX (Word template) — content-type repackage. */
+export function docxToDotx(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml");
+}
+
+/** PPTX → PPTM (macro-enabled presentation) — content-type repackage. */
+export function pptxToPptm(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml");
+}
+
+/** PPTX → POTX (presentation template) — content-type repackage. */
+export function pptxToPotx(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml");
+}
+
+/** PPTX → PPSX (slideshow) — content-type repackage. */
+export function pptxToPpsx(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml");
+}
+
+/** XLSX → XLSM (macro-enabled workbook) — content-type repackage. */
+export function xlsxToXlsm(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.ms-excel.sheet.macroEnabled.main+xml");
+}
+
+/** XLSX → XLTX (workbook template) — content-type repackage. */
+export function xlsxToXltx(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml");
+}
+
+/** XLSX → XLTM (macro-enabled workbook template) — content-type repackage. */
+export function xlsxToXltm(bytes: Uint8Array): Uint8Array {
+  return repackageOoxml(bytes, "application/vnd.ms-excel.template.macroEnabled.main+xml");
 }

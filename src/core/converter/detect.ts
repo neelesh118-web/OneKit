@@ -26,7 +26,7 @@ export type FileType =
   | "eps" | "ps"
   | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
   | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
-  | "image-qoi" | "image-farbfeld" | "image-pcx"
+  | "image-qoi" | "image-farbfeld" | "image-pcx" | "image-xpm" | "image-wbmp"
   | "audio-au" | "audio-voc"
   | "opml" | "plist" | "ssv" | "psv" | "dif" | "gnumeric"
   | "unknown";
@@ -68,6 +68,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
   "image-pbm": "PBM bitmap", "image-pgm": "PGM grayscale image", "image-pam": "PAM image", "image-xbm": "X11 XBM bitmap",
   "image-qoi": "QOI image", "image-farbfeld": "Farbfeld image", "image-pcx": "PCX image",
+  "image-xpm": "XPM pixmap", "image-wbmp": "WBMP bitmap",
   "audio-au": "Sun AU audio", "audio-voc": "Creative Voice audio",
   opml: "OPML outline", plist: "Apple plist", ssv: "SSV spreadsheet", psv: "PSV spreadsheet",
   dif: "DIF spreadsheet", gnumeric: "gnumeric spreadsheet",
@@ -116,6 +117,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
   "image-pbm": ["pbm"], "image-pgm": ["pgm"], "image-pam": ["pam"], "image-xbm": ["xbm"],
   "image-qoi": ["qoi"], "image-farbfeld": ["ff", "farbfeld"], "image-pcx": ["pcx"],
+  "image-xpm": ["xpm"], "image-wbmp": ["wbmp", "wap"],
   "audio-au": ["au", "snd"], "audio-voc": ["voc"],
   opml: ["opml"], plist: ["plist"], ssv: ["ssv"], psv: ["psv"], dif: ["dif"], gnumeric: ["gnumeric"],
   unknown: []
@@ -212,9 +214,37 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x50, 0x32]) || hasPrefix(bytes, [0x50, 0x35])) return "image-pgm"; // "P2"/"P5"
   if (hasPrefix(bytes, [0x50, 0x37])) return "image-pam"; // "P7"
   if (asciiAt(bytes, 0, "#define")) return "image-xbm";
-  // QOI: "qoif" magic. Farbfeld: 8-byte "farbfeld" magic.
-  if (asciiAt(bytes, 0, "qoif")) return "image-qoi";
+  // QOI: "qoif" magic. Farbfeld: 8-byte "farbfeld" magic.  if (asciiAt(bytes, 0, "qoif")) return "image-qoi";
   if (asciiAt(bytes, 0, "farbfeld")) return "image-farbfeld";
+  if (asciiAt(bytes, 0, "/* XPM")) return "image-xpm";
+  // WBMP: fixed header bytes [0x00, 0x00], then a multibyte width, then a
+  // multibyte height (7-bit groups, high bit = continuation), then at least
+  // ceil(width/8)*height pixels. Requiring a full valid header plus enough
+  // pixel bytes keeps it from false-matching MP4/ICO/TGA files that also
+  // start with zero bytes.
+  if (bytes.length >= 5 && bytes[0] === 0x00 && bytes[1] === 0x00) {
+    let pos = 2;
+    const readInt = (): { value: number; ok: boolean } => {
+      let value = 0;
+      for (let guard = 0; guard < 5; guard++) {
+        if (pos >= bytes.length) return { value: 0, ok: false };
+        const b = bytes[pos]!;
+        value = (value << 7) | (b & 0x7f);
+        pos++;
+        if ((b & 0x80) === 0) return { value, ok: true };
+      }
+      return { value: 0, ok: false };
+    };
+    const w = readInt();
+    const h = readInt();
+    if (
+      w.ok && h.ok && w.value > 0 && h.value > 0 &&
+      w.value <= 16384 && h.value <= 16384 &&
+      pos + Math.ceil(w.value / 8) * h.value <= bytes.length
+    ) {
+      return "image-wbmp";
+    }
+  }
   // PCX: ZSoft header (0x0A manufacturer, version 5, RLE encoding 1).
   if (bytes.length >= 4 && bytes[0] === 0x0a && bytes[1] === 5 && bytes[2] === 1) return "image-pcx";
   // Sun AU: ".snd" magic. Creative Voice: "Creative Voice File" header.

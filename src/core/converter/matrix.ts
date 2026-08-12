@@ -11,16 +11,16 @@ export type TargetFormat =
   | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif" | "image-ico"
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm" | "image-psd"
   | "image-icns" | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
-  | "image-qoi" | "image-farbfeld" | "image-pcx"
-  | "pdf" | "html" | "markdown" | "text" | "docx" | "epub" | "htmlz" | "txtz"
-  | "rtf" | "odt" | "odp" | "pptx" | "fb2" | "mobi" | "azw" | "org" | "textile" | "mediawiki" | "asciidoc"
-  | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml" | "ini" | "sql" | "properties" | "opml"
+  | "image-qoi" | "image-farbfeld" | "image-pcx" | "image-xpm" | "image-wbmp"
+  | "pdf" | "html" | "markdown" | "text" | "docx" | "docm" | "dotx" | "epub" | "htmlz" | "txtz"
+  | "rtf" | "odt" | "odp" | "pptx" | "pptm" | "potx" | "ppsx" | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "tex" | "org" | "textile" | "mediawiki" | "asciidoc"
+  | "csv" | "json" | "yaml" | "xml" | "xlsx" | "xlsm" | "xltx" | "xltm" | "tsv" | "xls" | "ods" | "toml" | "ini" | "sql" | "properties" | "opml"
   | "audio-aiff" | "audio-au" | "audio-voc"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2"
-  | "audio-mp3" | "audio-wav" | "audio-flac" | "audio-ogg" | "audio-mp4"
+  | "audio-mp3" | "audio-wav" | "audio-flac" | "audio-ogg" | "audio-oga" | "audio-mp4" | "audio-m4b"
   | "video-webm" | "video-mp4" | "video-mov"
-  | "srt" | "vtt" | "lrc" | "ass" | "sbv" | "ttml" | "kml" | "gpx" | "jsonl"
+  | "srt" | "vtt" | "lrc" | "ass" | "sbv" | "ttml" | "kml" | "gpx" | "jsonl" | "vcf" | "ics"
   | "txt-base64" | "txt-hex" | "txt-url";
 
 export const TARGET_LABELS: Record<TargetFormat, string> = {
@@ -30,12 +30,17 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   "image-icns": "Apple icon (ICNS)",
   "image-pbm": "PBM bitmap", "image-pgm": "PGM grayscale", "image-pam": "PAM image", "image-xbm": "X11 XBM bitmap",
   "image-qoi": "QOI image", "image-farbfeld": "Farbfeld image", "image-pcx": "PCX image",
+  "image-xpm": "XPM pixmap", "image-wbmp": "WBMP bitmap",
   // Not a trace: the SVG carries the picture as an embedded image.
   "image-svg": "SVG (embedded image)",
-  pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", epub: "EPUB ebook",
+  pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)",
+  docm: "Word macro (DOCM)", dotx: "Word template (DOTX)",
+  pptm: "PowerPoint macro (PPTM)", potx: "PowerPoint template (POTX)", ppsx: "PowerPoint show (PPSX)",
+  xlsm: "Excel macro (XLSM)", xltx: "Excel template (XLTX)", xltm: "Excel macro template (XLTM)",
+  epub: "EPUB ebook",
   htmlz: "HTMLZ ebook", txtz: "TXTZ ebook",
   odp: "OpenDocument presentation",
-  mobi: "Kindle MOBI ebook", azw: "Kindle AZW ebook",
+  mobi: "Kindle MOBI ebook", azw: "Kindle AZW ebook", prc: "PalmDOC (PRC)", pdb: "Palm database (PDB)", tex: "LaTeX (TEX)",
   org: "Org-mode", textile: "Textile", mediawiki: "MediaWiki", asciidoc: "AsciiDoc",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", pptx: "PowerPoint (PPTX)", fb2: "FictionBook (FB2)",
   csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
@@ -44,12 +49,13 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   zip: "ZIP", tar: "TAR", gzip: "GZIP",
   "font-ttf": "TTF", "font-woff": "WOFF", "font-woff2": "WOFF2",
   "audio-mp3": "MP3", "audio-wav": "WAV", "audio-flac": "FLAC",
-  "audio-ogg": "OGG audio", "audio-mp4": "MP4 audio (M4A)",
+  "audio-ogg": "OGG audio", "audio-oga": "OGG audio (OGA)", "audio-mp4": "MP4 audio (M4A)", "audio-m4b": "Audiobook (M4B)",
   "video-webm": "WebM video", "video-mp4": "MP4 video", "video-mov": "QuickTime MOV video",
   srt: "SRT subtitles", vtt: "VTT subtitles", lrc: "LRC lyrics", kml: "KML map data", gpx: "GPX GPS tracks",
   ass: "ASS subtitles", sbv: "YouTube SBV", ttml: "TTML subtitles",
   ini: "INI config", sql: "SQL", properties: "Java properties", opml: "OPML outline",
   jsonl: "JSONL (NDJSON)",
+  vcf: "vCard contacts", ics: "iCalendar events",
   "txt-base64": "Base64 text", "txt-hex": "Hex text", "txt-url": "URL-encoded text"
 };
 
@@ -62,7 +68,7 @@ export const IMAGE_TARGETS: TargetFormat[] = [
   "image-png", "image-jpeg", "image-webp", "image-avif", "image-gif", "image-ico",
   "image-bmp", "image-tiff", "image-dds", "image-svg", "image-tga", "image-ppm", "image-psd",
   "image-icns", "image-pbm", "image-pgm", "image-pam", "image-xbm",
-  "image-qoi", "image-farbfeld", "image-pcx"
+  "image-qoi", "image-farbfeld", "image-pcx", "image-xpm", "image-wbmp"
 ];
 
 /**
@@ -73,7 +79,7 @@ export const IMAGE_TARGETS: TargetFormat[] = [
  * not a filename dump.
  */
 const IMAGE_AND_PDF: TargetFormat[] = [
-  ...IMAGE_TARGETS, "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "odp", "rtf", "txt-base64", "txt-hex"
+  ...IMAGE_TARGETS, "pdf", "docx", "docm", "dotx", "pptx", "pptm", "potx", "ppsx", "html", "text", "markdown", "odt", "odp", "rtf", "prc", "pdb", "tex", "txt-base64", "txt-hex"
 ];
 
 /**
@@ -81,7 +87,7 @@ const IMAGE_AND_PDF: TargetFormat[] = [
  * out as any of the document formats — including the Office writers.
  */
 const DOC_TARGETS: TargetFormat[] = [
-  "html", "markdown", "text", "pdf", "docx", "epub", "htmlz", "txtz", "rtf", "odt", "pptx", "odp", "mobi", "azw", "fb2",
+  "html", "markdown", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "pptx", "pptm", "potx", "ppsx", "odp", "mobi", "azw", "prc", "pdb", "fb2", "tex",
   "org", "textile", "mediawiki", "asciidoc",
   "txt-base64", "txt-hex", "txt-url", "opml"
 ];
@@ -96,7 +102,7 @@ function docTargetsExcept(...own: TargetFormat[]): TargetFormat[] {
  * the data formats plus the document renderings of the same table.
  */
 const TABLE_TARGETS: TargetFormat[] = [
-  "csv", "tsv", "json", "yaml", "xml", "xlsx", "xls", "ods", "toml", "ini", "sql", "properties", "opml", "jsonl",
+  "csv", "tsv", "json", "yaml", "xml", "xlsx", "xlsm", "xltx", "xltm", "xls", "ods", "toml", "ini", "sql", "properties", "opml", "jsonl", "vcf", "ics",
   "html", "markdown", "pdf", "docx", "epub", "rtf", "odt", "odp", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex"
 ];
 
@@ -106,18 +112,24 @@ function tableTargetsExcept(...own: TargetFormat[]): TargetFormat[] {
 }
 
 /** Extra spreadsheet/data renderings every record-shaped source can produce. */
-const RECORD_EXTRAS: TargetFormat[] = ["tsv", "xls", "ods", "toml", "ini", "sql", "properties", "jsonl"];
+const RECORD_EXTRAS: TargetFormat[] = ["tsv", "xls", "ods", "xlsm", "xltx", "xltm", "toml", "ini", "sql", "properties", "jsonl"];
 
 /** The document renderings every record-shaped source can produce. */
 const RECORD_DOCS: TargetFormat[] = [
   "html", "markdown", "text", "docx", "epub", "rtf", "odt", "odp", "pptx", "mobi", "azw", "fb2",
-  "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex"
+  "org", "textile", "mediawiki", "asciidoc", "htmlz", "txtz", "opml", "txt-url", "txt-base64", "txt-hex"
 ];
 
 /** A record source's full target list: tables + docs, minus its own format. */
 function recordTargets(...own: TargetFormat[]): TargetFormat[] {
-  const targets: TargetFormat[] = ["csv", "json", "xlsx", ...RECORD_EXTRAS, ...RECORD_DOCS];
+  const targets: TargetFormat[] = ["csv", "json", "xlsx", "vcf", "ics", ...RECORD_EXTRAS, ...RECORD_DOCS];
   return targets.filter((t) => !own.includes(t));
+}
+
+/** Subtitle sources get the record targets minus the contact/calendar ones. */
+function subtitleTargets(...own: TargetFormat[]): TargetFormat[] {
+  const targets: TargetFormat[] = [...recordTargets(), "srt", "vtt", "lrc", "ass", "sbv", "ttml"];
+  return targets.filter((t) => t !== "vcf" && t !== "ics" && !own.includes(t));
 }
 
 export const MATRIX: Record<FileType, TargetFormat[]> = {
@@ -148,39 +160,41 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-qoi": [...IMAGE_TARGETS.filter((t) => t !== "image-qoi"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-farbfeld": [...IMAGE_TARGETS.filter((t) => t !== "image-farbfeld"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-pcx": [...IMAGE_TARGETS.filter((t) => t !== "image-pcx"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
-  pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif", "image-tiff", "image-ico", "image-svg", "image-qoi", "image-farbfeld", "image-pcx", "docx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
-  docx: ["html", "markdown", "text", "pdf", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
-  docm: ["html", "markdown", "text", "pdf", "docx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
-  dotx: ["html", "markdown", "text", "pdf", "docx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  "image-xpm": [...IMAGE_TARGETS.filter((t) => t !== "image-xpm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  "image-wbmp": [...IMAGE_TARGETS.filter((t) => t !== "image-wbmp"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif", "image-tiff", "image-ico", "image-svg", "image-qoi", "image-farbfeld", "image-pcx", "image-xpm", "image-wbmp", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  docx: ["html", "markdown", "text", "pdf", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  docm: ["html", "markdown", "text", "pdf", "docx", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  dotx: ["html", "markdown", "text", "pdf", "docx", "docm", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
   xlsx: tableTargetsExcept("xlsx"),
-  xlsm: [...tableTargetsExcept("xlsx"), "xlsx"],
+  xlsm: [...tableTargetsExcept("xlsx", "xlsm", "xltx", "xltm"), "xlsx"],
   xls: tableTargetsExcept("xls"),
   ods: tableTargetsExcept("ods"),
-  epub: ["html", "text", "markdown", "pdf", "docx", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  epub: ["html", "text", "markdown", "pdf", "docx", "docm", "dotx", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
   rtf: docTargetsExcept("rtf"),
   odt: docTargetsExcept("odt"),
   odp: docTargetsExcept("odt", "odp", "pptx").concat("pptx"),
   // pptx → odp stays out of scope — Codex's pair on his branch; keeping it
   // out keeps the merge clean when he lands.
   pptx: docTargetsExcept("pptx", "odp"),
-  pptm: docTargetsExcept("pptx", "odp").concat("pptx"),
-  potx: docTargetsExcept("pptx", "odp").concat("pptx"),
-  ppsx: docTargetsExcept("pptx", "odp").concat("pptx"),
+  pptm: docTargetsExcept("pptx", "odp", "pptm").concat("pptx"),
+  potx: docTargetsExcept("pptx", "odp", "potx").concat("pptx"),
+  ppsx: docTargetsExcept("pptx", "odp", "ppsx").concat("pptx"),
   fb2: docTargetsExcept("fb2"),
   mobi: docTargetsExcept("mobi"),
   azw: docTargetsExcept("azw"),
-  prc: docTargetsExcept(),
+  prc: docTargetsExcept("prc", "pdb"),
   htmlz: docTargetsExcept("htmlz"),
   txtz: docTargetsExcept("txtz"),
-  html: ["markdown", "text", "pdf", "docx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
-  markdown: ["html", "text", "pdf", "docx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  html: ["markdown", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  markdown: ["html", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
   rst: docTargetsExcept(),
-  tex: docTargetsExcept(),
+  tex: docTargetsExcept("tex"),
   abw: docTargetsExcept(),
   zabw: docTargetsExcept(),
   oeb: docTargetsExcept(),
   pml: docTargetsExcept(),
-  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "fb2", "mobi", "azw"],
+  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex"],
   csv: tableTargetsExcept("csv"),
   json: [...tableTargetsExcept("json"), "text"],
   tsv: tableTargetsExcept("tsv"),
@@ -224,37 +238,37 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "font-woff": ["font-ttf", "font-woff2", "txt-base64", "txt-hex"],
   "font-woff2": ["font-ttf", "font-woff", "txt-base64", "txt-hex"],
   "font-otf": ["font-ttf", "font-woff", "font-woff2", "txt-base64", "txt-hex"],
-  "audio-midi": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-mp3": ["audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-wav": ["audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-ogg": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-m4a": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-flac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-aac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-au": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
-  "audio-voc": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-midi": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-mp3": ["audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-wav": ["audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-ogg": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-m4a": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-flac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-aac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-au": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-voc": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
   // A video frame is captured as a PNG, then any raster target reaches
   // it through the same canvas pipeline still images use (see
   // convert.ts) — every IMAGE_TARGETS format is honestly reachable,
   // not just the animated-GIF and single-frame PNG/JPEG the earlier
   // batches shipped.
-  "video-mp4": [...IMAGE_TARGETS, "video-webm", "video-mp4", "video-mov", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "txt-base64", "txt-hex"],
-  "video-webm": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "txt-base64", "txt-hex"],
-  "video-mov": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "audio-au", "txt-base64", "txt-hex"],
+  "video-mp4": [...IMAGE_TARGETS, "video-webm", "video-mp4", "video-mov", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  "video-webm": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  "video-mov": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   // Base64/hex can hold ANY file — decode to bytes, sniff the real format,
   // then convert it like that format (image → all raster targets, etc.).
-  "text-base64": ["pdf", ...IMAGE_TARGETS, ...RECORD_DOCS, "txt-url", "opml"],
-  "text-hex": ["pdf", ...IMAGE_TARGETS, ...RECORD_DOCS, "txt-url", "opml"],
+  "text-base64": ["pdf", ...IMAGE_TARGETS, ...RECORD_DOCS],
+  "text-hex": ["pdf", ...IMAGE_TARGETS, ...RECORD_DOCS],
   opml: recordTargets("opml"),
   plist: recordTargets(),
   "text-url": ["text", "pdf"],
-  vcf: recordTargets(),
-  ics: recordTargets(),
-  srt: [...recordTargets(), "vtt", "lrc", "ass", "sbv", "ttml"],
-  vtt: [...recordTargets(), "srt", "lrc", "ass", "sbv", "ttml"],
+  vcf: recordTargets("vcf"),
+  ics: recordTargets("ics"),
+  srt: subtitleTargets("srt"),
+  vtt: subtitleTargets("vtt"),
   gpx: [...recordTargets(), "kml"],
-  lrc: [...recordTargets(), "srt", "vtt", "ass", "sbv", "ttml"],
+  lrc: subtitleTargets("lrc"),
   sitemap: recordTargets(),
   rss: recordTargets(),
   kml: [...recordTargets(), "gpx"],
@@ -300,8 +314,21 @@ export function targetExtension(target: TargetFormat): string {
     case "image-qoi": return "qoi";
     case "image-farbfeld": return "ff";
     case "image-pcx": return "pcx";
+    case "image-xpm": return "xpm";
+    case "image-wbmp": return "wbmp";
     case "mobi": return "mobi";
     case "azw": return "azw";
+    case "prc": return "prc";
+    case "pdb": return "pdb";
+    case "tex": return "tex";
+    case "docm": return "docm";
+    case "dotx": return "dotx";
+    case "pptm": return "pptm";
+    case "potx": return "potx";
+    case "ppsx": return "ppsx";
+    case "xlsm": return "xlsm";
+    case "xltx": return "xltx";
+    case "xltm": return "xltm";
     case "htmlz": return "htmlz";
     case "txtz": return "txtz";
     case "org": return "org";
@@ -345,7 +372,9 @@ export function targetExtension(target: TargetFormat): string {
     case "audio-wav": return "wav";
     case "audio-flac": return "flac";
     case "audio-ogg": return "ogg";
+    case "audio-oga": return "oga";
     case "audio-mp4": return "mp4";
+    case "audio-m4b": return "m4b";
     case "video-webm": return "webm";
     case "video-mp4": return "mp4";
     case "video-mov": return "mov";
@@ -358,6 +387,8 @@ export function targetExtension(target: TargetFormat): string {
     case "kml": return "kml";
     case "gpx": return "gpx";
     case "jsonl": return "jsonl";
+    case "vcf": return "vcf";
+    case "ics": return "ics";
     case "txt-base64": return "txt";
     case "txt-hex": return "txt";
     case "txt-url": return "txt";

@@ -5,6 +5,7 @@
 // The ESM browser build avoids Vite's CJS transform of fflate (which
 // mangles its module-scope TextDecoder and breaks unzipSync).
 import { gzipSync, gunzipSync, strFromU8, unzipSync, zipSync } from "fflate/browser";
+import { sameRealmU8 } from "./zip-realm";
 import { fromTar, toTar } from "./tar";
 
 export { toTar as filesToTar };
@@ -19,7 +20,9 @@ export function unzipToFiles(bytes: Uint8Array): Record<string, Uint8Array> {
 }
 
 export function filesToZip(files: Record<string, Uint8Array>): Uint8Array {
-  return zipSync(files);
+  const realmFiles: Record<string, Uint8Array> = {};
+  for (const [name, bytes] of Object.entries(files)) realmFiles[name] = sameRealmU8(bytes);
+  return zipSync(realmFiles);
 }
 
 

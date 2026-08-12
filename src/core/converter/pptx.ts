@@ -8,6 +8,7 @@
  * layout are not carried across: the text is.
  */
 import { strFromU8, unzipSync, zipSync } from "fflate/browser";
+import { sameRealmU8, zipText } from "./zip-realm";
 import { escapeXml, runTextLines } from "./xml-text";
 import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
 import { fitEmu } from "./raster";
@@ -19,7 +20,7 @@ export interface Slide {
   lines: string[];
 }
 
-const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
+const enc = (s: string): Uint8Array => zipText(s);
 
 /** Groups a slide's lines into the shared Slide shape. */
 export function linesToSlide(lines: string[]): Slide {
@@ -396,7 +397,7 @@ export async function imagesToPptx(
     const { cx, cy } = fitEmu(img.width, img.height, CONTENT_W, CONTENT_H);
     const mediaExt = img.ext === "jpeg" ? "jpg" : "png";
     const mediaName = `image${i + 1}.${mediaExt}`;
-    files_[`ppt/media/${mediaName}`] = img.bytes;
+    files_[`ppt/media/${mediaName}`] = sameRealmU8(img.bytes);
     files_[`ppt/slides/slide${i + 1}.xml`] = enc(pictureSlideXml("rId2", img.name, cx, cy));
     files_[`ppt/slides/_rels/slide${i + 1}.xml.rels`] = enc(
       relsXml([
