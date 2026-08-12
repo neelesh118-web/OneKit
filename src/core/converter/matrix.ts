@@ -253,21 +253,34 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // OLE2 workbook → xls, CSV text → table. Binary containers error.
   et: recordTargets(),
   // Apple Numbers is a ZIP package like Pages — the IWA text extraction
-  // yields the sheet's strings, so the text-based document targets are
-  // honestly reachable.
-  numbers: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  // yields the sheet's strings, so the full text-based document set is
+  // honestly reachable (the same rule every prose source follows).
+  numbers: docTargetsExcept(),
   geojson: recordTargets("geojson"),
   // Apple Pages: text comes from the embedded IWA/QuickLook data, so the
-  // honest set is the text-based document targets (no image targets).
-  pages: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  // full prose document set applies — including the raster render of the
+  // extracted text (the same rule ppt/key follow).
+  pages: docTargetsExcept(),
   // Apple Keynote: the same iWork container as Pages — the slide text
   // reads out of the IWA/XML blobs, and renders into real presentation
   // files (pptx/odp) exactly like the other text-based sources.
-  key: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "image-png", "image-jpeg", "image-webp", "image-gif", "txt-base64", "txt-hex"],
+  key: docTargetsExcept(),
   // Legacy binary PowerPoint: the OLE2 text records are readable, so the
   // same text-based document targets are honestly reachable, and the text
   // renders into real presentation files too (pptx/odp via the HTML pipe).
-  ppt: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "image-png", "image-jpeg", "image-webp", "image-gif", "txt-base64", "txt-hex"],
+  ppt: docTargetsExcept(),
+  // XPS documents: ZIP packages whose FixedPage <Glyphs> carry the text —
+  // the full prose document set, like the other text-based readers.
+  xps: docTargetsExcept(),
+  // Microsoft Publisher: OOXML run text or OLE2 Quill-stream prose.
+  pub: docTargetsExcept(),
+  // Windows metafiles: the supported record subset renders to SVG, and
+  // the text records read as prose for every document target.
+  emf: docTargetsExcept(),
+  wmf: docTargetsExcept(),
+  // sK1/Sketch vector drawings: basic shapes render to SVG, text objects
+  // read as prose, plain-text fallback for anything unparseable.
+  sk1: docTargetsExcept(),
   // WPS Presentation: content-sniffed like .et — an OOXML zip behaves as
   // pptx (full reach), a binary OLE2 deck as ppt (text extraction).
   dps: docTargetsExcept(),

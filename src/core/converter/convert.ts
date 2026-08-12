@@ -53,6 +53,10 @@ import * as txt from "./text";
 import * as arch from "./archives";
 import { dxfToPdf, dxfToSvg, dxfToText } from "./vector";
 import { pptToHtml, sdaToHtml, sdcToHtml, sdwToHtml, vsdToHtml } from "./ole2";
+import { xpsToHtml } from "./xps";
+import { pubToHtml } from "./pub";
+import { emfToSvg, emfToText, wmfToSvg, wmfToText } from "./metafile";
+import { skToHtml, skToSvg } from "./sketch";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -899,6 +903,34 @@ async function runConversion(
     // Psion TCR: decompress the zlib text and read it as plain prose.
     case "tcr":
       return renderDocument(tcrToHtml(bytes), "TCR text", target, opts);
+    // XPS: a ZIP package whose FixedPage <Glyphs> carry the document text.
+    case "xps":
+      return renderDocument(xpsToHtml(bytes), "XPS document", target, opts);
+    // Microsoft Publisher: OOXML run text or legacy OLE2 Quill prose.
+    case "pub":
+      return renderDocument(pubToHtml(bytes), "Publisher document", target, opts);
+    // Windows metafiles: the supported record subset renders to SVG; the
+    // text records read as prose for every document target.
+    case "emf":
+      if (target === "image-svg") return toBytes(emfToSvg(bytes));
+      if (target.startsWith("image-")) {
+        return convertImage(toBytes(emfToSvg(bytes)), target as ImageTarget, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(`<pre>${docs.escapeHtml(emfToText(bytes))}</pre>`, "EMF metafile", target, opts);
+    case "wmf":
+      if (target === "image-svg") return toBytes(wmfToSvg(bytes));
+      if (target.startsWith("image-")) {
+        return convertImage(toBytes(wmfToSvg(bytes)), target as ImageTarget, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(`<pre>${docs.escapeHtml(wmfToText(bytes))}</pre>`, "WMF metafile", target, opts);
+    // sK1/Sketch vector drawings: basic shapes render to SVG, text objects
+    // read as prose, plain-text fallback for anything unparseable.
+    case "sk1":
+      if (target === "image-svg") return toBytes(skToSvg(bytes));
+      if (target.startsWith("image-")) {
+        return convertImage(toBytes(skToSvg(bytes)), target as ImageTarget, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(skToHtml(bytes), "sK1 drawing", target, opts);
     // .et (WPS Spreadsheet) is content-sniffed like .dot/.wps: an OOXML
     // zip behaves as xlsx, an OLE2 workbook as xls, CSV text as a table.
     case "et": {

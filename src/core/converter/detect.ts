@@ -11,7 +11,7 @@ export type FileType =
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "dps" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
-  | "tcr" | "sdw" | "sdc" | "sda" | "vsd"
+  | "tcr" | "sdw" | "sdc" | "sda" | "vsd" | "xps" | "pub" | "emf" | "wmf" | "sk1"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -56,6 +56,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   ppt: "PowerPoint presentation (PPT)", dps: "WPS Presentation (DPS)", et: "WPS Spreadsheet (ET)", geojson: "GeoJSON data",
   tcr: "Psion text (TCR)", sdw: "StarWriter document (SDW)", sdc: "StarCalc spreadsheet (SDC)",
   sda: "StarDraw drawing (SDA)", vsd: "Visio diagram (VSD)",
+  xps: "XPS document (XPS)", pub: "Publisher document (PUB)", emf: "Windows metafile (EMF)",
+  wmf: "Windows metafile (WMF)", sk1: "sK1 vector drawing (SK1/SK)",
   xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
@@ -106,6 +108,8 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   // the exact OLE2 text records as .ppt — one type serves all three.
   ppt: ["ppt", "pot", "pps"], dps: ["dps"], et: ["et"],
   tcr: ["tcr"], sdw: ["sdw"], sdc: ["sdc"], sda: ["sda"], vsd: ["vsd"],
+  // .sk is the same sK1 text format under its classic short extension.
+  xps: ["xps"], pub: ["pub"], emf: ["emf"], wmf: ["wmf"], sk1: ["sk1", "sk"],
   geojson: ["geojson"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
@@ -331,12 +335,18 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // back to the extension, since nothing else in this list claims .tga.
   if (bytes.length >= 18 && asciiAt(bytes, bytes.length - 18, "TRUEVISION-XFILE.")) return "image-tga";
   if (fallback === "image-tga") return "image-tga";
+  // EMF: an EMR_HEADER record (type 1) whose signature " EMF" sits at
+  // offset 40. WMF: the 0x9AC6CDD7 placeable-header key (D7 CD C6 9A).
+  if (hasPrefix(bytes, [0x01, 0x00, 0x00, 0x00]) && asciiAt(bytes, 40, " EMF")) return "emf";
+  if (hasPrefix(bytes, [0xd7, 0xcd, 0xc6, 0x9a])) return "wmf";
   // OLE2 compound files hold .xls, .doc and .ppt alike — only the workbook
   // stream is readable here, so anything else stays unknown rather than
   // claiming a conversion that doesn't exist.
   if (hasPrefix(bytes, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) {
     // Stream names live in the directory as UTF-16LE.
     const directory = textWindow(bytes, 0, 8192);
+    // Legacy binary Publisher files carry a "Quill" stream.
+    if (directory.includes("Q\0u\0i\0l\0l\0")) return "pub";
     if (directory.includes("W\0o\0r\0k\0b\0o\0o\0k\0") || directory.includes("B\0o\0o\0k\0")) return "xls";
     if (directory.includes("P\0o\0w\0e\0r\0P\0o\0i\0n\0t\0")) return "ppt";
     if (directory.includes("S\0t\0a\0r\0W\0r\0i\0t\0e\0r\0")) return "sdw";
@@ -354,6 +364,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // ZIP container — probe for Office/EPUB flavours.
   if (hasPrefix(bytes, [0x50, 0x4b, 0x03, 0x04])) {
     const window = textWindow(bytes, 0, 600);
+    // XPS packages hold FixedDocumentSequence/FixedPage parts; Publisher
+    // 2007+ packages name their own content parts "publisher".
+    if (window.includes("[Content_Types].xml") && (window.includes("FixedDocumentSequence") || window.includes("FixedPage"))) return "xps";
+    if (window.includes("[Content_Types].xml") && window.includes("publisher")) return "pub";
     if (window.includes("[Content_Types].xml") && window.includes("word/")) {
       if (fallback === "docm" || fallback === "dotx") return fallback;
       return "docx";
@@ -390,6 +404,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       fallback === "pptx" || fallback === "pptm" || fallback === "potx" || fallback === "ppsx" ||
       fallback === "odt" || fallback === "odp" || fallback === "ods" ||
       fallback === "odg" || fallback === "pages" || fallback === "numbers" ||
+      fallback === "xps" || fallback === "pub" ||
       // Content-sniffed legacy names keep their type so the conversion
       // handler can decide from the payload.
       fallback === "et" || fallback === "doc" || fallback === "dot" || fallback === "wps" ||
@@ -422,6 +437,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     return fallback;
   }
   const trimmed = head.trimStart();
+  // sK1 vector drawings are plain text: a #sK1 header line, or a
+  // [PageLayout]/[Document] section with "e Object" records.
+  if (/^#sk1\b/.test(trimmed) || (/^\[(pagelayout|document|content)\]/.test(trimmed) && /^e\s+\w+/m.test(trimmed))) return "sk1";
   if (trimmed.startsWith("<opml") || trimmed.startsWith("<?xml") && trimmed.includes("<opml")) return "opml";
   if (trimmed.startsWith("<?xml") && trimmed.includes("<plist")) return "plist";
   // XHTML is XML-serialised HTML — an XML declaration plus an <html> root
