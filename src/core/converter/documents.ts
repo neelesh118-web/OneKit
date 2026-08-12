@@ -2054,7 +2054,9 @@ export function textToRst(text: string, title = "Document"): string {
 
 /** HTML → OpenDocument presentation, preserving slide order and text. */
 export function htmlToOdp(html: string): Uint8Array {
-  return buildOdp(textToSlides(htmlToText(html)));
+  const text = htmlToText(html).trim();
+  if (!text) throw new Error("This document contains no readable text to convert.");
+  return buildOdp(textToSlides(text));
 }
 
 /** HTML → macro-enabled OOXML presentation without a fabricated VBA project. */

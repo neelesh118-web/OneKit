@@ -177,6 +177,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "odt") return docs.htmlToOdt(html);
   if (target === "pptx") return docs.htmlToPptx(html);
   if (target === "pptm") return docs.htmlToPptm(html);
+  if (target === "odp") return docs.htmlToOdp(html);
   if (target === "fb2") return docs.htmlToFb2(html, title);
   return toBytes(docs.htmlToText(html));
 }
@@ -357,6 +358,10 @@ async function runConversion(
     }
     case "rtf": {
       const html = rtfToHtml(toText(bytes));
+      if (target === "odp") {
+        const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? "";
+        return renderDocument(body, "Document", target);
+      }
       if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
@@ -421,7 +426,7 @@ async function runConversion(
       }
       const html = mobiToHtml(bytes);
       if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
-      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp" || target === "image-avif" || target === "image-bmp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Book", target);
@@ -505,7 +510,7 @@ async function runConversion(
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
-      if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
+      if (OFFICE_TARGETS.has(target) || target === "odp") return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
     case "rst": {
@@ -535,8 +540,10 @@ async function runConversion(
     }
     case "zabw": {
       const html = zabwToHtml(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
-        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      const svg = target.startsWith("image-") ? docs.textToSvg(docs.htmlToText(html)) : undefined;
+      if (target === "image-svg") return svg!;
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
+        return convertImage(svg!, target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);
     }

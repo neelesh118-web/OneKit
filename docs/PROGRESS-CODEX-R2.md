@@ -265,3 +265,12 @@
 - Tests: 15 focused cases validate DOTX package content, text escaping/structure, image signatures/MIME/names, matrix exposure, and blank, corrupt, or text-free archive rejection. TypeScript and the complete repository suite passed with exit code 0.
 
 - ABW/DjVu/DOCM/HWP/HWPX/LWP and other proprietary or legacy writers, HEIC, and unsupported document/ebook targets through rank 3648 remain honest skips.
+
+## Batch 30
+
+- Added 8 demand-ranked pairs: ZABW to GIF/SVG/WebP (ranks 3771/3776/3777), AZW to AVIF/BMP (ranks 3829/3830), Markdown to ODP (rank 4084), ODP to ODT (rank 4166), and RTF to ODP (rank 4286).
+- Pair total: 1,471.
+- Formats: compressed AbiWord and validated AZW content feed local modern raster encoders; Markdown and RTF text are packaged as genuine ODF presentations; ODP text is written into a standards-shaped ODT package.
+- Tests: 16 focused cases validate native image signatures/MIME/names, ODF MIME and content parts, matrix exposure, and corrupt, DRM-protected, blank, or unreadable input rejection. TypeScript and the complete repository suite passed with exit code 0.
+
+- Proprietary VSD/WMF/WPD/WPS and spreadsheet targets, camera-RAW output, legacy Office writers, and unsupported ebook/document formats through rank 4286 remain honest skips.
