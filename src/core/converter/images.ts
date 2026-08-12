@@ -23,6 +23,16 @@ import {
 } from "./raster";
 import { decodePsd, encodePsd } from "./psd";
 import { icnsFromPng, icnsToPng } from "./icns";
+import {
+  decodePam,
+  decodePbm,
+  decodePgm,
+  decodeXbm,
+  encodePam,
+  encodePbm,
+  encodePgm,
+  encodeXbm
+} from "./netpbm";
 
 export type ImageTarget =
   | "image-png"
@@ -38,7 +48,11 @@ export type ImageTarget =
   | "image-tga"
   | "image-ppm"
   | "image-psd"
-  | "image-icns";
+  | "image-icns"
+  | "image-pbm"
+  | "image-pgm"
+  | "image-pam"
+  | "image-xbm";
 
 const IMAGE_SOURCES = new Set<FileType>([
   "image-png",
@@ -56,7 +70,12 @@ const IMAGE_SOURCES = new Set<FileType>([
   "image-tga",
   "image-ppm",
   "image-psd",
-  "image-icns"
+  "image-icns",
+  // Netpbm + X11 bitmaps — pure-JS decoders in netpbm.ts, same BMP bridge.
+  "image-pbm",
+  "image-pgm",
+  "image-pam",
+  "image-xbm"
 ]);
 
 export function imageTargetMime(target: ImageTarget): string {
@@ -75,6 +94,10 @@ export function imageTargetMime(target: ImageTarget): string {
     case "image-ppm": return "image/x-portable-pixmap";
     case "image-psd": return "image/vnd.adobe.photoshop";
     case "image-icns": return "image/icns";
+    case "image-pbm": return "image/x-portable-bitmap";
+    case "image-pgm": return "image/x-portable-graymap";
+    case "image-pam": return "image/x-portable-arbitrary-map";
+    case "image-xbm": return "image/x-xbitmap";
   }
 }
 
@@ -141,6 +164,10 @@ function toDecodableSource(bytes: Uint8Array, source: FileType): { bytes: Uint8A
   if (source === "image-dds") return { bytes: encodeBmp(decodeDds(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-tga") return { bytes: encodeBmp(decodeTga(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-ppm") return { bytes: encodeBmp(decodePpm(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-pbm") return { bytes: encodeBmp(decodePbm(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-pgm") return { bytes: encodeBmp(decodePgm(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-pam") return { bytes: encodeBmp(decodePam(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-xbm") return { bytes: encodeBmp(decodeXbm(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-psd") return { bytes: encodeBmp(decodePsd(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-ico") return icoToDecodable(bytes);
   if (source === "image-icns") return { bytes: icnsToPng(bytes), mime: "image/png" };
@@ -219,7 +246,8 @@ export async function convertImage(
     }
     if (
       target === "image-bmp" || target === "image-tiff" || target === "image-dds" ||
-      target === "image-tga" || target === "image-ppm" || target === "image-psd"
+      target === "image-tga" || target === "image-ppm" || target === "image-psd" ||
+      target === "image-pbm" || target === "image-pgm" || target === "image-pam" || target === "image-xbm"
     ) {
       // Formats the browser can't write — encode them from the pixels.
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -233,6 +261,10 @@ export async function convertImage(
       if (target === "image-tga") return encodeTga(image);
       if (target === "image-ppm") return encodePpm(image);
       if (target === "image-psd") return encodePsd(image);
+      if (target === "image-pbm") return encodePbm(image);
+      if (target === "image-pgm") return encodePgm(image);
+      if (target === "image-pam") return encodePam(image);
+      if (target === "image-xbm") return encodeXbm(image);
       return encodeBmp(image);
     }
     if (target === "image-ico" || target === "image-svg" || target === "image-icns") {

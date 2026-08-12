@@ -10,7 +10,7 @@ import type { FileType } from "./detect";
 export type TargetFormat =
   | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif" | "image-ico"
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm" | "image-psd"
-  | "image-icns"
+  | "image-icns" | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
   | "pdf" | "html" | "markdown" | "text" | "docx" | "epub"
   | "rtf" | "odt" | "pptx" | "fb2"
   | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml"
@@ -27,6 +27,7 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   "image-bmp": "BMP", "image-tiff": "TIFF", "image-dds": "DDS texture",
   "image-tga": "Targa (TGA)", "image-ppm": "PPM", "image-psd": "Photoshop (PSD)",
   "image-icns": "Apple icon (ICNS)",
+  "image-pbm": "PBM bitmap", "image-pgm": "PGM grayscale", "image-pam": "PAM image", "image-xbm": "X11 XBM bitmap",
   // Not a trace: the SVG carries the picture as an embedded image.
   "image-svg": "SVG (embedded image)",
   pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", epub: "EPUB ebook",
@@ -52,7 +53,7 @@ const IMAGE_SOURCES: FileType[] = [
 export const IMAGE_TARGETS: TargetFormat[] = [
   "image-png", "image-jpeg", "image-webp", "image-avif", "image-gif", "image-ico",
   "image-bmp", "image-tiff", "image-dds", "image-svg", "image-tga", "image-ppm", "image-psd",
-  "image-icns"
+  "image-icns", "image-pbm", "image-pgm", "image-pam", "image-xbm"
 ];
 
 /**
@@ -117,7 +118,11 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-ppm": [...IMAGE_TARGETS.filter((t) => t !== "image-ppm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
-  pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  "image-pbm": [...IMAGE_TARGETS.filter((t) => t !== "image-pbm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  "image-pgm": [...IMAGE_TARGETS.filter((t) => t !== "image-pgm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  "image-pam": [...IMAGE_TARGETS.filter((t) => t !== "image-pam"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  "image-xbm": [...IMAGE_TARGETS.filter((t) => t !== "image-xbm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif", "image-tiff", "image-ico", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   docm: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   dotx: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
@@ -207,8 +212,10 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "video-mp4": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "video-webm": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "video-mov": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
-  "text-base64": ["text", "pdf"],
-  "text-hex": ["text", "pdf"],
+  // Base64/hex can hold ANY file — decode to bytes, sniff the real format,
+  // then convert it like that format (image → all raster targets, etc.).
+  "text-base64": ["text", "pdf", ...IMAGE_TARGETS, "html", "markdown", "docx", "epub", "rtf", "odt", "pptx", "fb2"],
+  "text-hex": ["text", "pdf", ...IMAGE_TARGETS, "html", "markdown", "docx", "epub", "rtf", "odt", "pptx", "fb2"],
   "text-url": ["text", "pdf"],
   vcf: ["csv", "json", "xlsx", "html", "markdown", "text", "docx", ...RECORD_EXTRAS, "txt-base64", "txt-hex"],
   ics: ["csv", "json", "xlsx", "html", "markdown", "text", "docx", ...RECORD_EXTRAS, "txt-base64", "txt-hex"],
@@ -250,6 +257,10 @@ export function targetExtension(target: TargetFormat): string {
     case "image-ppm": return "ppm";
     case "image-psd": return "psd";
     case "image-icns": return "icns";
+    case "image-pbm": return "pbm";
+    case "image-pgm": return "pgm";
+    case "image-pam": return "pam";
+    case "image-xbm": return "xbm";
     case "rtf": return "rtf";
     case "odt": return "odt";
     case "pptx": return "pptx";

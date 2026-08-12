@@ -25,6 +25,7 @@ export type FileType =
   | "raw-cr3" | "raw-crw" | "raw-mrw" | "raw-x3f"
   | "eps" | "ps"
   | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
+  | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -62,6 +63,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "raw-x3f": "Sigma RAW (X3F)",
   eps: "Encapsulated PostScript (EPS)", ps: "PostScript (PS)",
   "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
+  "image-pbm": "PBM bitmap", "image-pgm": "PGM grayscale image", "image-pam": "PAM image", "image-xbm": "X11 XBM bitmap",
   "image-icns": "Apple icon (ICNS)",
   unknown: "Unknown format"
 };
@@ -105,6 +107,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "raw-cr3": ["cr3"], "raw-crw": ["crw"], "raw-mrw": ["mrw"], "raw-x3f": ["x3f"],
   eps: ["eps", "epsf"], ps: ["ps"],
   "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
+  "image-pbm": ["pbm"], "image-pgm": ["pgm"], "image-pam": ["pam"], "image-xbm": ["xbm"],
   unknown: []
 };
 
@@ -195,6 +198,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "8BPS")) return "image-psd";
   if (asciiAt(bytes, 0, "icns")) return "image-icns";
   if (hasPrefix(bytes, [0x50, 0x36]) || hasPrefix(bytes, [0x50, 0x33])) return "image-ppm"; // "P6"/"P3"
+  if (hasPrefix(bytes, [0x50, 0x31]) || hasPrefix(bytes, [0x50, 0x34])) return "image-pbm"; // "P1"/"P4"
+  if (hasPrefix(bytes, [0x50, 0x32]) || hasPrefix(bytes, [0x50, 0x35])) return "image-pgm"; // "P2"/"P5"
+  if (hasPrefix(bytes, [0x50, 0x37])) return "image-pam"; // "P7"
+  if (asciiAt(bytes, 0, "#define")) return "image-xbm";
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   // PostScript: either the binary "DOS EPS" wrapper (C5 D0 D3 C6) or plain

@@ -35,7 +35,7 @@ import {
   type VideoTarget,
   type VideoToVideoDeps
 } from "./video";
-import { base64ToText, hexToText, urlToText } from "./text";
+import { base64ToBytes, base64ToText, hexToBytes, hexToText, urlToText } from "./text";
 import { extractRawPreviewJpeg } from "./raw-photo";
 import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
@@ -92,6 +92,10 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-ppm": "image/x-portable-pixmap",
   "image-psd": "image/vnd.adobe.photoshop",
   "image-icns": "image/icns",
+  "image-pbm": "image/x-portable-bitmap",
+  "image-pgm": "image/x-portable-graymap",
+  "image-pam": "image/x-portable-arbitrary-map",
+  "image-xbm": "image/x-xbitmap",
   pdf: "application/pdf",
   html: "text/html",
   markdown: "text/markdown",
@@ -253,6 +257,29 @@ async function runOcr(bytes: Uint8Array, name: string, opts: ConvertOptions): Pr
   return recognize(dataUrl);
 }
 
+/**
+ * Decodes a base64/hex payload back to raw bytes, sniffs the real file
+ * type inside, then converts it exactly like that format. Honest errors
+ * when the decoded bytes aren't recognizable or can't reach the target.
+ */
+async function convertDecodedBytes(
+  raw: Uint8Array,
+  target: TargetFormat,
+  opts: ConvertOptions
+): Promise<Uint8Array> {
+  const inner = detectFile(raw, "decoded.bin").type;
+  if (inner === "unknown" || inner === "text-base64" || inner === "text-hex" || inner === "text-url") {
+    throw new Error("The decoded bytes aren't a recognizable file type — try 'text' or 'pdf' instead.");
+  }
+  const innerTargets = targetsFor(inner);
+  if (!innerTargets.includes(target)) {
+    throw new Error(
+      `The decoded file is a ${TYPE_LABELS[inner]} — converting it to ${TARGET_LABELS[target]} isn't supported locally.`
+    );
+  }
+  return runConversion(inner, target, raw, opts);
+}
+
 async function runConversion(
   source: FileType,
   target: TargetFormat,
@@ -280,6 +307,10 @@ async function runConversion(
     case "image-ppm":
     case "image-psd":
     case "image-icns":
+    case "image-pbm":
+    case "image-pgm":
+    case "image-pam":
+    case "image-xbm":
       if (target === "pdf") return docs.imagesToPdf([{ bytes, name: "image" }]);
       if (target === "docx") return docs.imagesToDocx([{ bytes, name: "image" }]);
       if (target === "pptx") return imagesToPptx([{ bytes, name: "image" }]);
@@ -376,12 +407,15 @@ async function runConversion(
       if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
-      // Single-file path: the first page. The Convert tab zips all pages
-      // via pdfToImages so multi-page PDFs never lose pages.
+      // Single-file path: render page 1 as PNG, then push it through the
+      // raster pipeline so EVERY image target works (GIF/WebP/BMP/TIFF/
+      // ICO/AVIF included). The Convert tab zips all pages via pdfToImages
+      // so multi-page PDFs never lose pages.
       {
-        const pages = await docs.pdfToImages(bytes, target === "image-png" ? "png" : "jpeg");
+        const pages = await docs.pdfToImages(bytes, "png");
         if (pages.length === 0) throw new Error("This PDF has no pages to render.");
-        return pages[0]!.bytes;
+        if (target === "image-png") return pages[0]!.bytes;
+        return convertImage(pages[0]!.bytes, target as ImageTarget, opts.canvas, opts.image, "image-png");
       }
     case "docx":
     case "docm":
@@ -672,16 +706,22 @@ async function runConversion(
       return toBytes(docs.recordsToHtml(records));
     }
     case "text-base64": {
+      // text/pdf keep the pure-text decode (a base64 string of prose).
       const decoded = base64ToText(toText(bytes));
       if (!decoded.ok) throw new Error(decoded.error);
       if (target === "pdf") return docs.textToPdf(decoded.value);
-      return toBytes(decoded.value);
+      if (target === "text") return toBytes(decoded.value);
+      // Any other target: decode at the byte level, sniff the REAL file
+      // the base64 holds (image, PDF, document…), and convert it as that
+      // format — no mangling through the UTF-8 text path.
+      return convertDecodedBytes(txt.base64ToBytes(toText(bytes)), target, opts);
     }
     case "text-hex": {
       const decoded = hexToText(toText(bytes));
       if (!decoded.ok) throw new Error(decoded.error);
       if (target === "pdf") return docs.textToPdf(decoded.value);
-      return toBytes(decoded.value);
+      if (target === "text") return toBytes(decoded.value);
+      return convertDecodedBytes(txt.hexToBytes(toText(bytes)), target, opts);
     }
     case "text-url": {
       const decoded = urlToText(toText(bytes));

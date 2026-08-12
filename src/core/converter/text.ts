@@ -25,6 +25,33 @@ export function base64ToText(b64: string): TextResult {
   }
 }
 
+/** Binary-safe Base64 decode — returns the raw decoded bytes, so a
+ * base64 string that holds an image/PDF decodes back to that exact file
+ * instead of getting mangled through the UTF-8 text path. */
+export function base64ToBytes(b64: string): Uint8Array {
+  const cleaned = b64.trim();
+  if (!cleaned) throw new Error("Nothing to decode.");
+  try {
+    const bin = atob(cleaned);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch {
+    throw new Error("Not valid Base64.");
+  }
+}
+
+/** Binary-safe hex decode — same contract as base64ToBytes. */
+export function hexToBytes(hex: string): Uint8Array {
+  const cleaned = hex.trim().toLowerCase();
+  if (cleaned.length % 2 !== 0 || !/^[0-9a-f]*$/.test(cleaned)) {
+    throw new Error("Not valid hex — expected an even number of 0-9a-f characters.");
+  }
+  const bytes = new Uint8Array(cleaned.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(cleaned.slice(i * 2, i * 2 + 2), 16);
+  return bytes;
+}
+
 export function textToHex(text: string): string {
   const bytes = new TextEncoder().encode(text);
   let out = "";
