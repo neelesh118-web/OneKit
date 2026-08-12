@@ -20,9 +20,31 @@ import { marked } from "marked";
 import XLSX from "../../vendor/xlsx.mjs";
 import * as yaml from "js-yaml";
 import { XMLParser } from "fast-xml-parser";
-import { strFromU8, unzipSync, zipSync } from "fflate/browser";
+import { strFromU8, strToU8, unzipSync, zipSync } from "fflate/browser";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { textToRtf } from "./rtf";
+
+/**
+ * xlsm → xlsx is a macro strip: an .xlsm is an .xlsx package with the
+ * vbaProject.bin stream (and its metadata) added. Removing that stream
+ * yields a standards-correct .xlsx that keeps every cell and style — no
+ * CSV round-trip, no data loss.
+ */
+export function xlsmToXlsx(bytes: Uint8Array): Uint8Array {
+  const files = unzipSync(bytes);
+  for (const key of Object.keys(files)) {
+    if (key.toLowerCase().includes("vbaproject")) delete files[key];
+  }
+  const ct = strFromU8(files["[Content_Types].xml"] ?? new Uint8Array());
+  files["[Content_Types].xml"] = strToU8(
+    ct.replace(/<\s*Override[^>]*PartName="[^"]*vbaProject\.bin"[^>]*\/?\s*>/gi, "")
+  );
+  const rels = strFromU8(files["xl/_rels/workbook.xml.rels"] ?? new Uint8Array());
+  files["xl/_rels/workbook.xml.rels"] = strToU8(
+    rels.replace(/<Relationship[^>]*Target="[^"]*vbaProject\.bin"[^>]*\/?\s*>/gi, "")
+  );
+  return zipSync(files);
+}
 import { buildOdt } from "./odf";
 import { buildPptx, slidesToHtml, textToSlides, type Slide } from "./pptx";
 

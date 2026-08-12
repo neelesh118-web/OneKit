@@ -40,6 +40,7 @@ import { extractRawPreviewJpeg } from "./raw-photo";
 import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
+import { mobiFromHtml } from "./ebooks-write";
 import { imagesToOdt, odpToSlides, odtToHtml } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
 import { imageToRtfDocument, rtfToHtml } from "./rtf";
@@ -92,6 +93,8 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-ppm": "image/x-portable-pixmap",
   "image-psd": "image/vnd.adobe.photoshop",
   "image-icns": "image/icns",
+  mobi: "application/x-mobipocket-ebook",
+  azw: "application/vnd.amazon.ebook",
   "image-pbm": "image/x-portable-bitmap",
   "image-pgm": "image/x-portable-graymap",
   "image-pam": "image/x-portable-arbitrary-map",
@@ -153,7 +156,7 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2"]);
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2", "mobi"]);
 
 /** The spreadsheet containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
@@ -172,6 +175,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "odt") return docs.htmlToOdt(html);
   if (target === "pptx") return docs.htmlToPptx(html);
   if (target === "fb2") return docs.htmlToFb2(html, title);
+  if (target === "mobi" || target === "azw") return await mobiFromHtml(html, { title });
   return toBytes(docs.htmlToText(html));
 }
 
@@ -404,7 +408,7 @@ async function runConversion(
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
       // PDF → document containers: extract readable text before writing.
-      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2") {
+      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2" || target === "mobi") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
       // Single-file path: render page 1 as PNG, then push it through the
@@ -462,6 +466,10 @@ async function runConversion(
       if (source === "xlsm" && !(bytes[0] === 0x50 && bytes[1] === 0x4b)) {
         throw new Error("Could not read this .xlsm - the file is not a valid OOXML package.");
       }
+      // xlsm → xlsx is a macro strip: an xlsx is the same OOXML package
+      // without the vbaProject.bin stream, so this keeps every cell and
+      // every style instead of rebuilding from CSV.
+      if (source === "xlsm" && target === "xlsx") return docs.xlsmToXlsx(bytes);
       return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target);
     case "epub": {
       const html = docs.epubToHtml(bytes);
