@@ -46,6 +46,7 @@ import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } fro
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
+import { dxfToPdf } from "./vector";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -364,6 +365,8 @@ async function runConversion(
       }));
       return docs.imagesToPdf(prepared);
     }
+    case "dxf":
+      return dxfToPdf(bytes);
     case "xls":
     case "xlsm":
     case "ods":

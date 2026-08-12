@@ -23,6 +23,7 @@ export type FileType =
   | "raw-cr2" | "raw-nef" | "raw-arw" | "raw-dng" | "raw-orf" | "raw-pef" | "raw-rw2"
   | "raw-dcr" | "raw-erf" | "raw-3fr" | "raw-mos" | "raw-raf"
   | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
+  | "dxf"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -58,6 +59,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "raw-3fr": "Hasselblad RAW (3FR)", "raw-mos": "Leaf RAW (MOS)", "raw-raf": "Fujifilm RAW (RAF)",
   "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
   "image-icns": "Apple icon (ICNS)",
+  dxf: "AutoCAD Drawing Exchange (DXF)",
   unknown: "Unknown format"
 };
 
@@ -95,6 +97,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "raw-orf": ["orf"], "raw-pef": ["pef"], "raw-rw2": ["rw2"], "raw-dcr": ["dcr"],
   "raw-erf": ["erf"], "raw-3fr": ["3fr"], "raw-mos": ["mos"], "raw-raf": ["raf"],
   "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
+  dxf: ["dxf"],
   unknown: []
 };
 

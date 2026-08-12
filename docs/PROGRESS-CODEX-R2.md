@@ -26,3 +26,10 @@
 - Rank 80 AZW3 to PDF: AZW3/KF8 content is structurally different from the legacy MOBI records handled by the local reader; relabeling it as AZW would misrepresent support.
 - Rank 82 CBR to PDF: CBR uses RAR compression and the project has no local RAR decompressor.
 - Rank 84 CDR to PDF: CorelDRAW is proprietary and no complete local parser/layout renderer is available.
+
+## Batch 3
+
+- Added 1 demand-ranked pair: ASCII DXF to PDF (backlog rank 89).
+- Pair total: 1,280.
+- Formats: added DXF detection and vector rendering for LINE, LWPOLYLINE, CIRCLE, ARC, TEXT, and MTEXT entities.
+- Tests: parser coverage, real vector PDF output, matrix milestone, binary-DXF rejection, and empty/unsupported-drawing rejection.
