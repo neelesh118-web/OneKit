@@ -185,8 +185,32 @@ Markdown/ODT/RTF unit tests, matrix membership, end-to-end
 **Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
 183 test files, 1,521 tests, all green.
 
+### Batch 4 — video → any raster image target (not just GIF/PNG/JPEG)
+
+**Pairs: 1,600 → 1,633 (+33). Sources: 113 (unchanged).**
+
+MP4/WebM/MOV could already grab a still frame as PNG/JPEG
+(`videoToImage`) or an animated GIF (`videoToGif`), but nothing else —
+the backlog wants `mov/mp4/webm → svg/webp/avif/bmp/ico/tiff/dds/tga/
+ppm/psd/icns` too. Rather than build 11 new frame-capture paths, the
+dispatch now grabs one frame as a PNG (the existing, already-honest
+`videoToImage` call) and runs it through `convertImage` — the exact
+same canvas pipeline every still-image source already uses to reach
+those 11 formats. No new video code, no new image code; just
+connecting two pipelines that were already honest on their own.
+Exported `IMAGE_TARGETS` from `matrix.ts` so the video target lists
+spread it directly instead of hand-duplicating the format list.
+
+**Tests added:** extended `tests/converter-video.test.ts` (+2: matrix
+membership for all three video sources across all 11 new formats, and
+an honest-rejection dispatch test proving the new branch is actually
+reached in Node rather than silently falling through to GIF).
+
+**Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
+183 test files, 1,523 tests, all green.
+
 ---
 
-**Current total: 1,600 pairs across 113 source formats.** Backlog has
+**Current total: 1,633 pairs across 113 source formats.** Backlog has
 6,553 demand-ranked rows in this domain; the batch loop continues
 top-down from the gap list above.

@@ -49,7 +49,7 @@ const IMAGE_SOURCES: FileType[] = [
   "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif"
 ];
 
-const IMAGE_TARGETS: TargetFormat[] = [
+export const IMAGE_TARGETS: TargetFormat[] = [
   "image-png", "image-jpeg", "image-webp", "image-avif", "image-gif", "image-ico",
   "image-bmp", "image-tiff", "image-dds", "image-svg", "image-tga", "image-ppm", "image-psd",
   "image-icns"
@@ -196,9 +196,14 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "audio-flac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "audio-aac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
-  "video-mp4": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
-  "video-webm": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
-  "video-mov": ["image-gif", "image-png", "image-jpeg", "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  // A video frame is captured as a PNG, then any raster target reaches
+  // it through the same canvas pipeline still images use (see
+  // convert.ts) — every IMAGE_TARGETS format is honestly reachable,
+  // not just the animated-GIF and single-frame PNG/JPEG the earlier
+  // batches shipped.
+  "video-mp4": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "video-webm": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "video-mov": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "text-base64": ["text", "pdf"],
   "text-hex": ["text", "pdf"],
   "text-url": ["text", "pdf"],

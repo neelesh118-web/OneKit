@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { convertFile } from "../src/core/converter/convert";
 import { decodeGifFrames } from "../src/core/converter/gif";
+import { targetsFor } from "../src/core/converter/matrix";
 import { gifPlaybackMs, videoToGif, type VideoFrame } from "../src/core/converter/video";
 
 const gifMagic = (bytes: Uint8Array): string =>
@@ -107,5 +108,28 @@ describe("converter convertFile dispatch", () => {
         audioDecoder: async () => ({ sampleRate: 44100, channels: 1, samples: new Float32Array(4) })
       })
     ).rejects.toThrow(/isn't supported locally/);
+  });
+});
+
+describe("converter video → any raster image target", () => {
+  it("offers every raster image format as a target for MP4/WebM/MOV, not just GIF/PNG/JPEG", () => {
+    for (const source of ["video-mp4", "video-webm", "video-mov"] as const) {
+      const targets = targetsFor(source);
+      for (const t of [
+        "image-webp", "image-avif", "image-svg", "image-ico", "image-bmp",
+        "image-tiff", "image-dds", "image-tga", "image-ppm", "image-psd", "image-icns"
+      ] as const) {
+        expect(targets).toContain(t);
+      }
+    }
+  });
+
+  it("routes a video → WebP through the frame-grab + canvas pipeline (honest rejection without a real browser canvas)", async () => {
+    // Node has no <video>/<canvas> — this proves the new dispatch branch
+    // is actually reached (not silently falling through to GIF) and
+    // fails the same honest way videoToImage already does for PNG/JPEG.
+    await expect(
+      convertFile({ bytes: new Uint8Array(16), name: "clip.mp4" }, "image-webp", { videoFrames: fakeExtractor })
+    ).rejects.toThrow(/browser canvas/);
   });
 });

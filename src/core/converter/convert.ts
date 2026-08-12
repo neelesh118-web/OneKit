@@ -4,7 +4,7 @@
  * output file. All conversions stay on-device.
  */
 import { detectFile, TYPE_LABELS, type FileType } from "./detect";
-import { TARGET_LABELS, targetExtension, targetsFor, type TargetFormat } from "./matrix";
+import { IMAGE_TARGETS, TARGET_LABELS, targetExtension, targetsFor, type TargetFormat } from "./matrix";
 import { convertImage, imageBytesToDataUrl, type ImageConvertSettings, type ImageTarget } from "./images";
 import { convertFont, type FontTarget } from "./fonts";
 import {
@@ -930,6 +930,12 @@ async function runConversion(
       }
       if (target === "image-png" || target === "image-jpeg") {
         return videoToImage(bytes, target === "image-png" ? "png" : "jpeg", opts.videoFrames);
+      }
+      if (target !== "image-gif" && (IMAGE_TARGETS as TargetFormat[]).includes(target)) {
+        // Grab a frame as a PNG, then reach any other raster target
+        // through the same canvas pipeline still images already use.
+        const png = await videoToImage(bytes, "png", opts.videoFrames);
+        return convertImage(png, target as ImageTarget, opts.canvas, opts.image, "image-png");
       }
       if (target === "audio-mp3") {
         return videoToMp3(bytes, opts.videoAudio);
