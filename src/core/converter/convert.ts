@@ -347,6 +347,23 @@ async function runConversion(
       return renderDocument(htmlzToHtml(bytes), "Book", target);
     case "txtz":
       return renderDocument(txtzToHtml(bytes), "Book", target);
+    case "cbz": {
+      const entries = arch.unzipToFiles(bytes);
+      const pages = Object.entries(entries)
+        .filter(([name, data]) => data.length > 0 && /\.(?:png|jpe?g|gif|webp|bmp|avif|tiff?|ico|dds|tga|ppm|psd|icns)$/i.test(name))
+        .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+      if (pages.length === 0) throw new Error("This CBZ contains no supported image pages.");
+      const prepared = await Promise.all(pages.map(async ([name, pageBytes]) => {
+        const pageType = detectFile(pageBytes, name).type;
+        if (pageType === "image-png" || pageType === "image-jpeg") return { bytes: pageBytes, name };
+        if (!pageType.startsWith("image-")) throw new Error(`Couldn't decode comic page ${name}.`);
+        return {
+          bytes: await convertImage(pageBytes, "image-png", opts.canvas, opts.image, pageType),
+          name: name.replace(/\.[^.]+$/, ".png")
+        };
+      }));
+      return docs.imagesToPdf(prepared);
+    }
     case "xls":
     case "xlsm":
     case "ods":
