@@ -386,6 +386,7 @@ async function runConversion(
       const slides = pptxToSlides(bytes);
       if (target === "odp") return buildOdp(slides);
       const html = slidesToHtml(slides, "Presentation");
+      if (source === "pptx" && target === "pptm") return docs.htmlToPptm(html);
       if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");

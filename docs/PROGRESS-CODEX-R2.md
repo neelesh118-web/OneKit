@@ -238,3 +238,12 @@
 - Tests: 19 focused cases plus legacy matrix-loop coverage validate all nine outputs, signatures/MIME/names, OOXML variant packages, and corrupt, HTML-free, or unreadable archive rejection. TypeScript and the complete repository suite passed with exit code 0.
 
 - Proprietary WPD/WPS/ZABW writers, legacy DOC/POT/PPS/PPT, HEIC encoding, and HWP/HWPX/LWP readers through rank 3424 remain honest skips.
+
+## Batch 27
+
+- Added 7 demand-ranked pairs: PPTM to GIF/SVG/WebP (ranks 3433/3437/3439), PPTX to PPTM (rank 3445), and PRC to GIF/SVG/WebP (ranks 3448/3452/3454).
+- Pair total: 1,451.
+- Formats: validated macro-enabled presentations and Palm/MOBI-book PRC content use the local SVG and GIF/WebP render pipeline; PPTX slide text is packaged as genuine macro-enabled presentation OOXML without fabricating VBA.
+- Tests: 14 focused cases validate image signatures/MIME/names, PPTM content type and slide-text round-trip, matrix exposure, and corrupt or DRM-protected rejection. TypeScript and the complete repository suite passed with exit code 0.
+
+- Legacy PPT/DOC, proprietary SDA/SDC/SDW/WPD/WPS/ZABW/iWork targets, HEIC, and nonsensical camera-RAW document outputs through rank 3454 remain honest skips.

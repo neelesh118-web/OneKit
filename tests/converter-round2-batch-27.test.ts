@@ -1,0 +1,8 @@
+// @vitest-environment node
+import { describe, expect, it } from "vitest";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
+import { buildPptx } from "../src/core/converter/pptx";
+import { targetsFor } from "../src/core/converter/matrix";
+const enc=(s:string)=>new TextEncoder().encode(s);
+function canvas():ConvertOptions{let w=1,h=1;const c={translate(){},rotate(){},scale(){},drawImage(){},getImageData:()=>({width:w,height:h,data:new Uint8ClampedArray(w*h*4),colorSpace:"srgb"})as ImageData};return{canvas:{canvasFactory:()=>({get width(){return w},set width(v:number){w=v},get height(){return h},set height(v:number){h=v},getContext:()=>c,toBlob(cb:(b:Blob|null)=>void,mime?:string){cb(new Blob([enc("RIFF0000WEBP")],{type:mime??"image/webp"}))}})as unknown as HTMLCanvasElement,decode:async()=>({width:10,height:10,close(){}})as ImageBitmap}}}
+describe("round 2 batch 27: PPTM modern images",()=>{const bytes=buildPptx([{title:"Macro deck",lines:["Readable slide content"]}]);it("advertises ranks 3433, 3437, 3439",()=>expect(targetsFor("pptm")).toEqual(expect.arrayContaining(["image-gif","image-svg","image-webp"])));it.each([["image-gif","gif","image/gif","GIF89a"],["image-svg","svg","image/svg+xml","<svg"],["image-webp","webp","image/webp","RIFF"]]as const)("converts PPTM to %s",async(target,ext,mime,sig)=>{const r=await convertFile({bytes,name:"deck.pptm"},target,canvas());expect(r).toMatchObject({name:`deck.${ext}`,mime});expect(new TextDecoder().decode(r.bytes.slice(0,100))).toContain(sig)});it("rejects corrupt PPTM",async()=>{await expect(convertFile({bytes:enc("bad"),name:"bad.pptm"},"image-svg")).rejects.toThrow(/pptx|PowerPoint|corrupt/i)});});
