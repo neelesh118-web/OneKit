@@ -13,7 +13,7 @@ export type TargetFormat =
   | "image-icns"
   | "pdf" | "html" | "markdown" | "text" | "docx" | "dotx" | "epub" | "mobi" | "azw" | "cbz"
   | "rtf" | "odt" | "odp" | "pptx" | "fb2" | "rst" | "tex"
-  | "csv" | "json" | "yaml" | "xml" | "xlsx" | "tsv" | "xls" | "ods" | "toml"
+  | "csv" | "json" | "yaml" | "xml" | "xlsx" | "xlsm" | "tsv" | "xls" | "ods" | "toml"
   | "audio-aiff"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2"
@@ -32,7 +32,7 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   pdf: "PDF", html: "HTML", markdown: "Markdown", text: "Plain text", docx: "Word (DOCX)", dotx: "Word template (DOTX)", epub: "EPUB ebook", mobi: "MOBI ebook", azw: "Kindle AZW ebook", cbz: "Comic Book ZIP (CBZ)",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", odp: "OpenDocument presentation (ODP)", pptx: "PowerPoint (PPTX)", fb2: "FictionBook (FB2)",
   rst: "reStructuredText (RST)", tex: "TeX document",
-  csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
+  csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)", xlsm: "Macro-enabled Excel (XLSM)",
   tsv: "TSV", xls: "Excel 97–2003 (XLS)", ods: "OpenDocument sheet (ODS)", toml: "TOML config",
   "audio-aiff": "AIFF",
   zip: "ZIP", tar: "TAR", gzip: "GZIP",
@@ -108,9 +108,9 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "txt-base64", "txt-hex"],
   docm: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   dotx: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
-  xlsx: tableTargetsExcept("xlsx").concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp"),
+  xlsx: tableTargetsExcept("xlsx").concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "xlsm"),
   xlsm: tableTargetsExcept().concat("image-png", "image-jpeg"),
-  xls: tableTargetsExcept("xls").concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp"),
+  xls: tableTargetsExcept("xls").concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "xlsm"),
   ods: tableTargetsExcept("ods").concat("image-png", "image-jpeg"),
   epub: ["html", "text", "markdown", "pdf", "docx", "rtf", "odt", "pptx", "fb2", "cbz", "image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "txt-base64", "txt-hex"],
   rtf: docTargetsExcept("rtf").concat("fb2", "image-png", "image-jpeg"),
@@ -122,7 +122,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   ppsx: docTargetsExcept().concat("pptx", "fb2"),
   fb2: docTargetsExcept().concat("image-png", "image-jpeg"),
   mobi: docTargetsExcept().concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "azw"),
-  azw: docTargetsExcept().concat("image-png", "image-jpeg", "mobi"),
+  azw: docTargetsExcept().concat("image-png", "image-jpeg", "image-gif", "image-svg", "image-webp", "mobi"),
   prc: docTargetsExcept(),
   htmlz: docTargetsExcept(),
   txtz: docTargetsExcept(),
@@ -250,6 +250,7 @@ export function targetExtension(target: TargetFormat): string {
     case "csv": return "csv";
     case "json": return "json";
     case "xlsx": return "xlsx";
+    case "xlsm": return "xlsm";
     case "yaml": return "yaml";
     case "xml": return "xml";
     case "zip": return "zip";

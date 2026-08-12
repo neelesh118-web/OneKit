@@ -117,6 +117,7 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   yaml: "application/yaml",
   xml: "application/xml",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xlsm: "application/vnd.ms-excel.sheet.macroEnabled.12",
   zip: "application/zip",
   tar: "application/x-tar",
   gzip: "application/gzip",
@@ -157,7 +158,7 @@ function baseName(name: string): string {
 const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2"]);
 
 /** The spreadsheet containers every table and record source can produce. */
-const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "tsv", "xls", "ods"]);
+const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "tsv", "xls", "ods"]);
 
 /**
  * Every prose source funnels through HTML, so one renderer serves them
@@ -195,6 +196,7 @@ async function renderTable(csv: string, title: string, target: TargetFormat): Pr
   if (target === "yaml") return toBytes(docs.jsonToYaml(JSON.stringify(docs.csvToJson(csv))));
   if (target === "xml") return toBytes(docs.jsonToXml(JSON.stringify(docs.csvToJson(csv))));
   if (target === "xlsx") return docs.csvToXlsx(csv);
+  if (target === "xlsm") return docs.csvToXlsm(csv);
   if (target === "xls") return docs.csvToXls(csv);
   if (target === "ods") return docs.csvToOds(csv);
   if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));

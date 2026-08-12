@@ -544,6 +544,13 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
+/** CSV → macro-enabled OOXML workbook without a VBA project. */
+export function csvToXlsm(csvText: string): Uint8Array {
+  const wb = XLSX.read(csvText, { type: "string" });
+  const out = XLSX.write(wb, { bookType: "xlsm", type: "array" });
+  return new Uint8Array(out as ArrayBuffer);
+}
+
 /** CSV table rendered as a self-contained SVG, ready for the image pipeline. */
 export function csvToSvg(text: string): Uint8Array {
   const rows = parseCsv(text);

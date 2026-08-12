@@ -148,3 +148,12 @@
 - Tests: 11 focused cases validate OOXML content types/relationships, MOBI DRM/compression rejection, ODP package parts and round-trip slide order, metadata, and corrupt input rejection.
 
 - Ranks 947-1104 remain skipped where they require ET/HWP/HWPX/LIT/LRF/LWP/PDB/iWork/legacy Office parsers or proprietary writers; MOBI to AZW3/CBR/CBZ is not equivalent to container relabeling.
+
+## Batch 17
+
+- Added 5 demand-ranked pairs: XLS/XLSX to macro-enabled XLSM (ranks 1190/1193) and AZW to GIF/SVG/WebP (ranks 1225/1229/1231).
+- Pair total: 1,360.
+- Formats: spreadsheet data is written into genuine macro-enabled OOXML workbooks without fabricating VBA, while validated unencrypted AZW text uses the shared SVG and GIF/WebP render pipeline.
+- Tests: 9 focused cases validate XLSM package content types and cell round-trips, image signatures/MIME/names, and DRM/corrupt AZW rejection.
+
+- Ranks 1115-1239 remain skipped where they require unsupported RocketBook/SNB/TCR/legacy StarOffice/iWork/KF8 or proprietary encoders; JPEG aliases already map to the existing image-jpeg target and are not double-counted.
