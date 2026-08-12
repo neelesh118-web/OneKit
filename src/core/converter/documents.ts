@@ -75,6 +75,32 @@ export async function pdfToMarkdown(bytes: Uint8Array): Promise<string> {
   return pdfToText(bytes);
 }
 
+function pdfTextParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s*\n\s*/g, " ").trim())
+    .filter(Boolean);
+}
+
+/** PDF to reStructuredText with escaped prose and a conventional title. */
+export async function pdfToRst(bytes: Uint8Array): Promise<string> {
+  const paragraphs = pdfTextParagraphs(await pdfToText(bytes));
+  const escaped = paragraphs.map((paragraph) => paragraph.replace(/([\\*`|_])/g, "\\$1"));
+  return ["PDF text", "========", "", ...escaped].join("\n").trimEnd() + "\n";
+}
+
+/** PDF to a standalone TeX document with reserved prose characters escaped. */
+export async function pdfToTex(bytes: Uint8Array): Promise<string> {
+  const paragraphs = pdfTextParagraphs(await pdfToText(bytes));
+  const escapeTex = (text: string): string => text
+    .replace(/\\/g, "\\textbackslash{}")
+    .replace(/([{}#$%&_])/g, "\\$1")
+    .replace(/\^/g, "\\textasciicircum{}")
+    .replace(/~/g, "\\textasciitilde{}");
+  const body = paragraphs.map(escapeTex).join("\n\n");
+  return `\\documentclass{article}\n\\usepackage[T1]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\title{PDF text}\n\\begin{document}\n\\maketitle\n\n${body}\n\\end{document}\n`;
+}
+
 /** PDF → HTML: wrap extracted paragraphs. */
 export async function pdfToHtml(bytes: Uint8Array): Promise<string> {
   const text = await pdfToText(bytes);
@@ -1909,6 +1935,60 @@ export function epubToHtml(bytes: Uint8Array): string {
   }
   const body = parts.join("\n") || "<p>This EPUB has no readable chapters.</p>";
   return `<!doctype html>\n<html><head><meta charset="utf-8"><title>EPUB</title></head>\n<body>\n${body}\n</body>\n</html>`;
+}
+
+/** Extracts an image-only EPUB into a CBZ while preserving spine order. */
+export function epubImagesToCbz(bytes: Uint8Array): Uint8Array {
+  let files: Record<string, Uint8Array>;
+  try { files = unzipSync(bytes); } catch { throw new Error("Could not read this EPUB — the file may be corrupt."); }
+  const opfName = Object.keys(files).find((name) => name.toLowerCase().endsWith(".opf"));
+  if (!opfName) throw new Error("Could not find the EPUB's content.opf — this may not be a valid EPUB.");
+  const opf = strFromU8(files[opfName]!);
+  const attr = (tag: string, name: string): string | undefined => {
+    const match = tag.match(new RegExp(`\\b${name}=(?:"([^"]*)"|'([^']*)')`, "i"));
+    return match?.[1] ?? match?.[2];
+  };
+  const manifest: Record<string, string> = {};
+  for (const match of opf.matchAll(/<item\b[^>]*>/gi)) {
+    const id = attr(match[0], "id");
+    const href = attr(match[0], "href");
+    if (id && href) manifest[id] = decodeURIComponent(href.split("#")[0]!);
+  }
+  const base = opfName.includes("/") ? opfName.slice(0, opfName.lastIndexOf("/")) : "";
+  const resolve = (dir: string, href: string): string => {
+    const output: string[] = [];
+    for (const part of `${dir ? `${dir}/` : ""}${href}`.split("/")) {
+      if (!part || part === ".") continue;
+      if (part === "..") output.pop(); else output.push(part);
+    }
+    return output.join("/");
+  };
+  const pages: Record<string, Uint8Array> = {};
+  let page = 0;
+  for (const match of opf.matchAll(/<itemref\b[^>]*>/gi)) {
+    const href = manifest[attr(match[0], "idref") ?? ""];
+    if (!href) throw new Error("This EPUB's spine is incomplete and cannot become a CBZ.");
+    const chapterPath = resolve(base, href);
+    const chapterBytes = files[chapterPath];
+    if (!chapterBytes) throw new Error("This EPUB's spine references a missing chapter.");
+    const chapter = strFromU8(chapterBytes);
+    const body = chapter.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1] ?? chapter;
+    const images = [...body.matchAll(/<img\b[^>]*>/gi)];
+    const prose = body.replace(/<img\b[^>]*>/gi, "").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, "").replace(/&nbsp;|&#160;/gi, " ").trim();
+    if (images.length !== 1 || prose) throw new Error("Only image-backed EPUBs with exactly one image per spine page can become CBZ.");
+    const src = attr(images[0]![0], "src");
+    if (!src) throw new Error("An image-backed EPUB page has no image source.");
+    const chapterDir = chapterPath.includes("/") ? chapterPath.slice(0, chapterPath.lastIndexOf("/")) : "";
+    const imagePath = resolve(chapterDir, decodeURIComponent(src.split("#")[0]!));
+    const image = files[imagePath];
+    const extension = imagePath.match(/\.(png|jpe?g|gif|webp|bmp)$/i)?.[1]?.toLowerCase();
+    if (!image || !extension) throw new Error("An EPUB spine page references a missing or unsupported image.");
+    page += 1;
+    pages[`page-${String(page).padStart(3, "0")}.${extension === "jpeg" ? "jpg" : extension}`] = image;
+  }
+  if (!page) throw new Error("This EPUB has no image-backed spine pages to place in a CBZ.");
+  return zipSync(pages);
 }
 
 /* Office writers (RTF / ODT / PPTX) ---------------------------------- */

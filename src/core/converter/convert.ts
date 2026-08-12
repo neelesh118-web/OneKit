@@ -96,10 +96,14 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   text: "text/plain",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   epub: "application/epub+zip",
+  cbz: "application/vnd.comicbook+zip",
+  mobi: "application/x-mobipocket-ebook",
   rtf: "application/rtf",
   odt: "application/vnd.oasis.opendocument.text",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   fb2: "application/x-fictionbook+xml",
+  rst: "text/x-rst",
+  tex: "application/x-tex",
   tsv: "text/tab-separated-values",
   xls: "application/vnd.ms-excel",
   ods: "application/vnd.oasis.opendocument.spreadsheet",
@@ -284,6 +288,8 @@ async function runConversion(
     case "pdf":
       if (target === "text") return toBytes(await docs.pdfToText(bytes));
       if (target === "markdown") return toBytes(await docs.pdfToMarkdown(bytes));
+      if (target === "rst") return toBytes(await docs.pdfToRst(bytes));
+      if (target === "tex") return toBytes(await docs.pdfToTex(bytes));
       if (target === "html") return toBytes(await docs.pdfToHtml(bytes));
       // PDF → DOCX (text-based): extracts the text into a real Word file.
       // Formatting and images aren't preserved — the content is editable.
@@ -374,6 +380,13 @@ async function runConversion(
     case "mobi":
     case "azw":
     case "prc": {
+      if (source === "azw" && target === "mobi") {
+        // AZW1 is the same PalmDB/MOBI container. Fully parse it first so
+        // corrupt, DRM-protected, and unsupported HUFF/CDIC books are never
+        // mislabeled as a successful conversion.
+        mobiToHtml(bytes);
+        return bytes.slice();
+      }
       const html = mobiToHtml(bytes);
       if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
       if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
@@ -420,6 +433,7 @@ async function runConversion(
       return renderTable(csv, "Spreadsheet", target);
     }
     case "epub": {
+      if (target === "cbz") return docs.epubImagesToCbz(bytes);
       const html = docs.epubToHtml(bytes);
       if (target === "html") return toBytes(html);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));

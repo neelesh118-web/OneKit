@@ -129,3 +129,13 @@
 
 - Ranks 629-649 AZW3/CBR/CDR and CBZ/DXF document or single-image outputs remain skipped: KF8, RAR, and CorelDRAW parsers are unavailable, while multi-page CBZ/DXF flattening needs explicit page/output semantics rather than silently discarding content.
 - Ranks 664-701 KEY/NUMBERS/PAGES and legacy binary Office targets remain skipped because complete local iWork and binary Office readers/writers are unavailable.
+
+## Batch 15
+
+- Added 4 demand-ranked pairs: AZW to MOBI (rank 746), PDF to RST/TeX (ranks 844/846), and image-backed EPUB to CBZ (rank 943).
+- Pair total: 1,352.
+- Formats: validated AZW1/MOBI container normalization, structured local PDF text extraction with RST/TeX escaping, and strict EPUB spine-image extraction into ordered CBZ pages.
+- Tests: 13 focused cases cover real bytes and metadata, escaping and ordering, DRM/corrupt input rejection, and rejection of text or mixed-layout EPUBs.
+
+- Ranks 747-843 remain skipped where they require AZW3/KF8, RAR, CorelDRAW/Illustrator, MOBI writing, iWork, legacy Office writers, or unsupported proprietary document encoders.
+- PDF targets at ranks 836-849 other than RST/TeX remain skipped when they require proprietary/legacy containers; compression or extension relabeling is not treated as conversion.
