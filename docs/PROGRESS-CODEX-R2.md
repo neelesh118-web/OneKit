@@ -58,3 +58,10 @@
 - Pair total: 1,286.
 - Formats: EPUB spine content extraction feeds the bounded text-to-SVG renderer and existing JPEG/PNG encoders.
 - Tests: real EPUB package conversion to both raster signatures, output metadata, pair milestone, and corrupt-package rejection.
+
+## Batch 7
+
+- Added 4 demand-ranked pairs: HTML to JPG/PNG (backlog ranks 155–156) and MOBI to JPG/PNG (ranks 167–168).
+- Pair total: 1,290.
+- Formats: existing HTML cleanup and unencrypted PalmDOC/MOBI extraction now feed the bounded text-to-SVG raster path.
+- Tests: real HTML and MOBI inputs to both raster signatures, output metadata, pair milestone, empty-HTML rejection, and corrupt-MOBI rejection.

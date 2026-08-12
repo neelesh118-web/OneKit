@@ -345,8 +345,13 @@ async function runConversion(
     }
     case "mobi":
     case "azw":
-    case "prc":
-      return renderDocument(mobiToHtml(bytes), "Book", target);
+    case "prc": {
+      const html = mobiToHtml(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Book", target);
+    }
     case "htmlz":
       return renderDocument(htmlzToHtml(bytes), "Book", target);
     case "txtz":
@@ -400,6 +405,9 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
@@ -423,6 +431,9 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return docs.htmlToPdf(html);
     }
