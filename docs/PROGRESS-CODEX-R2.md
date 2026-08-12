@@ -33,3 +33,14 @@
 - Pair total: 1,280.
 - Formats: added DXF detection and vector rendering for LINE, LWPOLYLINE, CIRCLE, ARC, TEXT, and MTEXT entities.
 - Tests: parser coverage, real vector PDF output, matrix milestone, binary-DXF rejection, and empty/unsupported-drawing rejection.
+
+## Batch 4
+
+- Added 2 demand-ranked pairs: CSV to JPG and PNG (backlog ranks 136–137).
+- Pair total: 1,282.
+- Formats: table-aware SVG layout with header styling, alternating rows, XML escaping, and bounded canvas dimensions; existing raster encoders produce the final bytes.
+- Tests: SVG layout/escaping, PNG/JPEG signatures and metadata through `convertFile`, pair milestone, and empty-table rejection.
+
+- Rank 104 KEY to PDF: Apple Keynote packages require an iWork presentation/layout renderer not present locally.
+- Rank 110 NUMBERS to PDF: Apple Numbers packages require an iWork spreadsheet/layout renderer not present locally.
+- Ranks 129–131 AI to DOCX/JPG/PNG: native Illustrator parsing is not dependable locally; a PDF-compatible AI subset cannot honestly represent universal AI support.

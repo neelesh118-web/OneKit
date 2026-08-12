@@ -638,6 +638,9 @@ async function runConversion(
     }
     case "csv": {
       const csv = toText(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.csvToSvg(csv), target, opts.canvas, opts.image, "image-svg");
+      }
       if (target === "json") return toBytes(JSON.stringify(docs.csvToJson(csv), null, 2));
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "html") return toBytes(docs.csvToHtml(csv));

@@ -504,6 +504,33 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
+/** CSV table rendered as a self-contained SVG, ready for the image pipeline. */
+export function csvToSvg(text: string): Uint8Array {
+  const rows = parseCsv(text);
+  if (rows.length === 0 || rows.every((row) => row.every((cell) => cell.trim() === ""))) {
+    throw new Error("This CSV contains no table data to render.");
+  }
+  const columns = Math.max(...rows.map((row) => row.length), 1);
+  const cellWidth = 180;
+  const rowHeight = 34;
+  const width = Math.min(4096, columns * cellWidth);
+  const height = Math.min(4096, rows.length * rowHeight);
+  const visibleColumns = Math.max(1, Math.floor(width / cellWidth));
+  const visibleRows = Math.max(1, Math.floor(height / rowHeight));
+  const cells: string[] = [];
+  for (let row = 0; row < Math.min(rows.length, visibleRows); row += 1) {
+    for (let column = 0; column < Math.min(columns, visibleColumns); column += 1) {
+      const x = column * cellWidth;
+      const y = row * rowHeight;
+      const fill = row === 0 ? "#e8eef8" : row % 2 === 0 ? "#f8fafc" : "#ffffff";
+      const value = escapeXml((rows[row]?.[column] ?? "").slice(0, 24));
+      cells.push(`<rect x="${x}" y="${y}" width="${cellWidth}" height="${rowHeight}" fill="${fill}" stroke="#94a3b8"/>`);
+      cells.push(`<text x="${x + 8}" y="${y + 22}" font-family="Arial,sans-serif" font-size="14" font-weight="${row === 0 ? 700 : 400}" fill="#0f172a">${value}</text>`);
+    }
+  }
+  return new TextEncoder().encode(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#fff"/>${cells.join("")}</svg>`);
+}
+
 /** CSV → array of objects keyed by the header row. */
 export function csvToJson(csvText: string): unknown[] {
   const rows = parseCsv(csvText).map((r) => r.map((c) => c.trim()));

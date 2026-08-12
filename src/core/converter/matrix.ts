@@ -136,7 +136,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   oeb: docTargetsExcept().concat("fb2"),
   pml: docTargetsExcept(),
   text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "html", "markdown", "epub", "rtf", "odt", "pptx", "fb2"],
-  csv: [...tableTargetsExcept("csv"), "jsonl"],
+  csv: [...tableTargetsExcept("csv"), "jsonl", "image-png", "image-jpeg"],
   json: [...tableTargetsExcept("json"), "text", "jsonl", "toml"],
   tsv: [...tableTargetsExcept("tsv"), "jsonl"],
   yaml: [...tableTargetsExcept("yaml"), "toml"],
