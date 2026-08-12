@@ -166,3 +166,12 @@
 - Tests: focused real-file cases cover all 18 conversions and matrix exposure, signatures/MIME/names, plus blank, corrupt, and malformed source rejection.
 
 - Interleaved KEY/NUMBERS/PAGES/HEIC/legacy DOC/PPT/MOBI-writer targets through rank 1520 remain skipped because their proprietary parsers, codecs, or writers are unavailable locally.
+
+## Batch 19
+
+- Added 8 demand-ranked pairs: PDF to POTX/PPSX/PPTM (ranks 1444/1447/1448), RTF to GIF/SVG/WebP (ranks 1474/1479/1480), and ABW to JPG/PNG (ranks 1537/1538).
+- Pair total: 1,386.
+- Formats: PDF text is packaged into genuine OOXML presentation template/show/macro-enabled variants with correct main content types and no fabricated VBA; RTF and AbiWord content uses the local text-to-SVG raster pipeline.
+- Tests: 15 focused cases inspect OOXML package content types and text round-trips, verify image signatures/MIME/names, and cover corrupt or empty input rejection.
+
+- Proprietary PDF targets and HEIC/legacy Office/iWork/MOBI-writer rows interleaved through rank 1538 remain skipped where no honest local codec or writer exists.

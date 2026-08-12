@@ -296,3 +296,21 @@ export function buildPptx(slides: Slide[]): Uint8Array {
   });
   return zipSync(files);
 }
+
+/** Rewrites a generated presentation's OOXML main part as a template or slideshow. */
+export function presentationVariant(bytes: Uint8Array, kind: "potx" | "ppsx"): Uint8Array {
+  let files: Record<string, Uint8Array>;
+  try { files = unzipSync(bytes); } catch { throw new Error("Could not read this PowerPoint package."); }
+  const contentTypes = files["[Content_Types].xml"];
+  if (!contentTypes || !files["ppt/presentation.xml"]) throw new Error("This PowerPoint package is incomplete.");
+  const replacement = kind === "potx"
+    ? "application/vnd.openxmlformats-officedocument.presentationml.template.main+xml"
+    : "application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml";
+  const xml = strFromU8(contentTypes).replace(
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+    replacement
+  );
+  if (!xml.includes(replacement)) throw new Error("Could not normalize this PowerPoint package.");
+  files["[Content_Types].xml"] = new TextEncoder().encode(xml);
+  return zipSync(files);
+}

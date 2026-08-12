@@ -2035,6 +2035,19 @@ export function htmlToPptx(html: string): Uint8Array {
   return buildPptx(textToSlides(htmlToText(html)));
 }
 
+/** HTML → macro-enabled OOXML presentation without a fabricated VBA project. */
+export function htmlToPptm(html: string): Uint8Array {
+  const files = unzipSync(htmlToPptx(html));
+  const contentTypes = files["[Content_Types].xml"];
+  if (!contentTypes) throw new Error("The generated presentation has no content-types manifest.");
+  const xml = strFromU8(contentTypes).replace(
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml",
+    "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"
+  );
+  files["[Content_Types].xml"] = new TextEncoder().encode(xml);
+  return zipSync(files);
+}
+
 /** HTML → FictionBook 2 XML, preserving readable text as paragraphs. */
 export function htmlToFb2(html: string, title: string): Uint8Array {
   const paragraphs = htmlToText(html)

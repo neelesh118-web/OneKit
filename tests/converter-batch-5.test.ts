@@ -1,13 +1,23 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
-import { convertFile } from "../src/core/converter/convert";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { abwToHtml, oebToHtml, pmlToHtml } from "../src/core/converter/markup";
 
 const enc = (text: string): Uint8Array => new TextEncoder().encode(text);
 const dec = new TextDecoder();
+const imageOptions: ConvertOptions = {
+  canvas: {
+    canvasFactory: () => ({
+      width: 1, height: 1,
+      getContext: () => ({ translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {} }),
+      toBlob: (callback: (blob: Blob | null) => void, mime?: string) => callback(new Blob([new Uint8Array([1])], { type: mime ?? "application/octet-stream" }))
+    }) as unknown as HTMLCanvasElement,
+    decode: async () => ({ width: 1, height: 1, close(): void {} }) as unknown as ImageBitmap
+  }
+};
 const fixtures = {
   abw: enc(`<?xml version="1.0"?><abiword><section><p style="Heading 1">Open Formats</p><p>Local conversion preserves readable content.</p></section></abiword>`),
   oeb: enc(`<?xml version="1.0"?><oeb><body><title>Open Formats</title><p>Local conversion preserves readable content.</p></body></oeb>`),
@@ -34,7 +44,10 @@ describe("converter batch 5 - ABW, OEB and PML", () => {
     });
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: fixtures[source], name: `book.${source}` }, target);
+        const result = await convertFile(
+          { bytes: fixtures[source], name: `book.${source}` }, target,
+          target.startsWith("image-") ? imageOptions : {}
+        );
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Open Formats");

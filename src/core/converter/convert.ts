@@ -40,7 +40,7 @@ import { extractRawPreviewJpeg } from "./raw-photo";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { buildOdp, odpToSlides, odtToHtml } from "./odf";
-import { pptxToSlides, slidesToHtml } from "./pptx";
+import { pptxToSlides, presentationVariant, slidesToHtml } from "./pptx";
 import { rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
@@ -104,6 +104,9 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   odt: "application/vnd.oasis.opendocument.text",
   odp: "application/vnd.oasis.opendocument.presentation",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  pptm: "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+  potx: "application/vnd.openxmlformats-officedocument.presentationml.template",
+  ppsx: "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
   fb2: "application/x-fictionbook+xml",
   rst: "text/x-rst",
   tex: "application/x-tex",
@@ -155,7 +158,7 @@ function baseName(name: string): string {
 }
 
 /** The document containers written by the Office writers. */
-const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "fb2"]);
+const OFFICE_TARGETS = new Set<TargetFormat>(["rtf", "odt", "pptx", "pptm", "fb2"]);
 
 /** The spreadsheet containers every table and record source can produce. */
 const SHEET_TARGETS = new Set<TargetFormat>(["xlsx", "xlsm", "tsv", "xls", "ods"]);
@@ -173,6 +176,7 @@ async function renderDocument(html: string, title: string, target: TargetFormat)
   if (target === "rtf") return toBytes(docs.htmlToRtf(html));
   if (target === "odt") return docs.htmlToOdt(html);
   if (target === "pptx") return docs.htmlToPptx(html);
+  if (target === "pptm") return docs.htmlToPptm(html);
   if (target === "fb2") return docs.htmlToFb2(html, title);
   return toBytes(docs.htmlToText(html));
 }
@@ -300,13 +304,17 @@ async function runConversion(
       // Formatting and images aren't preserved — the content is editable.
       if (target === "docx") return docs.textToDocx(await docs.pdfToText(bytes));
       if (target === "dotx") return docs.textToDotx(await docs.pdfToText(bytes));
+      if (target === "potx" || target === "ppsx") {
+        const pptx = docs.htmlToPptx(await docs.pdfToHtml(bytes));
+        return presentationVariant(pptx, target);
+      }
       // PDF → EPUB (text-based), same honest caveat as → DOCX.
       if (target === "epub") {
         const text = await docs.pdfToText(bytes);
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
       // PDF → document containers: extract readable text before writing.
-      if (target === "rtf" || target === "odt" || target === "pptx" || target === "fb2") {
+      if (target === "rtf" || target === "odt" || target === "pptx" || target === "pptm" || target === "fb2") {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target);
       }
       // Single-file path: the first page. Render to PNG first for formats
@@ -487,8 +495,13 @@ async function runConversion(
       return renderDocument(rstToHtml(toText(bytes)), "Document", target);
     case "tex":
       return renderDocument(texToHtml(toText(bytes)), "Document", target);
-    case "abw":
-      return renderDocument(abwToHtml(toText(bytes)), "Document", target);
+    case "abw": {
+      const html = abwToHtml(toText(bytes));
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Document", target);
+    }
     case "zabw":
       return renderDocument(zabwToHtml(bytes), "Document", target);
     case "oeb":
