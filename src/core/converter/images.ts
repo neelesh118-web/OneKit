@@ -33,6 +33,7 @@ import {
   encodePgm,
   encodeXbm
 } from "./netpbm";
+import { decodeFarbfeld, decodePcx, decodeQoi, encodeFarbfeld, encodePcx, encodeQoi } from "./pixel-codecs";
 
 export type ImageTarget =
   | "image-png"
@@ -52,7 +53,10 @@ export type ImageTarget =
   | "image-pbm"
   | "image-pgm"
   | "image-pam"
-  | "image-xbm";
+  | "image-xbm"
+  | "image-qoi"
+  | "image-farbfeld"
+  | "image-pcx";
 
 const IMAGE_SOURCES = new Set<FileType>([
   "image-png",
@@ -75,7 +79,11 @@ const IMAGE_SOURCES = new Set<FileType>([
   "image-pbm",
   "image-pgm",
   "image-pam",
-  "image-xbm"
+  "image-xbm",
+  // QOI / Farbfeld / PCX — pure-JS codecs in pixel-codecs.ts, same bridge.
+  "image-qoi",
+  "image-farbfeld",
+  "image-pcx"
 ]);
 
 export function imageTargetMime(target: ImageTarget): string {
@@ -98,6 +106,9 @@ export function imageTargetMime(target: ImageTarget): string {
     case "image-pgm": return "image/x-portable-graymap";
     case "image-pam": return "image/x-portable-arbitrary-map";
     case "image-xbm": return "image/x-xbitmap";
+    case "image-qoi": return "image/qoi";
+    case "image-farbfeld": return "image/farbfeld";
+    case "image-pcx": return "image/x-pcx";
   }
 }
 
@@ -168,6 +179,9 @@ function toDecodableSource(bytes: Uint8Array, source: FileType): { bytes: Uint8A
   if (source === "image-pgm") return { bytes: encodeBmp(decodePgm(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-pam") return { bytes: encodeBmp(decodePam(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-xbm") return { bytes: encodeBmp(decodeXbm(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-qoi") return { bytes: encodeBmp(decodeQoi(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-farbfeld") return { bytes: encodeBmp(decodeFarbfeld(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-pcx") return { bytes: encodeBmp(decodePcx(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-psd") return { bytes: encodeBmp(decodePsd(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-ico") return icoToDecodable(bytes);
   if (source === "image-icns") return { bytes: icnsToPng(bytes), mime: "image/png" };
@@ -247,7 +261,8 @@ export async function convertImage(
     if (
       target === "image-bmp" || target === "image-tiff" || target === "image-dds" ||
       target === "image-tga" || target === "image-ppm" || target === "image-psd" ||
-      target === "image-pbm" || target === "image-pgm" || target === "image-pam" || target === "image-xbm"
+      target === "image-pbm" || target === "image-pgm" || target === "image-pam" || target === "image-xbm" ||
+      target === "image-qoi" || target === "image-farbfeld" || target === "image-pcx"
     ) {
       // Formats the browser can't write — encode them from the pixels.
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -265,6 +280,9 @@ export async function convertImage(
       if (target === "image-pgm") return encodePgm(image);
       if (target === "image-pam") return encodePam(image);
       if (target === "image-xbm") return encodeXbm(image);
+      if (target === "image-qoi") return encodeQoi(image);
+      if (target === "image-farbfeld") return encodeFarbfeld(image);
+      if (target === "image-pcx") return encodePcx(image);
       return encodeBmp(image);
     }
     if (target === "image-ico" || target === "image-svg" || target === "image-icns") {

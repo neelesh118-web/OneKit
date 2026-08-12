@@ -2069,3 +2069,241 @@ export function csvToOds(csvText: string): Uint8Array {
   const wb = XLSX.read(csvText, { type: "string" });
   return new Uint8Array(XLSX.write(wb, { bookType: "ods", type: "array" }) as ArrayBuffer);
 }
+
+
+/* OPML / SQL / properties / INI writers --------------------------------- */
+
+/**
+ * Escapes a string for a double-quoted XML/OPML attribute.
+ */
+function xmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
+ * Extracts the document's heading structure (h1–h6) into an OPML outline.
+ * The outline is real — the same XML structure feed readers and outliners
+ * import — and every heading becomes one <outline> node nested by level.
+ */
+export function htmlToOpml(html: string, title: string): string {
+  const lines: string[] = [];
+  lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+  lines.push(`<opml version="2.0">`);
+  lines.push(`  <head><title>${xmlAttr(title)}</title></head>`);
+  lines.push(`  <body>`);
+  const tags = html.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/gi) ?? [];
+  const stack: number[] = [];
+  for (const tag of tags) {
+    const m = tag.match(/<h([1-6])[^>]*>([\s\S]*?)<\/h\1>/i);
+    if (!m) continue;
+    const level = Number(m[1]!);
+    const text = htmlToText(m[2]!).trim();
+    if (!text) continue;
+    while (stack.length > 0 && stack[stack.length - 1]! >= level) stack.pop();
+    const indent = "    ".repeat(stack.length + 1);
+    lines.push(`${indent}<outline text="${xmlAttr(text)}"/>`);
+    stack.push(level);
+  }
+  lines.push(`  </body>`);
+  lines.push(`</opml>`);
+  return lines.join("\n") + "\n";
+}
+
+/** Records → SQL: a CREATE TABLE + INSERT statements per row. */
+export function recordsToSql(records: Record<string, string>[], tableName: string): string {
+  if (records.length === 0) throw new Error("No records to write as SQL.");
+  const keys = Object.keys(records[0]!);
+  const q = (s: string): string => `"${s.replace(/"/g, '""')}"`;
+  const esc = (s: string): string => s.replace(/'/g, "''");
+  const lines: string[] = [];
+  lines.push(`CREATE TABLE IF NOT EXISTS ${q(tableName)} (${keys.map(q).join(", ")});`);
+  for (const rec of records) {
+    const values = keys.map((k) => `'${esc(rec[k] ?? "")}'`);
+    lines.push(`INSERT INTO ${q(tableName)} (${keys.map(q).join(", ")}) VALUES (${values.join(", ")});`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** Records → Java .properties (key=value pairs, escaped). */
+export function recordsToProperties(records: Record<string, string>[]): string {
+  const esc = (s: string): string =>
+    s.replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/:/g, "\\:").replace(/=/g, "\\=");
+  const lines: string[] = [];
+  for (const rec of records) {
+    for (const [k, v] of Object.entries(rec)) {
+      lines.push(`${esc(k)}=${esc(v)}`);
+    }
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** JSON → INI: nested objects become [section] blocks. */
+export function jsonToIni(jsonText: string): string {
+  const parsed = parseJsonOrThrow(jsonText);
+  const lines: string[] = [];
+  const writeSection = (obj: Record<string, unknown>, section: string | null): void => {
+    for (const [k, v] of Object.entries(obj)) {
+      if (v !== null && typeof v === "object" && !Array.isArray(v)) {
+        const name = section ? `${section}.${k}` : k;
+        lines.push(`[${name}]`);
+        writeSection(v as Record<string, unknown>, name);
+      } else if (Array.isArray(v) && v.every((i) => i !== null && typeof i === "object")) {
+        v.forEach((item, i) => {
+          const name = section ? `${section}.${k}.${i}` : `${k}.${i}`;
+          lines.push(`[${name}]`);
+          writeSection(item as Record<string, unknown>, name);
+        });
+      } else {
+        const key = section ? `${section}.${k}` : k;
+        lines.push(`${key} = ${String(v)}`);
+      }
+    }
+  };
+  writeSection(parsed as Record<string, unknown>, null);
+  return lines.length > 0 ? lines.join("\n") + "\n" : "";
+}
+
+/* Subtitle writers ------------------------------------------------------- */
+
+function cueTimeToSeconds(t: string): number {
+  const m = t.match(/(\d+):(\d{2}):(\d{2})[.,](\d+)/);
+  if (!m) return 0;
+  const ms = Number(m[4]!.slice(0, 3).padEnd(3, "0"));
+  return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) + ms / 1000;
+}
+
+function secondsToAss(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}`;
+}
+
+function secondsToSbv(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.round((seconds % 1) * 1000);
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}.${String(ms).padStart(3, "0")}`;
+}
+
+/** Cues → ASS (Advanced SubStation Alpha) with a readable default style. */
+export function cuesToAss(cues: SubtitleCue[]): string {
+  if (cues.length === 0) throw new Error("No timed cues to write as ASS.");
+  const lines: string[] = [
+    "[Script Info]",
+    "ScriptType: v4.00+",
+    "WrapStyle: 0",
+    "",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    "Style: Default,Arial,28,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,2,0,2,20,20,40,1",
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text"
+  ];
+  for (const cue of cues) {
+    const text = cue.text.replace(/\n/g, "\\N");
+    lines.push(`Dialogue: 0,${secondsToAss(cueTimeToSeconds(cue.start))},${secondsToAss(cueTimeToSeconds(cue.end))},Default,,0,0,0,,${text}`);
+  }
+  return lines.join("\n") + "\n";
+}
+
+/** Cues → YouTube SBV (simple plain-text timestamps). */
+export function cuesToSbv(cues: SubtitleCue[]): string {
+  if (cues.length === 0) throw new Error("No timed cues to write as SBV.");
+  return cues
+    .map((c) => `${secondsToSbv(cueTimeToSeconds(c.start))},${secondsToSbv(cueTimeToSeconds(c.end))}\n${c.text}`)
+    .join("\n\n") + "\n";
+}
+
+/** Cues → TTML (Timed Text Markup Language, W3C). */
+export function cuesToTtml(cues: SubtitleCue[]): string {
+  if (cues.length === 0) throw new Error("No timed cues to write as TTML.");
+  const t = (seconds: number): string => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${s.toFixed(3).padStart(6, "0")}`;
+  };
+  const body = cues
+    .map(
+      (c) =>
+        `    <p begin="${t(cueTimeToSeconds(c.start))}" end="${t(cueTimeToSeconds(c.end))}">${xmlAttr(c.text)}</p>`
+    )
+    .join("\n");
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<tt xmlns="http://www.w3.org/ns/ttml" xml:lang="en">\n` +
+    `  <body>\n` +
+    `    <div>\n${body}\n` +
+    `    </div>\n` +
+    `  </body>\n` +
+    `</tt>\n`
+  );
+}
+
+/* OPML / plist record parsers ------------------------------------------- */
+
+/** OPML outline → records: one per <outline>, with title, text, url, type and depth. */
+export function opmlToRecords(opml: string): Record<string, string>[] {
+  const records: Record<string, string>[] = [];
+  const walk = (xml: string, depth: number): void => {
+    const re = /<outline\b([^>]*)\/?>([\s\S]*?)<\/outline>|<outline\b([^>]*)\/>/gi;
+    let m: RegExpExecArray | null;
+    let last = 0;
+    while ((m = re.exec(xml)) !== null) {
+      const attrs = (m[1] ?? m[3] ?? "") as string;
+      const inner = m[2] ?? "";
+      const readAttr = (name: string): string => {
+        const am = attrs.match(new RegExp(`${name}="([^"]*)"`));
+        return am ? am[1]!.replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">") : "";
+      };
+      const text = readAttr("text") || readAttr("title");
+      const record: Record<string, string> = { title: text, text, depth: String(depth) };
+      const url = readAttr("url");
+      if (url) record.url = url;
+      const type = readAttr("type");
+      if (type) record.type = type;
+      records.push(record);
+      if (inner) walk(inner, depth + 1);
+      last = re.lastIndex;
+    }
+    void last;
+  };
+  walk(opml, 0);
+  return records;
+}
+
+/**
+ * Apple plist (XML) → records. Supports <dict> with <key>/<string>/
+ * <integer>/<real>/<date>/<true>/<false> pairs; arrays of dicts become
+ * one record per entry, a top-level dict becomes a single record.
+ */
+export function plistToRecords(plist: string): Record<string, string>[] {
+  const parseDict = (xml: string): Record<string, string> => {
+    const result: Record<string, string> = {};
+    const keyRe = /<key>([^<]*)<\/key>\s*(<string>[^<]*<\/string>|<integer>-?\d+<\/integer>|<real>-?[\d.eE+-]+<\/real>|<date>[^<]*<\/date>|<true\s*\/>|<false\s*\/>)/g;
+    let m: RegExpExecArray | null;
+    while ((m = keyRe.exec(xml)) !== null) {
+      const key = m[1]!;
+      const val = m[2]!;
+      if (/<true\s*\/>/.test(val)) {
+        result[key] = "true";
+      } else if (/<false\s*\/>/.test(val)) {
+        result[key] = "false";
+      } else {
+        const inner = val.replace(/^<[^>]+>/, "").replace(/<\/[^>]+>$/, "");
+        result[key] = inner.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+      }
+    }
+    return result;
+  };
+  const dicts = plist.match(/<dict>[\s\S]*?<\/dict>/g) ?? [];
+  if (dicts.length === 0) throw new Error("No <dict> blocks found in this plist.");
+  return dicts.map(parseDict);
+}

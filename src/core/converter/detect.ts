@@ -26,6 +26,9 @@ export type FileType =
   | "eps" | "ps"
   | "image-tga" | "image-ppm" | "image-psd" | "image-icns"
   | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
+  | "image-qoi" | "image-farbfeld" | "image-pcx"
+  | "audio-au"
+  | "opml" | "plist"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -64,6 +67,9 @@ export const TYPE_LABELS: Record<FileType, string> = {
   eps: "Encapsulated PostScript (EPS)", ps: "PostScript (PS)",
   "image-tga": "Targa (TGA) image", "image-ppm": "PPM image", "image-psd": "Photoshop (PSD) image",
   "image-pbm": "PBM bitmap", "image-pgm": "PGM grayscale image", "image-pam": "PAM image", "image-xbm": "X11 XBM bitmap",
+  "image-qoi": "QOI image", "image-farbfeld": "Farbfeld image", "image-pcx": "PCX image",
+  "audio-au": "Sun AU audio",
+  opml: "OPML outline", plist: "Apple plist",
   "image-icns": "Apple icon (ICNS)",
   unknown: "Unknown format"
 };
@@ -108,6 +114,9 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   eps: ["eps", "epsf"], ps: ["ps"],
   "image-tga": ["tga"], "image-ppm": ["ppm"], "image-psd": ["psd"], "image-icns": ["icns"],
   "image-pbm": ["pbm"], "image-pgm": ["pgm"], "image-pam": ["pam"], "image-xbm": ["xbm"],
+  "image-qoi": ["qoi"], "image-farbfeld": ["ff", "farbfeld"], "image-pcx": ["pcx"],
+  "audio-au": ["au", "snd"],
+  opml: ["opml"], plist: ["plist"],
   unknown: []
 };
 
@@ -202,6 +211,13 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x50, 0x32]) || hasPrefix(bytes, [0x50, 0x35])) return "image-pgm"; // "P2"/"P5"
   if (hasPrefix(bytes, [0x50, 0x37])) return "image-pam"; // "P7"
   if (asciiAt(bytes, 0, "#define")) return "image-xbm";
+  // QOI: "qoif" magic. Farbfeld: 8-byte "farbfeld" magic.
+  if (asciiAt(bytes, 0, "qoif")) return "image-qoi";
+  if (asciiAt(bytes, 0, "farbfeld")) return "image-farbfeld";
+  // PCX: ZSoft header (0x0A manufacturer, version 5, RLE encoding 1).
+  if (bytes.length >= 4 && bytes[0] === 0x0a && bytes[1] === 5 && bytes[2] === 1) return "image-pcx";
+  // Sun AU: ".snd" magic.
+  if (asciiAt(bytes, 0, ".snd")) return "audio-au";
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   // PostScript: either the binary "DOS EPS" wrapper (C5 D0 D3 C6) or plain
@@ -313,6 +329,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     return fallback;
   }
   const trimmed = head.trimStart();
+  if (trimmed.startsWith("<opml") || trimmed.startsWith("<?xml") && trimmed.includes("<opml")) return "opml";
+  if (trimmed.startsWith("<?xml") && trimmed.includes("<plist")) return "plist";
   if (trimmed.startsWith("<svg") || trimmed.startsWith("<?xml") && trimmed.includes("<svg")) return "image-svg";
   if (trimmed.startsWith("<!doctype html") || trimmed.startsWith("<html")) {
     return trimmed.includes("netscape-bookmark") ? "bookmarks" : "html";

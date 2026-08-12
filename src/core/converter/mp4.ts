@@ -305,3 +305,69 @@ function concat(parts: Uint8Array[]): Uint8Array {
   }
   return out;
 }
+
+/* MP4 → MOV (QuickTime remux) ------------------------------------------- */
+
+const QT_BRAND = "qt  ";
+
+/**
+ * mp4 → mov is a container remux, not a re-encode: MP4 and QuickTime MOV
+ * are the same ISO-BMFF box structure, so the ftyp box is rebranded to
+ * the QuickTime major brand ("qt  ") and every other box — moov, mdat,
+ * all sample data — is preserved byte-for-byte. H.264/AAC tracks open in
+ * QuickTime Player and Apple apps just like a native MOV.
+ */
+export function mp4ToMov(bytes: Uint8Array): Uint8Array {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  let pos = 0;
+  let ftypStart = -1;
+  let ftypEnd = -1;
+  let sawMoov = false;
+  let sawMdat = false;
+  while (pos + 8 <= bytes.length) {
+    const size = view.getUint32(pos, false);
+    if (size < 8) throw new Error("This MP4 file has a corrupt box table.");
+    const type = String.fromCharCode(...bytes.subarray(pos + 4, pos + 8));
+    if (type === "ftyp" && ftypStart < 0) {
+      ftypStart = pos;
+      ftypEnd = pos + size;
+    } else if (type === "moov") {
+      sawMoov = true;
+    } else if (type === "mdat") {
+      sawMdat = true;
+    }
+    pos += size;
+    if (size === 0) break; // 0 means "to end of file" — only legal last
+  }
+  if (ftypStart < 0) throw new Error("This MP4 file has no ftyp box — it may not be a valid MP4.");
+  if (!sawMoov || !sawMdat) {
+    throw new Error("This MP4 file is missing its moov/mdat boxes — it may be corrupt.");
+  }
+
+  const out = bytes.slice();
+  // ftyp payload: major brand (4) + minor version (4) + compatible brands.
+  const major = ftypStart + 8;
+  out.set(new TextEncoder().encode(QT_BRAND), major);
+  const brands = ftypStart + 16;
+  const compatEnd = Math.min(ftypEnd, bytes.length);
+  let hasQt = false;
+  for (let i = brands; i + 4 <= compatEnd; i += 4) {
+    if (String.fromCharCode(...out.subarray(i, i + 4)) === QT_BRAND) {
+      hasQt = true;
+      break;
+    }
+  }
+  if (!hasQt && compatEnd + 4 <= out.length) {
+    // Append "qt  " to the compatible-brands list (ftyp must stay a
+    // multiple of 4; the box grows by one 4-byte brand).
+    const grow = out.subarray(brands);
+    const grown = new Uint8Array(out.length + 4);
+    grown.set(out.subarray(0, brands), 0);
+    grown.set(QT_BRAND.split("").map((c) => c.charCodeAt(0)), brands);
+    grown.set(grow, brands + 4);
+    const gv = new DataView(grown.buffer, grown.byteOffset, grown.byteLength);
+    gv.setUint32(ftypStart, gv.getUint32(ftypStart, false) + 4, false);
+    return grown;
+  }
+  return out;
+}
