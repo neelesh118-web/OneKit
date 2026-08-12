@@ -421,6 +421,12 @@ async function runConversion(
         mobiToHtml(bytes);
         return bytes.slice();
       }
+      if (source === "prc" && target === "azw") {
+        // Classic AZW1 is the same BOOKMOBI Palm database container. Parsing
+        // first rejects generic Palm PRCs, DRM, and unsupported compression.
+        mobiToHtml(bytes);
+        return bytes.slice();
+      }
       if (source === "mobi" && target === "azw") {
         // Classic AZW1 and MOBI use the same BOOKMOBI Palm database. Parse
         // every record first so protected or unsupported books aren't merely
