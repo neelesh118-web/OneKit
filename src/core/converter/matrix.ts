@@ -154,7 +154,7 @@ const RECORD_EXTRAS: TargetFormat[] = ["tsv", "xls", "ods", "xlsm", "xltx", "xlt
 const RECORD_DOCS: TargetFormat[] = [
   "html", "markdown", "text", "docx", "epub", "rtf", "odt", "odp", "pptx", "mobi", "azw", "fb2",
   "org", "textile", "mediawiki", "asciidoc", "htmlz", "txtz", "opml", "txt-url", "txt-base64", "txt-hex",
-  "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw"
+  "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "pdf"
 ];
 
 /** A record source's full target list: tables + docs, minus its own format. */
@@ -196,7 +196,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-pcx": [...IMAGE_TARGETS.filter((t) => t !== "image-pcx"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
   "image-xpm": [...IMAGE_TARGETS.filter((t) => t !== "image-xpm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
   "image-wbmp": [...IMAGE_TARGETS.filter((t) => t !== "image-wbmp"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  pdf: ["text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
+  pdf: ["text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "cbc", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "txt-base64", "txt-hex", "txt-url", "opml"],
   docx: ["html", "markdown", "text", "pdf", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   docm: ["html", "markdown", "text", "pdf", "docx", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   dotx: ["html", "markdown", "text", "pdf", "docx", "docm", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
@@ -228,7 +228,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   txtz: docTargetsExcept("txtz"),
   cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbc", ...IMAGE_TARGETS],
   cbc: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbz", ...IMAGE_TARGETS],
-  dxf: ["pdf", "html", "text", ...IMAGE_TARGETS],
+  dxf: ["pdf", "html", "text", "markdown", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   // Illustrator files carry a PDF payload since CS6, so every document
   // and raster target is honestly reachable through the PDF pipeline
   // (docTargetsExcept already includes the "copy the drawing" → pdf).
@@ -260,10 +260,16 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // Apple Pages: text comes from the embedded IWA/QuickLook data, so the
   // honest set is the text-based document targets (no image targets).
   pages: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  // Apple Keynote: the same iWork container as Pages — the slide text
+  // reads out of the IWA/XML blobs, so the text-based targets apply.
+  key: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  // Legacy binary PowerPoint: the OLE2 text records are readable, so the
+  // same text-based document targets are honestly reachable.
+  ppt: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
   xhtml: docTargetsExcept("xhtml"),
   mhtml: docTargetsExcept("mhtml"),
   svgz: SVG_TARGETS.filter((t) => t !== "svgz"),
-  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", ...IMAGE_TARGETS],
+  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbz", "cbc", ...IMAGE_TARGETS],
   csv: tableTargetsExcept("csv"),
   json: [...tableTargetsExcept("json"), "text"],
   tsv: tableTargetsExcept("tsv"),
@@ -327,8 +333,8 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "video-mov": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   // Base64/hex can hold ANY file — decode to bytes, sniff the real format,
   // then convert it like that format (image → all raster targets, etc.).
-  "text-base64": ["pdf", ...IMAGE_TARGETS, ...RECORD_DOCS],
-  "text-hex": ["pdf", ...IMAGE_TARGETS, ...RECORD_DOCS],
+  "text-base64": [...IMAGE_TARGETS, ...RECORD_DOCS],
+  "text-hex": [...IMAGE_TARGETS, ...RECORD_DOCS],
   opml: recordTargets("opml"),
   plist: recordTargets(),
   "text-url": ["text", "pdf"],
@@ -345,7 +351,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   bibtex: recordTargets(),
   jsonl: recordTargets("jsonl"),
   m3u: recordTargets(),
-  eml: [...recordTargets(), "pdf"],
+  eml: recordTargets(),
   torrent: recordTargets(),
   ssv: recordTargets(),
   psv: recordTargets(),

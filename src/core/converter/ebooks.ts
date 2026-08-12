@@ -385,6 +385,11 @@ export function pagesToHtml(bytes: Uint8Array): string {
   return wrapPagesHtml(iworkText(bytes, ".pages"));
 }
 
+/** Apple Keynote → HTML: the slides' text as readable prose. */
+export function keyToHtml(bytes: Uint8Array): string {
+  return wrapPagesHtml(iworkText(bytes, ".key"));
+}
+
 /** Apple Numbers → HTML: the sheet's strings as readable prose. */
 export function numbersToHtml(bytes: Uint8Array): string {
   return wrapPagesHtml(iworkText(bytes, ".numbers"));

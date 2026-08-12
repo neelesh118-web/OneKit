@@ -42,7 +42,7 @@ import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { encodeAu, parseAu } from "./au";
 import { encodeVoc, isVoc, parseVoc } from "./voc";
-import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, numbersToHtml, pagesToHtml, txtzToHtml } from "./ebooks";
+import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, keyToHtml, mobiToHtml, numbersToHtml, pagesToHtml, txtzToHtml } from "./ebooks";
 import { azw4FromPdf, mobiFromHtml } from "./ebooks-write";
 import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml, slidesToOdp } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
@@ -52,6 +52,7 @@ import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
 import { dxfToPdf, dxfToSvg, dxfToText } from "./vector";
+import { pptToHtml } from "./ole2";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -307,7 +308,7 @@ async function routeRecords(
   if (target === "vcf") return toBytes(docs.recordsToVcf(records));
   if (target === "ics") return toBytes(docs.recordsToIcs(records));
   if (target === "geojson") return toBytes(docs.recordsToGeoJson(records));
-  if (target === "docx" || target === "epub" || OFFICE_TARGETS.has(target)) {
+  if (target === "docx" || target === "epub" || target === "pdf" || OFFICE_TARGETS.has(target)) {
     return renderDocument(docs.recordsToHtml(records), title, target, opts);
   }
   if (SHEET_TARGETS.has(target)) return renderTable(docs.recordsToCsv(records), title, target, opts);
@@ -662,7 +663,18 @@ async function runConversion(
         return docs.epubFromHtml("Document", `<pre>${docs.escapeHtml(text)}</pre>`);
       }
       // PDF → document containers: extract readable text before writing.
-      if (target === "rtf" || target === "odt" || target === "odp" || target === "pptx" || target === "fb2" || target === "mobi" || target === "azw" || target === "txt-url" || target === "opml") {
+      if (
+        target === "rtf" || target === "odt" || target === "odp" || target === "pptx" ||
+        target === "pptm" || target === "potx" || target === "ppsx" || target === "docm" ||
+        target === "dotx" || target === "fb2" || target === "mobi" || target === "azw" ||
+        target === "prc" || target === "pdb" || target === "azw3" || target === "azw4" ||
+        target === "tex" || target === "rst" || target === "org" || target === "textile" ||
+        target === "mediawiki" || target === "asciidoc" || target === "htmlz" ||
+        target === "txtz" || target === "mhtml" || target === "xhtml" || target === "ps" ||
+        target === "eps" || target === "odg" || target === "svgz" || target === "abw" ||
+        target === "zabw" || target === "cbc" ||
+        target === "txt-base64" || target === "txt-hex" || target === "txt-url" || target === "opml"
+      ) {
         return renderDocument(await docs.pdfToHtml(bytes), "Document", target, opts);
       }
       // Single-file path: render page 1 as PNG, then push it through the
@@ -801,11 +813,21 @@ async function runConversion(
     case "dxf": {
       if (target === "pdf") return dxfToPdf(bytes);
       if (target === "text") return toBytes(dxfToText(bytes));
+      if (target === "markdown") return toBytes(dxfToText(bytes)); // plain text is valid Markdown
       const svg = dxfToSvg(bytes);
       if (target === "html") {
         return toBytes(`<!doctype html><html><head><meta charset="utf-8"/><title>DXF drawing</title></head><body>${svg}</body></html>`);
       }
       if (target === "image-svg") return toBytes(svg);
+      // Document targets render the entity inventory as a real document.
+      if (!target.startsWith("image-")) {
+        return renderDocument(
+          `<h1>DXF drawing</h1><pre>${docs.escapeHtml(dxfToText(bytes))}</pre>`,
+          "DXF drawing",
+          target,
+          opts
+        );
+      }
       return convertImage(toBytes(svg), target as ImageTarget, opts.canvas, opts.image, "image-svg");
     }
     case "markdown": {
@@ -845,6 +867,17 @@ async function runConversion(
     // as prose through the shared text extraction.
     case "numbers":
       return renderDocument(numbersToHtml(bytes), "Numbers spreadsheet", target, opts);
+    // Apple Keynote: same iWork container — the embedded QuickLook PDF is
+    // the faithful path when present, slide text otherwise.
+    case "key": {
+      const preview = extractPagesPreviewPdf(bytes);
+      if (target === "pdf" && preview) return preview;
+      return renderDocument(keyToHtml(bytes), "Keynote presentation", target, opts);
+    }
+    // Legacy binary PowerPoint: the OLE2 text records are readable without
+    // layout fidelity — title, bullets and notes, rendered as a document.
+    case "ppt":
+      return renderDocument(pptToHtml(bytes), "PowerPoint presentation", target, opts);
     // .et (WPS Spreadsheet) is content-sniffed like .dot/.wps: an OOXML
     // zip behaves as xlsx, an OLE2 workbook as xls, CSV text as a table.
     case "et": {

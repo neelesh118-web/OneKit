@@ -10,7 +10,7 @@ export type FileType =
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
-  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
+  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -51,7 +51,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   abw: "AbiWord document", zabw: "Compressed AbiWord document", oeb: "Open eBook",
   pml: "Palm Markup Language ebook", odg: "OpenDocument drawing", dot: "Word template (DOT)",
   wps: "Microsoft Works word processor", doc: "Word document (DOC)", pages: "Apple Pages document",
-  numbers: "Apple Numbers spreadsheet", et: "WPS Spreadsheet (ET)", geojson: "GeoJSON data",
+  numbers: "Apple Numbers spreadsheet", key: "Apple Keynote presentation",
+  ppt: "PowerPoint presentation (PPT)", et: "WPS Spreadsheet (ET)", geojson: "GeoJSON data",
   xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
@@ -97,7 +98,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
   abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], odg: ["odg"], dot: ["dot"],
-  wps: ["wps"], doc: ["doc"], pages: ["pages"], numbers: ["numbers"], et: ["et"],
+  wps: ["wps"], doc: ["doc"], pages: ["pages"], numbers: ["numbers"], key: ["key"], ppt: ["ppt"], et: ["et"],
   geojson: ["geojson"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
@@ -330,6 +331,7 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     // Stream names live in the directory as UTF-16LE.
     const directory = textWindow(bytes, 0, 8192);
     if (directory.includes("W\0o\0r\0k\0b\0o\0o\0k\0") || directory.includes("B\0o\0o\0k\0")) return "xls";
+    if (directory.includes("P\0o\0w\0e\0r\0P\0o\0i\0n\0t\0")) return "ppt";
     return "unknown";
   }
   // TAR: "ustar" at offset 257.
@@ -350,11 +352,13 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       return "pptx";
     }
     if (window.includes("mimetypeapplication/epub")) return "epub";
-    // Apple iWork documents (Pages/Numbers) are ZIP packages holding
+    // Apple iWork documents (Pages/Numbers/Keynote) are ZIP packages holding
     // Index/ (IWA text) and Metadata/ folders — the extension tells the
-    // two flavours apart, since both share the exact same container.
+    // flavours apart, since all three share the exact same container.
     if (window.includes("Index/") && window.includes("Metadata/")) {
-      return fallback === "numbers" ? "numbers" : "pages";
+      if (fallback === "numbers") return "numbers";
+      if (fallback === "key") return "key";
+      return "pages";
     }
     if (fallback === "htmlz" || fallback === "txtz" || fallback === "cbz" || fallback === "cbc") return fallback;
     // OpenDocument packages name their flavour in the stored mimetype entry.
