@@ -51,7 +51,7 @@ import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } fro
 import * as docs from "./documents";
 import * as txt from "./text";
 import * as arch from "./archives";
-import { dxfToPdf } from "./vector";
+import { dxfToPdf, dxfToSvg, dxfToText } from "./vector";
 
 export interface ConvertInput {
   bytes: Uint8Array;
@@ -188,6 +188,12 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
 
 const toBytes = (text: string): Uint8Array => new TextEncoder().encode(text);
 const toText = (bytes: Uint8Array): string => new TextDecoder().decode(bytes);
+
+/** Threads the injected canvas into pdfToImages; the browser uses the real DOM one. */
+function pdfCanvasDeps(opts: ConvertOptions): { canvasFactory?: () => HTMLCanvasElement } | undefined {
+  const factory = opts.canvas?.canvasFactory;
+  return factory ? { canvasFactory: factory } : undefined;
+}
 
 /** Sources that DON'T support raw-bytes → Base64/Hex (they have their own text path). */
 const NO_RAW_ENCODE = new Set<FileType>(["text", "text-base64", "text-hex", "text-url", "unknown"]);
@@ -537,6 +543,9 @@ async function runConversion(
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-tiff");
     }
     case "pdf":
+    case "ai":
+      // AI files are PDF payloads — copying to .pdf is the honest native move.
+      if (target === "pdf") return bytes;
       if (target === "text") return toBytes(await docs.pdfToText(bytes));
       if (target === "markdown") return toBytes(await docs.pdfToMarkdown(bytes));
       if (target === "html") return toBytes(await docs.pdfToHtml(bytes));
@@ -556,8 +565,15 @@ async function runConversion(
       // raster pipeline so EVERY image target works (GIF/WebP/BMP/TIFF/
       // ICO/AVIF included). The Convert tab zips all pages via pdfToImages
       // so multi-page PDFs never lose pages.
+      if (target === "cbz") {
+        const pages = await docs.pdfToImages(bytes, "png", pdfCanvasDeps(opts));
+        if (pages.length === 0) throw new Error("This PDF has no pages to render.");
+        const files: Record<string, Uint8Array> = {};
+        for (const page of pages) files[page.name] = page.bytes;
+        return arch.filesToZip(files);
+      }
       {
-        const pages = await docs.pdfToImages(bytes, "png");
+        const pages = await docs.pdfToImages(bytes, "png", pdfCanvasDeps(opts));
         if (pages.length === 0) throw new Error("This PDF has no pages to render.");
         if (target === "image-png") return pages[0]!.bytes;
         return convertImage(pages[0]!.bytes, target as ImageTarget, opts.canvas, opts.image, "image-png");
@@ -639,10 +655,34 @@ async function runConversion(
           name: name.replace(/\.[^.]+$/, ".png")
         };
       }));
-      return target === "epub" ? docs.epubFromImages("Comic", prepared) : docs.imagesToPdf(prepared);
+      if (target === "epub") return docs.epubFromImages("Comic", prepared);
+      if (target === "pdf") return docs.imagesToPdf(prepared);
+      if (target === "docx") return docs.imagesToDocx(prepared);
+      if (target === "docm") return docs.docxToDocm(await docs.imagesToDocx(prepared));
+      if (target === "dotx") return docs.docxToDotx(await docs.imagesToDocx(prepared));
+      if (target === "html") {
+        const imgs: string[] = [];
+        for (let index = 0; index < prepared.length; index += 1) {
+          const page = prepared[index]!;
+          const dataUrl = await imageBytesToDataUrl(page.bytes, "image/png");
+          imgs.push(`<img src="${dataUrl}" alt="page ${index + 1}"/>`);
+        }
+        return toBytes(`<!doctype html><html><head><meta charset="utf-8"/><title>Comic</title></head><body>${imgs.join("\n")}</body></html>`);
+      }
+      // Raster targets read the first page, matching the PDF → image rule.
+      if (target === "image-png") return prepared[0]!.bytes;
+      return convertImage(prepared[0]!.bytes, target as ImageTarget, opts.canvas, opts.image, "image-png");
     }
-    case "dxf":
-      return dxfToPdf(bytes);
+    case "dxf": {
+      if (target === "pdf") return dxfToPdf(bytes);
+      if (target === "text") return toBytes(dxfToText(bytes));
+      const svg = dxfToSvg(bytes);
+      if (target === "html") {
+        return toBytes(`<!doctype html><html><head><meta charset="utf-8"/><title>DXF drawing</title></head><body>${svg}</body></html>`);
+      }
+      if (target === "image-svg") return toBytes(svg);
+      return convertImage(toBytes(svg), target as ImageTarget, opts.canvas, opts.image, "image-svg");
+    }
     case "markdown": {
       const md = toText(bytes);
       const html = docs.markdownToHtml(md);

@@ -9,7 +9,7 @@ export type FileType =
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
-  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "cbz" | "dxf" | "audio-aiff" | "audio-aac" | "audio-midi"
+  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "cbz" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
@@ -35,6 +35,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-png": "PNG image", "image-jpeg": "JPEG image", "image-webp": "WebP image",
   "image-gif": "GIF image", "image-bmp": "BMP image", "image-avif": "AVIF image", "image-svg": "SVG image",
   "image-tiff": "TIFF image", "image-ico": "ICO icon", "image-dds": "DDS texture",
+  ai: "Illustrator (AI)",
   pdf: "PDF document", docx: "Word document", docm: "Macro-enabled Word document",
   dotx: "Word template", xlsx: "Excel workbook", xlsm: "Macro-enabled Excel workbook", epub: "EPUB ebook",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text", odp: "OpenDocument presentation",
@@ -85,7 +86,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
   pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
   fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], htmlz: ["htmlz"], txtz: ["txtz"], cbz: ["cbz", "cbr"],
-  dxf: ["dxf"],
+  dxf: ["dxf"], ai: ["ai"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
   abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], text: ["txt"],
@@ -252,6 +253,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, ".snd")) return "audio-au";
   if (asciiAt(bytes, 0, "Creative Voice File")) return "audio-voc";
   if (asciiAt(bytes, 0, "{\\rtf")) return "rtf";
+  // Illustrator (AI) files have carried a PDF payload since CS6 — the
+  // drawing is a normal PDF stream. Detect them as AI when the extension
+  // says so and the magic agrees, so every PDF target becomes reachable.
+  if (fallback === "ai" && asciiAt(bytes, 0, "%PDF-")) return "ai";
   if (asciiAt(bytes, 0, "%PDF-")) return "pdf";
   // PostScript: either the binary "DOS EPS" wrapper (C5 D0 D3 C6) or plain
   // ASCII PostScript starting with the %!PS-Adobe header — .eps and plain

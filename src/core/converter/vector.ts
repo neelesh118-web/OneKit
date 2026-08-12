@@ -92,6 +92,75 @@ function entityPoints(entity: Entity): Point[] {
   ];
 }
 
+/**
+ * Renders the same DXF entities as an SVG document (one element per
+ * entity, viewBox fitted to the drawing bounds). The y axis is flipped so
+ * the drawing reads the same way it does in the PDF output.
+ */
+export function dxfToSvg(bytes: Uint8Array): string {
+  const entities = parseAsciiDxf(bytes);
+  const points = entities.flatMap(entityPoints);
+  const minX = Math.min(...points.map((point) => point.x));
+  const maxX = Math.max(...points.map((point) => point.x));
+  const minY = Math.min(...points.map((point) => point.y));
+  const maxY = Math.max(...points.map((point) => point.y));
+  const pad = 16;
+  const width = Math.max(64, maxX - minX + pad * 2);
+  const height = Math.max(64, maxY - minY + pad * 2);
+  const map = (point: Point): Point => ({ x: pad + (point.x - minX), y: height - pad - (point.y - minY) });
+  const ink = "#111";
+  const parts: string[] = [];
+  const line = (from: Point, to: Point): void => {
+    const a = map(from);
+    const b = map(to);
+    parts.push(`<line x1="${a.x.toFixed(2)}" y1="${a.y.toFixed(2)}" x2="${b.x.toFixed(2)}" y2="${b.y.toFixed(2)}" stroke="${ink}" stroke-width="0.8"/>`);
+  };
+  for (const entity of entities) {
+    if (entity.kind === "line") line(entity.from, entity.to);
+    else if (entity.kind === "polyline") {
+      for (let index = 1; index < entity.points.length; index += 1) line(entity.points[index - 1]!, entity.points[index]!);
+      if (entity.closed) line(entity.points.at(-1)!, entity.points[0]!);
+    } else if (entity.kind === "circle") {
+      const center = map(entity.center);
+      parts.push(`<circle cx="${center.x.toFixed(2)}" cy="${center.y.toFixed(2)}" r="${(entity.radius).toFixed(2)}" fill="none" stroke="${ink}" stroke-width="0.8"/>`);
+    } else if (entity.kind === "arc") {
+      let end = entity.end;
+      while (end <= entity.start) end += 360;
+      const steps = Math.max(4, Math.ceil((end - entity.start) / 10));
+      let previous: Point | undefined;
+      for (let step = 0; step <= steps; step += 1) {
+        const angle = (entity.start + (end - entity.start) * step / steps) * Math.PI / 180;
+        const current = { x: entity.center.x + entity.radius * Math.cos(angle), y: entity.center.y + entity.radius * Math.sin(angle) };
+        if (previous) line(previous, current);
+        previous = current;
+      }
+    } else {
+      const at = map(entity.at);
+      const rotation = entity.rotation ? ` transform="rotate(${entity.rotation} ${at.x.toFixed(2)} ${at.y.toFixed(2)})"` : "";
+      parts.push(`<text x="${at.x.toFixed(2)}" y="${at.y.toFixed(2)}" font-family="Arial, sans-serif" font-size="${Math.max(5, Math.min(72, entity.height)).toFixed(1)}" fill="${ink}"${rotation}>${entity.text.replace(/\\P/g, " ").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</text>`);
+    }
+  }
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width.toFixed(1)}" height="${height.toFixed(1)}" viewBox="0 0 ${width.toFixed(1)} ${height.toFixed(1)}">` +
+    parts.join("") +
+    `</svg>`
+  );
+}
+
+/** Plain-text inventory of the drawing's entities — the honest dxf → txt. */
+export function dxfToText(bytes: Uint8Array): string {
+  const entities = parseAsciiDxf(bytes);
+  const lines: string[] = [`AutoCAD DXF drawing — ${entities.length} entity${entities.length === 1 ? "" : "s"}`, ""];
+  for (const entity of entities) {
+    if (entity.kind === "line") lines.push(`LINE from (${entity.from.x.toFixed(2)}, ${entity.from.y.toFixed(2)}) to (${entity.to.x.toFixed(2)}, ${entity.to.y.toFixed(2)})`);
+    else if (entity.kind === "polyline") lines.push(`POLYLINE ${entity.points.length} vertices${entity.closed ? " (closed)" : ""}`);
+    else if (entity.kind === "circle") lines.push(`CIRCLE center (${entity.center.x.toFixed(2)}, ${entity.center.y.toFixed(2)}) radius ${entity.radius.toFixed(2)}`);
+    else if (entity.kind === "arc") lines.push(`ARC center (${entity.center.x.toFixed(2)}, ${entity.center.y.toFixed(2)}) radius ${entity.radius.toFixed(2)} from ${entity.start.toFixed(1)}° to ${entity.end.toFixed(1)}°`);
+    else lines.push(`TEXT "${entity.text.replace(/\\P/g, " ")}"`);
+  }
+  return lines.join("\n") + "\n";
+}
+
 export async function dxfToPdf(bytes: Uint8Array): Promise<Uint8Array> {
   const entities = parseAsciiDxf(bytes);
   const points = entities.flatMap(entityPoints);

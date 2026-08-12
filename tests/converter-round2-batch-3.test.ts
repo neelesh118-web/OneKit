@@ -75,7 +75,9 @@ EOF
 describe("round 2 batch 3: ASCII DXF to PDF", () => {
   it("detects DXF by filename and advertises the PDF pair", () => {
     expect(detectFile(drawing, "drawing.dxf").type).toBe("dxf");
-    expect(targetsFor("dxf")).toEqual(["pdf"]);
+    // Round 5 extended dxf beyond pdf → svg/raster/html/text.
+    expect(targetsFor("dxf")).toContain("pdf");
+    expect(targetsFor("dxf").length).toBeGreaterThan(3);
     expect(Object.values(MATRIX).reduce((total, targets) => total + targets.length, 0)).toBeGreaterThanOrEqual(1280);
   });
 
