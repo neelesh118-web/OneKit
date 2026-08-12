@@ -429,8 +429,13 @@ async function runConversion(
       }
       return renderDocument(html, "Book", target);
     }
-    case "txtz":
-      return renderDocument(txtzToHtml(bytes), "Book", target);
+    case "txtz": {
+      const html = txtzToHtml(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Book", target);
+    }
     case "cbz": {
       const entries = arch.unzipToFiles(bytes);
       const pages = Object.entries(entries)
@@ -497,10 +502,22 @@ async function runConversion(
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
-    case "rst":
-      return renderDocument(rstToHtml(toText(bytes)), "Document", target);
-    case "tex":
-      return renderDocument(texToHtml(toText(bytes)), "Document", target);
+    case "rst": {
+      const html = rstToHtml(toText(bytes));
+      if (target === "image-png" || target === "image-jpeg") {
+        const text = docs.htmlToText(html).replace(/^reStructuredText\s*/i, "").trim();
+        return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Document", target);
+    }
+    case "tex": {
+      const html = texToHtml(toText(bytes));
+      if (target === "image-png" || target === "image-jpeg") {
+        const text = docs.htmlToText(html).replace(/^TeX document\s*/i, "").trim();
+        return convertImage(docs.textToSvg(text), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Document", target);
+    }
     case "abw": {
       const html = abwToHtml(toText(bytes));
       if (target === "image-png" || target === "image-jpeg") {
@@ -510,10 +527,16 @@ async function runConversion(
     }
     case "zabw":
       return renderDocument(zabwToHtml(bytes), "Document", target);
-    case "oeb":
-      return renderDocument(oebToHtml(toText(bytes)), "Book", target);
-    case "pml":
-      return renderDocument(pmlToHtml(toText(bytes)), "Book", target);
+    case "oeb": {
+      const html = oebToHtml(toText(bytes));
+      if (target === "image-png" || target === "image-jpeg") return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      return renderDocument(html, "Book", target);
+    }
+    case "pml": {
+      const html = pmlToHtml(toText(bytes));
+      if (target === "image-png" || target === "image-jpeg") return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      return renderDocument(html, "Book", target);
+    }
     case "html": {
       const html = toText(bytes);
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
@@ -546,6 +569,10 @@ async function runConversion(
         );
       }
       if (target === "markdown") return toBytes(text); // plain text is valid Markdown
+      if (target === "odp") {
+        if (!text.trim()) throw new Error("This document contains no readable text to render.");
+        return docs.htmlToOdp(`<pre>${docs.escapeHtml(text)}</pre>`);
+      }
       if (OFFICE_TARGETS.has(target)) {
         return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Document", target);
       }

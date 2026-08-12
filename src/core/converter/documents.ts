@@ -21,7 +21,7 @@ import { XMLParser } from "fast-xml-parser";
 import { strFromU8, unzipSync, zipSync } from "fflate/browser";
 import { PDFDocument, StandardFonts } from "pdf-lib";
 import { textToRtf } from "./rtf";
-import { buildOdt } from "./odf";
+import { buildOdp, buildOdt } from "./odf";
 import { buildPptx, slidesToHtml, textToSlides, type Slide } from "./pptx";
 
 const turndown = new TurndownService({ headingStyle: "atx", bulletListMarker: "-", codeBlockStyle: "fenced" });
@@ -2033,6 +2033,11 @@ export function htmlToOdt(html: string): Uint8Array {
  */
 export function htmlToPptx(html: string): Uint8Array {
   return buildPptx(textToSlides(htmlToText(html)));
+}
+
+/** HTML → OpenDocument presentation, preserving slide order and text. */
+export function htmlToOdp(html: string): Uint8Array {
+  return buildOdp(textToSlides(htmlToText(html)));
 }
 
 /** HTML → macro-enabled OOXML presentation without a fabricated VBA project. */

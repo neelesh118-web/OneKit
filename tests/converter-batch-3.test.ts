@@ -1,13 +1,23 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
-import { convertFile } from "../src/core/converter/convert";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { rstToHtml, texToHtml } from "../src/core/converter/markup";
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
+const imageOptions: ConvertOptions = {
+  canvas: {
+    canvasFactory: () => ({
+      width: 1, height: 1,
+      getContext: () => ({ translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {} }),
+      toBlob: (callback: (blob: Blob | null) => void, mime?: string) => callback(new Blob([new Uint8Array([1])], { type: mime ?? "application/octet-stream" }))
+    }) as unknown as HTMLCanvasElement,
+    decode: async () => ({ width: 1, height: 1, close(): void {} }) as unknown as ImageBitmap
+  }
+};
 const rst = enc.encode(`Converter Roadmap\n=================\n\nLocal conversion keeps files private.\n\n- Parse real input\n- Verify **valid output**`);
 const tex = enc.encode(String.raw`\documentclass{article}
 \begin{document}
@@ -39,7 +49,10 @@ describe("converter batch 3 - RST and TeX", () => {
     });
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: fixtures[source], name: `roadmap.${source}` }, target);
+        const result = await convertFile(
+          { bytes: fixtures[source], name: `roadmap.${source}` }, target,
+          target.startsWith("image-") ? imageOptions : {}
+        );
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Converter Roadmap");

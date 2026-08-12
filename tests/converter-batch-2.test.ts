@@ -1,12 +1,22 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
-import { convertFile } from "../src/core/converter/convert";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { buildPptx } from "../src/core/converter/pptx";
 
 const dec = new TextDecoder();
+const imageOptions: ConvertOptions = {
+  canvas: {
+    canvasFactory: () => ({
+      width: 1, height: 1,
+      getContext: () => ({ translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {} }),
+      toBlob: (callback: (blob: Blob | null) => void, mime?: string) => callback(new Blob([new Uint8Array([1])], { type: mime ?? "application/octet-stream" }))
+    }) as unknown as HTMLCanvasElement,
+    decode: async () => ({ width: 1, height: 1, close(): void {} }) as unknown as ImageBitmap
+  }
+};
 const deck = buildPptx([
   { title: "Roadmap", lines: ["Ship converters", "Verify every output"] },
   { title: "Results", lines: ["All processing remains local"] }
@@ -31,7 +41,10 @@ describe("converter batch 2 - OOXML presentation variants", () => {
 
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: deck, name: `roadmap.${source}` }, target);
+        const result = await convertFile(
+          { bytes: deck, name: `roadmap.${source}` }, target,
+          target.startsWith("image-") ? imageOptions : {}
+        );
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Roadmap");

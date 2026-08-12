@@ -184,3 +184,12 @@
 - Tests: 17 focused cases validate native signatures/MIME/names, ODP ZIP content and slide round-trip, real DOCM/DOTX/HTMLZ outputs, and corrupt input rejection.
 
 - Interleaved proprietary/raw/legacy targets through rank 1761 remain skipped where the source parser or target encoder is unavailable; JPEG aliases are not double-counted.
+
+## Batch 21
+
+- Added 19 demand-ranked pairs: POTX/PPSX/PPTM to JPG/PNG (ranks 1939/1940, 1947/1948, 1968/1969), PRC to JPG/PNG (ranks 1989/1990), TXT to ODP (rank 2074), and OEB/PML/RST/TeX/TXTZ to JPG/PNG (ranks 1912-2081).
+- Pair total: 1,415.
+- Formats: validated publishing, ebook, presentation, and Palm/MOBI-family text feeds the local SVG raster pipeline; plain text is packaged into a standards-shaped ODP with blank-input rejection.
+- Tests: 29 focused cases validate all 19 pairs, matrix exposure, native signatures/MIME/names, ODP package content, and corrupt or blank input rejection. The complete suite passes 1,734 tests across 219 files.
+
+- Interleaved proprietary legacy Office, raw-camera, and unsupported ebook writer targets through rank 2081 remain skipped where no honest local parser or encoder exists.
