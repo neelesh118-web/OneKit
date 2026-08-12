@@ -302,3 +302,111 @@ export function txtzToHtml(bytes: Uint8Array): string {
   }).join("\n");
   return `<!doctype html><html><head><meta charset="utf-8"><title>TXTZ ebook</title></head><body>${chapters}</body></html>`;
 }
+
+/* Apple Pages ----------------------------------------------------------- */
+
+/**
+ * Extracts the embedded QuickLook PDF most .pages files carry — the one
+ * genuinely faithful representation of the page. Returns undefined when
+ * the package has no preview.
+ */
+export function extractPagesPreviewPdf(bytes: Uint8Array): Uint8Array | undefined {
+  let files: Record<string, Uint8Array>;
+  try {
+    files = unzipSync(bytes);
+  } catch {
+    throw new Error("Could not read this .pages file — it may be corrupt or password-protected.");
+  }
+  const preview = Object.entries(files).find(
+    ([name, data]) => /quicklook\/preview\.pdf$/i.test(name) && asciiAt(data, 0, "%PDF-")
+  )?.[1];
+  return preview ? new Uint8Array(preview) : undefined;
+}
+
+/**
+ * Pulls readable prose out of a .pages file. Modern Pages documents store
+ * their text in binary IWA blobs (Index/Document.iwa); older ones keep a
+ * plain XML Index/Document.xml. For both, we scan for printable runs —
+ * UTF-16LE text in the IWA case, XML text in the XML case — which is the
+ * honest, lossy-but-real extraction available without an Apple parser.
+ */
+export function pagesToHtml(bytes: Uint8Array): string {
+  let files: Record<string, Uint8Array>;
+  try {
+    files = unzipSync(bytes);
+  } catch {
+    throw new Error("Could not read this .pages file — it may be corrupt or password-protected.");
+  }
+  const docXml = Object.entries(files).find(([name]) => /^index\/document\.xml$/i.test(name))?.[1];
+  if (docXml) {
+    const text = strFromU8(docXml)
+      .replace(/<\/?[a-zA-Z0-9-]+(\s[^>]*)?>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length > 0) return wrapPagesHtml(text);
+  }
+  // IWA heuristic: pick out UTF-16LE runs of printable ASCII from every
+  // .iwa blob and keep the longer ones (sentence-length prose, not the
+  // short binary-noise runs protobuf packing creates).
+  const words = new Set<string>();
+  for (const [name, data] of Object.entries(files)) {
+    if (!/\.iwa$/i.test(name)) continue;
+    let run = "";
+    const flush = (): void => {
+      if (run.length >= 3) words.add(run);
+      run = "";
+    };
+    for (let i = 0; i + 1 < data.length; i += 2) {
+      const c = data[i]!;
+      const c2 = data[i + 1]!;
+      if (c2 === 0 && c >= 32 && c < 127) {
+        run += String.fromCharCode(c);
+      } else {
+        flush();
+      }
+    }
+    flush();
+  }
+  const sentences = [...words].filter((w) => w.length >= 20).sort((a, b) => a.localeCompare(b));
+  if (sentences.length === 0) {
+    throw new Error("Couldn't find readable text inside this .pages file — it may be empty or use unusual fonts.");
+  }
+  return wrapPagesHtml(sentences.join(" "));
+}
+
+function wrapPagesHtml(text: string): string {
+  const paragraphs = text.split(/(?<=\.)\s+/).map((p) => `<p>${escapeXml(p)}</p>`);
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Pages document</title></head><body>${paragraphs.join("\n")}</body></html>`;
+}
+
+/* Kindle AZW4 ----------------------------------------------------------- */
+
+/**
+ * AZW4 is Amazon's PalmDB wrapper around a PDF: the drawing itself is a
+ * normal PDF stream stored inside the database records. We locate the
+ * %PDF- magic (followed by the %%EOF trailer) and hand the extracted
+ * stream to the whole PDF pipeline.
+ */
+export function extractAzw4Pdf(bytes: Uint8Array): Uint8Array {
+  let at = -1;
+  for (let i = 0; i + 5 < bytes.length; i++) {
+    if (asciiAt(bytes, i, "%PDF-")) {
+      at = i;
+      break;
+    }
+  }
+  if (at < 0) throw new Error("This .azw4 file contains no readable PDF stream inside.");
+  let end = bytes.length;
+  for (let i = at + 5; i + 4 < bytes.length; i++) {
+    if (asciiAt(bytes, i, "%%EOF")) end = i + 5;
+  }
+  return bytes.subarray(at, end);
+}
+
+function asciiAt(bytes: Uint8Array, offset: number, text: string): boolean {
+  if (bytes.length < offset + text.length) return false;
+  for (let i = 0; i < text.length; i++) {
+    if (bytes[offset + i] !== text.charCodeAt(i)) return false;
+  }
+  return true;
+}

@@ -42,8 +42,8 @@ import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { encodeAu, parseAu } from "./au";
 import { encodeVoc, isVoc, parseVoc } from "./voc";
-import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
-import { mobiFromHtml } from "./ebooks-write";
+import { extractAzw4Pdf, extractPagesPreviewPdf, fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, pagesToHtml, txtzToHtml } from "./ebooks";
+import { azw4FromPdf, mobiFromHtml } from "./ebooks-write";
 import { imagesToOdp, imagesToOdt, odpToSlides, odtToHtml, slidesToOdp } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
 import { imageToRtfDocument, rtfToHtml } from "./rtf";
@@ -99,8 +99,17 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   "image-icns": "image/icns",
   mobi: "application/x-mobipocket-ebook",
   azw: "application/vnd.amazon.ebook",
+  azw3: "application/vnd.amazon.ebook",
+  azw4: "application/vnd.amazon.ebook",
   prc: "application/x-mobipocket-ebook",
   pdb: "application/vnd.palm",
+  mhtml: "message/rfc822",
+  xhtml: "application/xhtml+xml",
+  ps: "application/postscript",
+  eps: "application/postscript",
+  odg: "application/vnd.oasis.opendocument.drawing",
+  svgz: "image/svg+xml",
+  cbc: "application/vnd.comicbook+zip",
   tex: "application/x-tex",
   rst: "text/x-rst",
   "image-pbm": "image/x-portable-bitmap",
@@ -206,8 +215,9 @@ function baseName(name: string): string {
 
 /** The document containers written by the Office writers. */
 const OFFICE_TARGETS = new Set<TargetFormat>([
-  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "opml", "txt-url",
+  "rtf", "odt", "pptx", "odp", "fb2", "mobi", "azw", "prc", "pdb", "azw3", "azw4", "tex", "rst", "opml", "txt-url",
   "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "docm", "dotx", "pptm", "potx", "ppsx",
+  "cbz", "cbc", "mhtml", "xhtml", "ps", "eps", "odg", "svgz",
   "image-png", "image-jpeg", "image-webp", "image-gif", "image-svg"
 ]);
 
@@ -237,7 +247,19 @@ async function renderDocument(html: string, title: string, target: TargetFormat,
   if (target === "potx") return docs.pptxToPotx(docs.htmlToPptx(html));
   if (target === "ppsx") return docs.pptxToPpsx(docs.htmlToPptx(html));
   if (target === "fb2") return docs.htmlToFb2(html, title);
-  if (target === "mobi" || target === "azw" || target === "prc" || target === "pdb") return await mobiFromHtml(html, { title });
+  if (target === "mobi" || target === "azw" || target === "prc" || target === "pdb" || target === "azw3") return await mobiFromHtml(html, { title });
+  if (target === "azw4") return azw4FromPdf(await docs.htmlToPdf(html), { title });
+  if (target === "mhtml") return docs.htmlToMhtml(html, title);
+  if (target === "xhtml") return docs.htmlToXhtml(html);
+  if (target === "ps") return docs.htmlToPs(html);
+  if (target === "eps") return docs.htmlToEps(html);
+  if (target === "odg") return docs.htmlToOdg(html, title);
+  if (target === "svgz") return arch.gzipBytes(docs.textToSvg(docs.htmlToText(html)));
+  if (target === "cbz" || target === "cbc") {
+    const svg = docs.textToSvg(docs.htmlToText(html));
+    const png = await convertImage(svg, "image-png", opts.canvas, opts.image, "image-svg");
+    return arch.filesToZip({ "page-01.png": png });
+  }
   if (target === "tex") return toBytes(docs.htmlToLatex(html, title));
   if (target === "rst") return toBytes(docs.textToRst(docs.htmlToText(html), title));
   if (target === "opml") return toBytes(docs.htmlToOpml(html, title));
@@ -329,6 +351,7 @@ async function renderTable(csv: string, title: string, target: TargetFormat, opt
   if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
   if (target === "pdf") return docs.csvToPdf(csv);
   if (target === "image-svg") return docs.csvToSvg(csv);
+  if (target === "svgz") return arch.gzipBytes(docs.csvToSvg(csv));
   if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif") {
     const svg = docs.csvToSvg(csv);
     return convertImage(svg, target, opts.canvas, opts.image, "image-svg");
@@ -413,6 +436,37 @@ async function convertDecodedBytes(
     );
   }
   return runConversion(inner, target, raw, opts);
+}
+
+/**
+ * Reads a .dot/.wps file the honest way: the payload decides. RTF, HTML,
+ * plain text and XML content all convert; binary OLE2 containers can't be
+ * parsed locally and get a clear error instead of a mangled file.
+ */
+async function sniffDocToHtml(bytes: Uint8Array): Promise<string> {
+  const inner = detectFile(bytes, "sniff.bin").type;
+  if (inner === "rtf") return rtfToHtml(toText(bytes));
+  if (inner === "html") return toText(bytes);
+  if (inner === "docx") return docs.docxToHtml(bytes);
+  if (inner === "text" || inner === "markdown" || inner === "xml") {
+    return `<pre>${docs.escapeHtml(toText(bytes))}</pre>`;
+  }
+  // Plain text has no magic bytes, so it lands on "unknown" — accept it
+  // when the payload is printable (no NULs, no control bytes).
+  if (inner === "unknown" && bytes.length > 0) {
+    let printable = true;
+    for (let i = 0; i < Math.min(bytes.length, 8192); i++) {
+      const b = bytes[i]!;
+      if (b === 0 || (b < 9) || (b > 13 && b < 32 && b !== 27)) {
+        printable = false;
+        break;
+      }
+    }
+    if (printable) return `<pre>${docs.escapeHtml(toText(bytes))}</pre>`;
+  }
+  throw new Error(
+    "This file is a binary Word/Works container that can't be read locally — try the text, RTF or HTML version instead."
+  );
 }
 
 async function runConversion(
@@ -596,6 +650,10 @@ async function runConversion(
       return renderDocument(rtfToHtml(toText(bytes)), "Document", target, opts);
     case "odt":
       return renderDocument(odtToHtml(bytes), "Document", target, opts);
+    // OpenDocument drawings keep their text in the same text:h/text:p tags
+    // as ODT, so the same reader serves both flavours.
+    case "odg":
+      return renderDocument(odtToHtml(bytes), "Drawing", target, opts);
     case "odp":
       if (target === "odp") return slidesToOdp(odpToSlides(bytes));
       return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target, opts);
@@ -609,10 +667,26 @@ async function runConversion(
       const xml = toText(bytes);
       return renderDocument(fb2ToHtml(xml), fb2Title(xml), target, opts);
     }
+    // FB3 is the compressed FictionBook variant — a gzip stream of the
+    // same XML, so it funnels through the exact FB2 reader.
+    case "fb3": {
+      const xml = arch.gunzipToText(bytes);
+      return renderDocument(fb2ToHtml(xml), fb2Title(xml), target, opts);
+    }
     case "mobi":
     case "azw":
     case "prc":
+    // PDB (PalmDOC), AZW3 (KF8), SNB (Samsung) and RB (Rocket eBook) are
+    // all Palm databases — the same container the MOBI reader handles.
+    case "pdb":
+    case "azw3":
+    case "snb":
+    case "rb":
       return renderDocument(mobiToHtml(bytes), "Book", target, opts);
+    // AZW4 wraps a PDF inside a Palm database — extract the drawing and
+    // run the whole PDF pipeline, exactly like .ai files do.
+    case "azw4":
+      return runConversion("pdf", target, extractAzw4Pdf(bytes), opts);
     case "htmlz":
       return renderDocument(htmlzToHtml(bytes), "Book", target, opts);
     case "txtz":
@@ -640,7 +714,8 @@ async function runConversion(
       if (OFFICE_TARGETS.has(target) || IMAGE_OR_DOC_TARGETS.has(target)) return renderDocument(html, "Book", target, opts);
       return toBytes(docs.htmlToText(html));
     }
-    case "cbz": {
+    case "cbz":
+    case "cbc": {
       const entries = arch.unzipToFiles(bytes);
       const pages = Object.entries(entries)
         .filter(([name, data]) => data.length > 0 && /\.(?:png|jpe?g|gif|webp|bmp|avif|tiff?|ico|dds|tga|ppm|psd|icns)$/i.test(name))
@@ -701,6 +776,29 @@ async function runConversion(
       return renderDocument(texToHtml(toText(bytes)), "Document", target, opts);
     case "abw":
       return renderDocument(abwToHtml(toText(bytes)), "Document", target, opts);
+    // .dot (Word template) and .wps (Microsoft Works) files are content-
+    // sniffed at conversion time: text/RTF/HTML/XML payloads convert like
+    // the format they actually contain; binary containers throw an honest
+    // error (the same rule the .eps and .xlsm paths follow).
+    case "dot":
+    case "wps":
+      return renderDocument(await sniffDocToHtml(bytes), "Document", target, opts);
+    // Apple Pages: the embedded QuickLook PDF is the faithful path; text
+    // extraction from the IWA blobs covers the rest.
+    case "pages": {
+      const preview = extractPagesPreviewPdf(bytes);
+      if (target === "pdf" && preview) return preview;
+      return renderDocument(pagesToHtml(bytes), "Pages document", target, opts);
+    }
+    case "xhtml":
+      // XHTML is XML-serialised HTML — drop the declaration and reuse the
+      // HTML pipeline.
+      return renderDocument(toText(bytes).replace(/^\s*<\?xml[^>]*\?>\s*/i, ""), "Document", target, opts);
+    case "mhtml":
+      return renderDocument(docs.mhtmlToHtml(bytes), "Document", target, opts);
+    case "svgz":
+      // A .svgz is a gzipped SVG — decompress and run the SVG pipeline.
+      return runConversion("image-svg", target, toBytes(arch.gunzipToText(bytes)), opts);
     case "zabw":
       return renderDocument(zabwToHtml(bytes), "Document", target, opts);
     case "oeb":

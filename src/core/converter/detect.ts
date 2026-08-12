@@ -9,8 +9,8 @@ export type FileType =
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
-  | "fb2" | "mobi" | "azw" | "prc" | "htmlz" | "txtz" | "cbz" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
-  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "text"
+  | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
+  | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "pages" | "xhtml" | "mhtml" | "svgz" | "text"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -42,12 +42,16 @@ export const TYPE_LABELS: Record<FileType, string> = {
   ods: "OpenDocument spreadsheet", pptx: "PowerPoint deck", pptm: "Macro-enabled PowerPoint deck",
   potx: "PowerPoint template", ppsx: "PowerPoint slide show", xls: "Excel 97–2003 workbook",
   fb2: "FictionBook (FB2)", mobi: "MOBI ebook", azw: "Kindle AZW ebook", prc: "Palm PRC ebook",
-  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook", cbz: "Comic Book ZIP (CBZ)", dxf: "AutoCAD DXF drawing",
+  pdb: "Palm database (PDB)", azw3: "Kindle KF8 ebook (AZW3)", azw4: "Kindle AZW4 ebook",
+  snb: "Samsung E-book (SNB)", rb: "Rocket eBook (RB)", fb3: "FictionBook 3 (FB3)",
+  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook", cbz: "Comic Book ZIP (CBZ)", cbc: "Comic Book ZIP (CBC)", dxf: "AutoCAD DXF drawing",
   "audio-aiff": "AIFF audio", "audio-aac": "AAC audio",
   "audio-midi": "MIDI music",
   html: "HTML page", markdown: "Markdown", rst: "reStructuredText", tex: "TeX/LaTeX",
   abw: "AbiWord document", zabw: "Compressed AbiWord document", oeb: "Open eBook",
-  pml: "Palm Markup Language ebook", text: "Plain text",
+  pml: "Palm Markup Language ebook", odg: "OpenDocument drawing", dot: "Word template (DOT)",
+  wps: "Microsoft Works word processor", pages: "Apple Pages document",
+  xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
   "font-ttf": "TrueType font", "font-woff": "WOFF font", "font-woff2": "WOFF2 font", "font-otf": "OpenType font",
@@ -85,11 +89,14 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
   rtf: ["rtf"], odt: ["odt"], odp: ["odp"], ods: ["ods"], pptx: ["pptx"],
   pptm: ["pptm"], potx: ["potx"], ppsx: ["ppsx"], xls: ["xls"],
-  fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], htmlz: ["htmlz"], txtz: ["txtz"], cbz: ["cbz", "cbr"],
+  fb2: ["fb2"], mobi: ["mobi"], azw: ["azw"], prc: ["prc"], pdb: ["pdb"], azw3: ["azw3"],
+  azw4: ["azw4"], snb: ["snb"], rb: ["rb"], fb3: ["fb3"],
+  htmlz: ["htmlz"], txtz: ["txtz"], cbz: ["cbz", "cbr"], cbc: ["cbc"],
   dxf: ["dxf"], ai: ["ai"],
   "audio-aiff": ["aif", "aiff", "aifc"], "audio-aac": ["aac"], "audio-midi": ["mid", "midi"],
   html: ["html", "htm"], markdown: ["md", "markdown"], rst: ["rst"], tex: ["tex", "latex"],
-  abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], text: ["txt"],
+  abw: ["abw"], zabw: ["zabw"], oeb: ["oeb"], pml: ["pml"], odg: ["odg"], dot: ["dot"],
+  wps: ["wps"], pages: ["pages"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
   zip: ["zip"], tar: ["tar"], gzip: ["gz", "gzip"],
   "font-ttf": ["ttf"], "font-woff": ["woff"], "font-woff2": ["woff2"], "font-otf": ["otf"],
@@ -264,7 +271,14 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0xc5, 0xd0, 0xd3, 0xc6]) || asciiAt(bytes, 0, "%!PS-Adobe")) {
     return fallback === "ps" ? "ps" : "eps";
   }
-  if (hasPrefix(bytes, [0x1f, 0x8b])) return fallback === "zabw" ? "zabw" : "gzip";
+  // .gz containers whose payload is a distinct format: zabw (compressed
+  // AbiWord), fb3 (compressed FictionBook) and svgz (compressed SVG) are
+  // gzip streams the extension names — everything else is a plain .gz.
+  if (hasPrefix(bytes, [0x1f, 0x8b])) {
+    if (fallback === "zabw") return "zabw";
+    if (fallback === "fb3" || fallback === "svgz") return fallback;
+    return "gzip";
+  }
   if (hasPrefix(bytes, [0x00, 0x01, 0x00, 0x00])) return "font-ttf";
   if (asciiAt(bytes, 0, "OTTO")) return "font-otf";
   if (asciiAt(bytes, 0, "wOFF")) return "font-woff";
@@ -277,8 +291,16 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   // AIFF and AIFF-C share the IFF "FORM" wrapper.
   if (asciiAt(bytes, 0, "FORM") && (asciiAt(bytes, 8, "AIFF") || asciiAt(bytes, 8, "AIFC"))) return "audio-aiff";
   // MOBI/AZW e-books are Palm databases with a book type/creator pair.
+  // The same container holds PDB (PalmDOC), AZW3 (KF8), AZW4 (PDF inside),
+  // SNB (Samsung) and RB (Rocket eBook) — the extension tells them apart,
+  // the Palm database reader serves them all.
   if (asciiAt(bytes, 60, "BOOKMOBI") || asciiAt(bytes, 60, "TEXtREAd")) {
-    if (fallback === "azw" || fallback === "prc") return fallback;
+    if (
+      fallback === "azw" || fallback === "prc" || fallback === "pdb" ||
+      fallback === "azw3" || fallback === "azw4" || fallback === "snb" || fallback === "rb"
+    ) {
+      return fallback;
+    }
     return "mobi";
   }
   // MP4/MOV/M4A share the ftyp box — the brand tells video from audio.
@@ -326,11 +348,15 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       return "pptx";
     }
     if (window.includes("mimetypeapplication/epub")) return "epub";
-    if (fallback === "htmlz" || fallback === "txtz" || fallback === "cbz") return fallback;
+    // Apple Pages documents are ZIP packages holding Index/ (IWA text) and
+    // Metadata/ folders, with a QuickLook preview PDF in older files.
+    if (window.includes("Index/") && window.includes("Metadata/")) return "pages";
+    if (fallback === "htmlz" || fallback === "txtz" || fallback === "cbz" || fallback === "cbc") return fallback;
     // OpenDocument packages name their flavour in the stored mimetype entry.
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.text")) return "odt";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.presentation")) return "odp";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.spreadsheet")) return "ods";
+    if (window.includes("mimetypeapplication/vnd.oasis.opendocument.drawing")) return "odg";
     // A ZIP with a known Office/EPUB name whose container markers live past the
     // probe window (common in small files) is still that format, not a generic
     // ZIP — trust the extension rather than mislabeling it.
@@ -338,7 +364,8 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       fallback === "docx" || fallback === "docm" || fallback === "dotx" ||
       fallback === "xlsx" || fallback === "xlsm" || fallback === "epub" ||
       fallback === "pptx" || fallback === "pptm" || fallback === "potx" || fallback === "ppsx" ||
-      fallback === "odt" || fallback === "odp" || fallback === "ods"
+      fallback === "odt" || fallback === "odp" || fallback === "ods" ||
+      fallback === "odg" || fallback === "pages"
     ) {
       return fallback;
     }
@@ -369,6 +396,12 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   const trimmed = head.trimStart();
   if (trimmed.startsWith("<opml") || trimmed.startsWith("<?xml") && trimmed.includes("<opml")) return "opml";
   if (trimmed.startsWith("<?xml") && trimmed.includes("<plist")) return "plist";
+  // XHTML is XML-serialised HTML — an XML declaration plus an <html> root
+  // (possibly with xmlns). It must be caught before the plain-HTML check.
+  if ((trimmed.startsWith("<html") && trimmed.includes("xmlns")) || trimmed.startsWith("<?xml") && trimmed.includes("<html")) return "xhtml";
+  // MHTML is a MIME e-mail-style container whose first text/html part is
+  // the page. Sniff the MIME-Version + multipart header pair.
+  if (/^mime-version:\s*1\.0/im.test(trimmed) && /^content-type:.*multipart\//im.test(trimmed)) return "mhtml";
   // DIF: "TABLE" then a version line. gnumeric: XML with gnm namespace.
   if (/^TABLE[\s\n]*[012]/.test(trimmed)) return "dif";
   if (trimmed.startsWith("<?xml") && trimmed.includes("<gnm:Workbook")) return "gnumeric";

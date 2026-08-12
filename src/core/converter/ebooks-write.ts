@@ -229,3 +229,32 @@ export function mobiFromHtml(html: string, opts?: { title?: string }): Uint8Arra
   }
   return file;
 }
+
+/**
+ * AZW4 writer: wraps an existing PDF in a PalmDB database, exactly the
+ * container Amazon uses for "Print Replica" Kindle files. The reader
+ * (extractAzw4Pdf in ebooks.ts) finds the %PDF- stream back, so every
+ * file written here round-trips into the PDF pipeline.
+ */
+export function azw4FromPdf(pdf: Uint8Array, opts?: { title?: string }): Uint8Array {
+  const title = (opts?.title || "Book").slice(0, 31);
+  const chunks: Uint8Array[] = [];
+  for (let i = 0; i < pdf.length; i += 4096) {
+    chunks.push(pdf.subarray(i, Math.min(i + 4096, pdf.length)));
+  }
+  const total = chunks.length;
+  const listEnd = 78 + total * 8;
+  const file = new Uint8Array(listEnd + pdf.length);
+  file.set(encoder.encode(title), 0);
+  file.set(encoder.encode("BOOK"), 60);
+  file.set(encoder.encode("MOBI"), 64);
+  be16(file, 76, total);
+  let off = listEnd;
+  for (let r = 0; r < total; r++) {
+    be32(file, 78 + r * 8, off);
+    const rec = chunks[r]!;
+    file.set(rec, off);
+    off += rec.length;
+  }
+  return file;
+}

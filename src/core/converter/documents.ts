@@ -8,7 +8,7 @@ import { toArrayBuffer } from "./util";
 import { detectFromBytes } from "./detect";
 import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
 import { fitEmu } from "./raster";
-import { bytesToBase64 } from "./text";
+import { base64ToBytes, bytesToBase64 } from "./text";
 // Make pdfjs's worker available on the main thread so extraction works in
 // extension popups, Node, and tests without spawning a worker.
 import * as pdfjsWorkerModule from "pdfjs-dist/legacy/build/pdf.worker.mjs";
@@ -2917,4 +2917,156 @@ export function epubImagesToCbz(bytes: Uint8Array): Uint8Array {
   }
   if (page === 0) throw new Error("This EPUB contains no images to turn into a comic.");
   return zipSync(pages);
+}
+
+/* Extra single-file document targets (XHTML / MHTML / PS / EPS / ODG) ------ */
+
+/** MHTML → the text/html part (base64 or quoted-printable bodies). */
+export function mhtmlToHtml(bytes: Uint8Array): string {
+  const raw = strFromU8(bytes);
+  const boundary = /boundary="?([^";\r\n]+)"?/i.exec(raw)?.[1];
+  if (!boundary) throw new Error("This MHTML file has no multipart boundary to read.");
+  const parts = raw.split(`--${boundary}`);
+  for (const part of parts) {
+    const sep = part.indexOf("\r\n\r\n");
+    if (sep < 0) continue;
+    const headerBlock = part.slice(0, sep);
+    if (!/content-type:\s*text\/html/i.test(headerBlock)) continue;
+    let body = part.slice(sep + 4).replace(/\r?\n--[\s\S]*$/, "");
+    const transfer = /content-transfer-encoding:\s*(\S+)/i.exec(headerBlock)?.[1]?.trim().toLowerCase();
+    if (transfer === "base64") {
+      return new TextDecoder().decode(base64ToBytes(body.replace(/\s+/g, "")));
+    }
+    if (transfer === "quoted-printable") {
+      return body
+        .replace(/=\r?\n/g, "")
+        .replace(/=([0-9A-Fa-f]{2})/g, (_m, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+    }
+    return body;
+  }
+  throw new Error("This MHTML file contains no text/html part to read.");
+}
+
+/** HTML → well-formed XHTML: strip the doctype, self-close void elements. */
+export function htmlToXhtml(html: string): Uint8Array {
+  const withoutDoctype = html.replace(/^\s*<!doctype[^>]*>\s*/i, "");
+  const xml = withoutDoctype.replace(
+    /<(br|hr|img|meta|link|input|source|wbr|embed|param|area|base|col|track)(\s[^>]*?)?\/?>/gi,
+    (_m, tag: string, attrs: string | undefined) => `<${tag}${attrs ?? ""} />`
+  );
+  return strToU8(`<?xml version="1.0" encoding="UTF-8"?>\n${xml}`);
+}
+
+/** HTML → MHTML: the page as a single-file MIME e-mail-style container. */
+export function htmlToMhtml(html: string, title: string): Uint8Array {
+  const boundary = "----=_OneKit_NextPart_000";
+  const body = bytesToBase64(strToU8(html));
+  const mime =
+    `MIME-Version: 1.0\r\n` +
+    `Subject: ${title.replace(/[\r\n]/g, " ")}\r\n` +
+    `Content-Type: multipart/related; boundary="${boundary}"; type="text/html"\r\n\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: text/html; charset="utf-8"\r\n` +
+    `Content-Transfer-Encoding: base64\r\n\r\n` +
+    body.replace(/(.{76})/g, "$1\r\n") +
+    `\r\n--${boundary}--\r\n`;
+  return strToU8(mime);
+}
+
+/** Escapes text for a PostScript string literal ( \ ( ). */
+function psString(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+/** HTML → PostScript: the text as a plain PS page (Courier, 11pt). */
+export function htmlToPs(html: string): Uint8Array {
+  const lines = htmlToText(html).split("\n");
+  const ps =
+    `%!PS-Adobe-3.0\n` +
+    `%%Creator: OneKit\n` +
+    `%%Pages: 1\n` +
+    `%%BoundingBox: 0 0 612 792\n` +
+    `%%EndComments\n` +
+    `/Courier findfont 11 scalefont setfont\n` +
+    `72 720 moveto\n` +
+    lines.map((line) => `(${psString(line)}) show 0 -14 rmoveto`).join("\n") +
+    `\nshowpage\n%%EOF\n`;
+  return strToU8(ps);
+}
+
+/** HTML → EPS: the text on one page with a real %%BoundingBox. */
+export function htmlToEps(html: string): Uint8Array {
+  const lines = htmlToText(html).split("\n").slice(0, 60);
+  const height = Math.min(792, 80 + lines.length * 14 + 30);
+  const eps =
+    `%!PS-Adobe-3.0 EPSF-3.0\n` +
+    `%%Creator: OneKit\n` +
+    `%%BoundingBox: 0 0 612 ${height}\n` +
+    `%%Pages: 1\n` +
+    `%%EndComments\n` +
+    `/Courier findfont 11 scalefont setfont\n` +
+    `72 ${height - 50} moveto\n` +
+    lines.map((line) => `(${psString(line)}) show 0 -14 rmoveto`).join("\n") +
+    `\nshowpage\n%%EOF\n`;
+  return strToU8(eps);
+}
+
+/**
+ * HTML → ODG: a valid OpenDocument drawing whose single page holds the
+ * text inside a draw:text-box — the same ODF package shape LibreOffice
+ * writes for a text drawing, just with the drawing flavour.
+ */
+export function htmlToOdg(html: string, title: string): Uint8Array {
+  const mime = "application/vnd.oasis.opendocument.drawing";
+  const paragraphs = htmlToText(html).split("\n");
+  const body = (paragraphs.length > 0 ? paragraphs : [""])
+    .map((p) => `<text:p text:style-name="Standard">${escapeHtml(p)}</text:p>`)
+    .join("");
+  const content =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<office:document-content ` +
+    `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+    `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" ` +
+    `xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ` +
+    `xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" ` +
+    `xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" ` +
+    `xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ` +
+    `office:version="1.3">` +
+    `<office:automatic-styles/>` +
+    `<office:body><office:drawing><draw:page draw:name="${escapeHtml(title)}" draw:style-name="dp1" draw:master-page-name="Standard">` +
+    `<draw:frame draw:name="Text" text:anchor-type="paragraph" svg:width="16cm" svg:height="22cm">` +
+    `<draw:text-box>${body}</draw:text-box>` +
+    `</draw:frame>` +
+    `</draw:page></office:drawing></office:body>` +
+    `</office:document-content>`;
+  const styles =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<office:document-styles ` +
+    `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+    `xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ` +
+    `xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ` +
+    `office:version="1.3">` +
+    `<office:styles>` +
+    `<style:style style:name="Standard" style:family="paragraph"/>` +
+    `</office:styles></office:document-styles>`;
+  const manifest =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">` +
+    `<manifest:file-entry manifest:full-path="/" manifest:media-type="${mime}"/>` +
+    `<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>` +
+    `<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>` +
+    `<manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>` +
+    `</manifest:manifest>`;
+  const meta =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+    `xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" office:version="1.3">` +
+    `<office:meta><meta:generator>OneKit</meta:generator></office:meta></office:document-meta>`;
+  return zipSync({
+    mimetype: [zipText(mime), { level: 0 }],
+    "META-INF/manifest.xml": zipText(manifest),
+    "content.xml": zipText(content),
+    "styles.xml": zipText(styles),
+    "meta.xml": zipText(meta)
+  });
 }

@@ -12,8 +12,9 @@ export type TargetFormat =
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm" | "image-psd"
   | "image-icns" | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
   | "image-qoi" | "image-farbfeld" | "image-pcx" | "image-xpm" | "image-wbmp"
-  | "pdf" | "html" | "markdown" | "text" | "docx" | "docm" | "dotx" | "epub" | "htmlz" | "txtz" | "cbz"
-  | "rtf" | "odt" | "odp" | "pptx" | "pptm" | "potx" | "ppsx" | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "tex" | "rst" | "org" | "textile" | "mediawiki" | "asciidoc"
+  | "pdf" | "html" | "markdown" | "text" | "docx" | "docm" | "dotx" | "epub" | "htmlz" | "txtz" | "cbz" | "cbc"
+  | "rtf" | "odt" | "odp" | "pptx" | "pptm" | "potx" | "ppsx" | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "tex" | "rst" | "org" | "textile" | "mediawiki" | "asciidoc"
+  | "mhtml" | "xhtml" | "ps" | "eps" | "odg" | "svgz"
   | "csv" | "json" | "yaml" | "xml" | "xlsx" | "xlsm" | "xltx" | "xltm" | "tsv" | "xls" | "ods" | "toml" | "ini" | "sql" | "properties" | "opml"
   | "audio-aiff" | "audio-au" | "audio-voc"
   | "zip" | "tar" | "gzip"
@@ -38,9 +39,13 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   pptm: "PowerPoint macro (PPTM)", potx: "PowerPoint template (POTX)", ppsx: "PowerPoint show (PPSX)",
   xlsm: "Excel macro (XLSM)", xltx: "Excel template (XLTX)", xltm: "Excel macro template (XLTM)",
   epub: "EPUB ebook",
-  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook", cbz: "Comic Book ZIP (CBZ)",
+  htmlz: "HTMLZ ebook", txtz: "TXTZ ebook", cbz: "Comic Book ZIP (CBZ)", cbc: "Comic Book ZIP (CBC)",
   odp: "OpenDocument presentation",
-  mobi: "Kindle MOBI ebook", azw: "Kindle AZW ebook", prc: "PalmDOC (PRC)", pdb: "Palm database (PDB)", tex: "LaTeX (TEX)", rst: "reStructuredText (RST)",
+  mobi: "Kindle MOBI ebook", azw: "Kindle AZW ebook", prc: "PalmDOC (PRC)", pdb: "Palm database (PDB)",
+  azw3: "Kindle KF8 ebook (AZW3)", azw4: "Kindle AZW4 ebook",
+  tex: "LaTeX (TEX)", rst: "reStructuredText (RST)",
+  mhtml: "MHTML archive", xhtml: "XHTML page", ps: "PostScript (PS)",
+  eps: "Encapsulated PostScript (EPS)", odg: "OpenDocument drawing (ODG)", svgz: "Compressed SVG (SVGZ)",
   org: "Org-mode", textile: "Textile", mediawiki: "MediaWiki", asciidoc: "AsciiDoc",
   rtf: "Rich Text (RTF)", odt: "OpenDocument text (ODT)", pptx: "PowerPoint (PPTX)", fb2: "FictionBook (FB2)",
   csv: "CSV", json: "JSON", yaml: "YAML", xml: "XML", xlsx: "Excel (XLSX)",
@@ -87,8 +92,9 @@ const IMAGE_AND_PDF: TargetFormat[] = [
  * out as any of the document formats — including the Office writers.
  */
 const DOC_TARGETS: TargetFormat[] = [
-  "html", "markdown", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "cbz", "rtf", "odt", "pptx", "pptm", "potx", "ppsx", "odp", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst",
+  "html", "markdown", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "cbz", "cbc", "rtf", "odt", "pptx", "pptm", "potx", "ppsx", "odp", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst",
   "org", "textile", "mediawiki", "asciidoc",
+  "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz",
   ...IMAGE_TARGETS,
   "txt-base64", "txt-hex", "txt-url", "opml"
 ];
@@ -105,6 +111,7 @@ function docTargetsExcept(...own: TargetFormat[]): TargetFormat[] {
 const TABLE_TARGETS: TargetFormat[] = [
   "csv", "tsv", "json", "yaml", "xml", "xlsx", "xlsm", "xltx", "xltm", "xls", "ods", "toml", "ini", "sql", "properties", "opml", "jsonl", "vcf", "ics",
   "html", "markdown", "pdf", "docx", "epub", "rtf", "odt", "odp", "org", "textile", "mediawiki", "asciidoc",
+  "mhtml", "xhtml", "ps", "eps", "odg", "svgz",
   ...IMAGE_TARGETS,
   "txt-base64", "txt-hex"
 ];
@@ -120,7 +127,8 @@ const RECORD_EXTRAS: TargetFormat[] = ["tsv", "xls", "ods", "xlsm", "xltx", "xlt
 /** The document renderings every record-shaped source can produce. */
 const RECORD_DOCS: TargetFormat[] = [
   "html", "markdown", "text", "docx", "epub", "rtf", "odt", "odp", "pptx", "mobi", "azw", "fb2",
-  "org", "textile", "mediawiki", "asciidoc", "htmlz", "txtz", "opml", "txt-url", "txt-base64", "txt-hex"
+  "org", "textile", "mediawiki", "asciidoc", "htmlz", "txtz", "opml", "txt-url", "txt-base64", "txt-hex",
+  "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz"
 ];
 
 /** A record source's full target list: tables + docs, minus its own format. */
@@ -166,7 +174,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-xpm": [...IMAGE_TARGETS.filter((t) => t !== "image-xpm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-wbmp": [...IMAGE_TARGETS.filter((t) => t !== "image-wbmp"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   pdf: ["text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml"],
-  docx: ["html", "markdown", "text", "pdf", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
+  docx: ["html", "markdown", "text", "pdf", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   docm: ["html", "markdown", "text", "pdf", "docx", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   dotx: ["html", "markdown", "text", "pdf", "docx", "docm", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   xlsx: tableTargetsExcept("xlsx"),
@@ -185,23 +193,48 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   mobi: docTargetsExcept("mobi"),
   azw: docTargetsExcept("azw"),
   prc: docTargetsExcept("prc", "pdb"),
+  pdb: docTargetsExcept("pdb"),
+  azw3: docTargetsExcept("azw3"),
+  snb: docTargetsExcept(),
+  rb: docTargetsExcept(),
+  fb3: docTargetsExcept(),
+  // AZW4 is a Kindle container wrapping a PDF — the whole PDF pipeline is
+  // honest from it (extract the drawing), same reach as the pdf row.
+  azw4: ["pdf", "text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "cbc", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "txt-base64", "txt-hex", "txt-url", "opml"],
   htmlz: docTargetsExcept("htmlz"),
   txtz: docTargetsExcept("txtz"),
-  cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", ...IMAGE_TARGETS],
+  cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbc", ...IMAGE_TARGETS],
+  cbc: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbz", ...IMAGE_TARGETS],
   dxf: ["pdf", "html", "text", ...IMAGE_TARGETS],
   // Illustrator files carry a PDF payload since CS6, so every document
   // and raster target is honestly reachable through the PDF pipeline
   // (docTargetsExcept already includes the "copy the drawing" → pdf).
   ai: docTargetsExcept(),
-  html: ["markdown", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
-  markdown: ["html", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
+  html: ["markdown", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
+  markdown: ["html", "text", "pdf", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   rst: docTargetsExcept("rst"),
   tex: docTargetsExcept("tex"),
   abw: docTargetsExcept(),
   zabw: docTargetsExcept(),
   oeb: docTargetsExcept(),
   pml: docTargetsExcept(),
-  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", ...IMAGE_TARGETS],
+  // OpenDocument drawings hold their text in the same text:h/p tags as
+  // ODT — every prose target is honestly reachable.
+  odg: docTargetsExcept("odg"),
+  // .dot/.wps are content-sniffed at conversion time: text/RTF/HTML/XML
+  // payloads convert, binary Word/Works containers throw an honest error.
+  dot: docTargetsExcept(),
+  wps: docTargetsExcept(),
+  // Apple Pages: text comes from the embedded IWA/QuickLook data, so the
+  // honest set is the text-based document targets (no image targets).
+  pages: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "txt-base64", "txt-hex"],
+  xhtml: docTargetsExcept("xhtml"),
+  mhtml: docTargetsExcept("mhtml"),
+  svgz: [
+    ...IMAGE_TARGETS.filter((t) => t !== "image-svg" && t !== "svgz"),
+    "text", "pdf", "docx", "pptx", "html", "markdown", "odt", "odp", "rtf", "txt-base64", "txt-hex"
+  ],
+  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", ...IMAGE_TARGETS],
   csv: tableTargetsExcept("csv"),
   json: [...tableTargetsExcept("json"), "text"],
   tsv: tableTargetsExcept("tsv"),
@@ -400,6 +433,15 @@ export function targetExtension(target: TargetFormat): string {
     case "txt-hex": return "txt";
     case "txt-url": return "txt";
     case "cbz": return "cbz";
+    case "cbc": return "cbc";
     case "rst": return "rst";
+    case "azw3": return "azw3";
+    case "azw4": return "azw4";
+    case "mhtml": return "mhtml";
+    case "xhtml": return "xhtml";
+    case "ps": return "ps";
+    case "eps": return "eps";
+    case "odg": return "odg";
+    case "svgz": return "svgz";
   }
 }
