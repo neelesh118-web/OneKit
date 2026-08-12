@@ -40,7 +40,7 @@ import { extractRawPreviewJpeg } from "./raw-photo";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
 import { buildOdp, odpToSlides, odtToHtml } from "./odf";
-import { pptxToSlides, presentationVariant, slidesToHtml } from "./pptx";
+import { pptxToSlides, presentationVariant, slidesToHtml, textToSlides } from "./pptx";
 import { rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
@@ -342,6 +342,7 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
+      if (target === "odp") return buildOdp(textToSlides(docs.htmlToText(html)));
       if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif" || target === "image-svg") {
         const svg = docs.textToSvg(docs.htmlToText(html));
         return target === "image-svg"
@@ -421,8 +422,13 @@ async function runConversion(
       }
       return renderDocument(html, "Book", target);
     }
-    case "htmlz":
-      return renderDocument(htmlzToHtml(bytes), "Book", target);
+    case "htmlz": {
+      const html = htmlzToHtml(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Book", target);
+    }
     case "txtz":
       return renderDocument(txtzToHtml(bytes), "Book", target);
     case "cbz": {

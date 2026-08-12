@@ -175,3 +175,12 @@
 - Tests: 15 focused cases inspect OOXML package content types and text round-trips, verify image signatures/MIME/names, and cover corrupt or empty input rejection.
 
 - Proprietary PDF targets and HEIC/legacy Office/iWork/MOBI-writer rows interleaved through rank 1538 remain skipped where no honest local codec or writer exists.
+
+## Batch 20
+
+- Added 10 demand-ranked pairs: PDF to ICNS/PPM/TGA (ranks 1431/1445/1459), DOCM to JPG/PNG (ranks 1647/1648), DOCX to ODP (rank 1666), DOTX to JPG/PNG (ranks 1676/1677), and HTMLZ to JPG/PNG (ranks 1760/1761).
+- Pair total: 1,396.
+- Formats: PDF first-page rendering feeds native local ICNS/PPM/TGA encoders; modern OOXML and HTMLZ text feeds existing raster renderers; DOCX text and paragraph structure is packaged into a standards-shaped ODP.
+- Tests: 17 focused cases validate native signatures/MIME/names, ODP ZIP content and slide round-trip, real DOCM/DOTX/HTMLZ outputs, and corrupt input rejection.
+
+- Interleaved proprietary/raw/legacy targets through rank 1761 remain skipped where the source parser or target encoder is unavailable; JPEG aliases are not double-counted.

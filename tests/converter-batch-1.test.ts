@@ -50,7 +50,10 @@ describe("converter batch 1 - OOXML variants", () => {
 
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: word, name: `report.${source}` }, target);
+        const result = await convertFile(
+          { bytes: word, name: `report.${source}` }, target,
+          target.startsWith("image-") ? imageOptions : {}
+        );
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Quarterly report");

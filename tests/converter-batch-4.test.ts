@@ -1,13 +1,23 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { unzipSync, zipSync } from "fflate/browser";
-import { convertFile } from "../src/core/converter/convert";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { htmlzToHtml, txtzToHtml } from "../src/core/converter/ebooks";
 
 const enc = (text: string): Uint8Array => new TextEncoder().encode(text);
 const dec = new TextDecoder();
+const imageOptions: ConvertOptions = {
+  canvas: {
+    canvasFactory: () => ({
+      width: 1, height: 1,
+      getContext: () => ({ translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {} }),
+      toBlob: (callback: (blob: Blob | null) => void, mime?: string) => callback(new Blob([new Uint8Array([1])], { type: mime ?? "application/octet-stream" }))
+    }) as unknown as HTMLCanvasElement,
+    decode: async () => ({ width: 1, height: 1, close(): void {} }) as unknown as ImageBitmap
+  }
+};
 const htmlz = zipSync({
   "book/index.html": enc("<!doctype html><html><body><h1>Local Book</h1><p>Chapter content stays private.</p></body></html>"),
   "book/style.css": enc("body { font-family: serif; }")
@@ -36,7 +46,10 @@ describe("converter batch 4 - HTMLZ and TXTZ ebooks", () => {
     });
     for (const target of MATRIX[source]) {
       it(`${source} -> ${target} produces a real output`, async () => {
-        const result = await convertFile({ bytes: fixtures[source], name: `book.${source}` }, target);
+        const result = await convertFile(
+          { bytes: fixtures[source], name: `book.${source}` }, target,
+          target.startsWith("image-") ? imageOptions : {}
+        );
         assertOutput(target, result.bytes);
         if (["html", "markdown", "text"].includes(target)) {
           expect(dec.decode(result.bytes)).toContain("Local Book");
