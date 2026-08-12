@@ -1,12 +1,24 @@
 // @vitest-environment node
 import { beforeAll, describe, expect, it } from "vitest";
 import { unzipSync } from "fflate/browser";
-import { convertFile } from "../src/core/converter/convert";
+import { convertFile, type ConvertOptions } from "../src/core/converter/convert";
 import { detectFile } from "../src/core/converter/detect";
 import { MATRIX, type TargetFormat } from "../src/core/converter/matrix";
 import { csvToXlsx, textToDocx } from "../src/core/converter/documents";
 
 const dec = new TextDecoder();
+
+const imageOptions: ConvertOptions = {
+  canvas: {
+    canvasFactory: () => ({
+      width: 1, height: 1, getContext: () => ({
+        translate(): void {}, rotate(): void {}, scale(): void {}, drawImage(): void {}
+      }),
+      toBlob: (callback: (blob: Blob | null) => void, mime?: string) => callback(new Blob([new Uint8Array([1])], { type: mime ?? "application/octet-stream" }))
+    }) as unknown as HTMLCanvasElement,
+    decode: async () => ({ width: 1, height: 1, close(): void {} }) as unknown as ImageBitmap
+  }
+};
 
 function assertOutput(target: TargetFormat, bytes: Uint8Array): void {
   expect(bytes.length, `${target} output must not be empty`).toBeGreaterThan(0);
@@ -52,7 +64,7 @@ describe("converter batch 1 - OOXML variants", () => {
 
   for (const target of MATRIX.xlsm) {
     it(`xlsm -> ${target} produces a real output`, async () => {
-      const result = await convertFile({ bytes: sheet, name: "totals.xlsm" }, target);
+      const result = await convertFile({ bytes: sheet, name: "totals.xlsm" }, target, target.startsWith("image-") ? imageOptions : {});
       assertOutput(target, result.bytes);
       if (["csv", "tsv", "json", "yaml", "xml", "html", "markdown", "text"].includes(target)) {
         expect(dec.decode(result.bytes)).toContain("Alpha");

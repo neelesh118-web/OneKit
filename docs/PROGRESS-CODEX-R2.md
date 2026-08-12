@@ -119,3 +119,13 @@
 - Interleaved legacy PPT/DOC targets through rank 616 remain skipped because the project has no honest binary Office writer; raster and modern OOXML outputs remain supported.
 
 - Ranks 429–436 Illustrator targets and legacy DOC targets at 446/454–460 remain skipped because complete native AI and binary DOC parsing/writing is unavailable locally.
+
+## Batch 14
+
+- Added 16 demand-ranked pairs: AZW, FB2, Markdown, ODP, ODS, ODT, RTF, and XLSM to JPG/PNG (backlog ranks 627-723).
+- Pair total: 1,348.
+- Formats: existing ebook, markup, OpenDocument, rich-text, and spreadsheet parsers now feed the shared bounded SVG raster pipeline and local PNG/JPEG encoders.
+- Tests: focused real-file conversions validate matrix exposure, signatures/MIME/names, and corrupt or empty input rejection across every source family.
+
+- Ranks 629-649 AZW3/CBR/CDR and CBZ/DXF document or single-image outputs remain skipped: KF8, RAR, and CorelDRAW parsers are unavailable, while multi-page CBZ/DXF flattening needs explicit page/output semantics rather than silently discarding content.
+- Ranks 664-701 KEY/NUMBERS/PAGES and legacy binary Office targets remain skipped because complete local iWork and binary Office readers/writers are unavailable.

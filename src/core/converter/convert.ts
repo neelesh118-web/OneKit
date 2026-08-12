@@ -331,12 +331,27 @@ async function runConversion(
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }
-    case "rtf":
-      return renderDocument(rtfToHtml(toText(bytes)), "Document", target);
-    case "odt":
-      return renderDocument(odtToHtml(bytes), "Document", target);
-    case "odp":
-      return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target);
+    case "rtf": {
+      const html = rtfToHtml(toText(bytes));
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Document", target);
+    }
+    case "odt": {
+      const html = odtToHtml(bytes);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Document", target);
+    }
+    case "odp": {
+      const html = slidesToHtml(odpToSlides(bytes), "Presentation");
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, "Presentation", target);
+    }
     case "pptx":
     case "pptm":
     case "potx":
@@ -350,7 +365,11 @@ async function runConversion(
     }
     case "fb2": {
       const xml = toText(bytes);
-      return renderDocument(fb2ToHtml(xml), fb2Title(xml), target);
+      const html = fb2ToHtml(xml);
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
+      return renderDocument(html, fb2Title(xml), target);
     }
     case "mobi":
     case "azw":
