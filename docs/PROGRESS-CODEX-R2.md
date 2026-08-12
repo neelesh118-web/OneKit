@@ -211,3 +211,12 @@
 - Tests: 11 focused cases validate structured XML and escaping, XLSM package content and cell round-trip, GIF signature/MIME/name, matrix exposure, plus corrupt, DRM-protected, and malformed input rejection. The complete repository suite passed with exit code 0.
 
 - Earlier RB/SNB/TCR and legacy Office/iWork sources, proprietary AI/CDR outputs, MOBI/KF8/RAR writers, and prose-to-comic targets through rank 2798 remain skipped where an honest local implementation is unavailable or semantically invalid.
+
+## Batch 24
+
+- Added 3 demand-ranked pairs: ABW to SVG/WebP (ranks 2803/2804) and DOCX to DOTX (rank 2933).
+- Pair total: 1,428.
+- Formats: validated AbiWord text returns local SVG directly or feeds the WebP raster encoder; DOCX content is extracted and packaged into a genuine Word template with the correct template main content type and no fabricated VBA.
+- Tests: 13 focused cases validate SVG/WebP signatures and metadata, DOTX OOXML package parts and readable text, matrix exposure, and empty, malformed, or corrupt input rejection. The complete suite passed 1,777 tests across 227 files.
+
+- HEIC encoding, legacy binary DOC/PPT output, MOBI writing, and proprietary AI/AZW4/CBC/CGM/CHM and related formats through rank 2933 remain skipped where local implementation is unavailable.

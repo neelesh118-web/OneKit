@@ -339,6 +339,7 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.htmlToMarkdown(html));
       if (target === "pdf") return docs.docxToPdf(bytes);
       if (target === "docx") return docs.htmlToDocx(html);
+      if (target === "dotx") return docs.textToDotx(docs.htmlToText(html));
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
@@ -520,8 +521,10 @@ async function runConversion(
     }
     case "abw": {
       const html = abwToHtml(toText(bytes));
-      if (target === "image-png" || target === "image-jpeg" || target === "image-gif") {
-        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      const svg = target.startsWith("image-") ? docs.textToSvg(docs.htmlToText(html)) : undefined;
+      if (target === "image-svg") return svg!;
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
+        return convertImage(svg!, target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Document", target);
     }
