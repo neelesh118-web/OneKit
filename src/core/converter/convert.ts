@@ -427,7 +427,8 @@ async function runConversion(
     }
     case "htmlz": {
       const html = htmlzToHtml(bytes);
-      if (target === "image-png" || target === "image-jpeg") {
+      if (target === "image-svg") return docs.textToSvg(docs.htmlToText(html));
+      if (target === "image-png" || target === "image-jpeg" || target === "image-gif" || target === "image-webp") {
         return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
       }
       return renderDocument(html, "Book", target);

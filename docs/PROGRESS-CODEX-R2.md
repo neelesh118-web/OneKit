@@ -229,3 +229,12 @@
 - Tests: 14 focused cases validate structured text, reserved-character escaping, real image signatures/MIME/names, matrix exposure, and blank, malformed, or corrupt input rejection. The complete repository suite passed with exit code 0.
 
 - Proprietary HWP/HWPX/LWP/SDW/WPD/WPS writers, legacy DOT/DPS/POT/PPS/PPT, HEIC, MOBI writing, and related unsupported formats through rank 3086 remain honest skips.
+
+## Batch 26
+
+- Added 9 demand-ranked pairs: HTMLZ to GIF/SVG/WebP (ranks 3091/3095/3097), POTX to GIF/SVG/WebP (ranks 3397/3401/3403), and PPSX to GIF/SVG/WebP (ranks 3418/3422/3424).
+- Pair total: 1,444.
+- Formats: validated HTMLZ and genuine OOXML presentation template/slideshow packages feed the existing direct-SVG and local GIF/WebP raster pipeline.
+- Tests: 19 focused cases plus legacy matrix-loop coverage validate all nine outputs, signatures/MIME/names, OOXML variant packages, and corrupt, HTML-free, or unreadable archive rejection. TypeScript and the complete repository suite passed with exit code 0.
+
+- Proprietary WPD/WPS/ZABW writers, legacy DOC/POT/PPS/PPT, HEIC encoding, and HWP/HWPX/LWP readers through rank 3424 remain honest skips.
