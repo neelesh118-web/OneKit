@@ -322,6 +322,9 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Document", html);
       if (target === "csv") return toBytes(docs.htmlToCsv(html));
       if (target === "xlsx") return docs.csvToXlsx(docs.htmlToCsv(html));
+      if (target === "image-png" || target === "image-jpeg") {
+        return convertImage(docs.textToSvg(docs.htmlToText(html)), target, opts.canvas, opts.image, "image-svg");
+      }
       if (OFFICE_TARGETS.has(target)) return renderDocument(html, "Document", target);
       return toBytes(docs.htmlToText(html));
     }

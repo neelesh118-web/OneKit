@@ -104,7 +104,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "txt-base64", "txt-hex"],
   "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "txt-base64", "txt-hex"],
   pdf: ["text", "markdown", "html", "image-png", "image-jpeg", "image-webp", "image-gif", "image-svg", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
-  docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
+  docx: ["html", "markdown", "text", "pdf", "epub", "csv", "xlsx", "rtf", "odt", "pptx", "fb2", "image-png", "image-jpeg", "txt-base64", "txt-hex"],
   docm: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   dotx: ["html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "pptx", "fb2", "txt-base64", "txt-hex"],
   xlsx: tableTargetsExcept("xlsx"),

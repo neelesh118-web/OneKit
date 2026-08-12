@@ -44,3 +44,10 @@
 - Rank 104 KEY to PDF: Apple Keynote packages require an iWork presentation/layout renderer not present locally.
 - Rank 110 NUMBERS to PDF: Apple Numbers packages require an iWork spreadsheet/layout renderer not present locally.
 - Ranks 129–131 AI to DOCX/JPG/PNG: native Illustrator parsing is not dependable locally; a PDF-compatible AI subset cannot honestly represent universal AI support.
+
+## Batch 5
+
+- Added 2 demand-ranked pairs: DOCX to JPG and PNG (backlog ranks 143–144).
+- Pair total: 1,284.
+- Formats: DOCX content extraction feeds a word-wrapped, XML-safe, bounded SVG page and the existing JPEG/PNG encoders.
+- Tests: readable SVG layout/escaping, real DOCX-to-raster signatures and metadata, pair milestone, and text-free-document rejection.

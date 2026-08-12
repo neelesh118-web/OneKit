@@ -531,6 +531,36 @@ export function csvToSvg(text: string): Uint8Array {
   return new TextEncoder().encode(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#fff"/>${cells.join("")}</svg>`);
 }
 
+/** Readable prose rendered as a bounded SVG page for local raster export. */
+export function textToSvg(text: string): Uint8Array {
+  const normalized = text.replace(/\r/g, "").trim();
+  if (!normalized) throw new Error("This document contains no readable text to render.");
+  const maxChars = 84;
+  const lines: string[] = [];
+  for (const paragraph of normalized.split(/\n+/)) {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    let line = "";
+    for (const word of words) {
+      if (line && `${line} ${word}`.length > maxChars) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = line ? `${line} ${word}` : word;
+      }
+    }
+    if (line) lines.push(line);
+    if (lines.length >= 180) break;
+  }
+  const width = 960;
+  const lineHeight = 26;
+  const height = Math.min(4096, Math.max(160, 80 + lines.length * lineHeight));
+  const visible = Math.max(1, Math.floor((height - 60) / lineHeight));
+  const body = lines.slice(0, visible).map((line, index) =>
+    `<text x="48" y="${58 + index * lineHeight}" font-family="Arial,sans-serif" font-size="18" fill="#111827">${escapeXml(line)}</text>`
+  ).join("");
+  return new TextEncoder().encode(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#fff"/>${body}</svg>`);
+}
+
 /** CSV → array of objects keyed by the header row. */
 export function csvToJson(csvText: string): unknown[] {
   const rows = parseCsv(csvText).map((r) => r.map((c) => c.trim()));
