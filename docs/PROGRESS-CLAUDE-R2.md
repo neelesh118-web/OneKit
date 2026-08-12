@@ -148,8 +148,45 @@ preview rasterized then OCR'd, with the existing fake-canvas fixture).
 **Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
 183 test files, 1,509 tests, all green.
 
+### Batch 3 — image → Markdown/ODT/RTF (real embedded pictures)
+
+**Pairs: 1,504 → 1,600 (+96). Sources: 113 (unchanged).**
+
+Rounded out the image-embedding cluster started in batch 1 with the
+three remaining document formats the matrix was missing:
+
+- **Markdown** — `wrapImageAsMarkdown`/`imageToMarkdown` (`documents.ts`):
+  `![name](data:mime;base64,...)`, a real self-contained embed (renders
+  in any Markdown viewer that resolves data URIs — VS Code and most
+  desktop renderers do).
+- **RTF** — `imageToRtf`/`imageToRtfDocument` (`rtf.ts`, previously
+  text-only): a genuine embedded `\pict` picture
+  (`\pngblip`/`\jpegblip`, hex-encoded — RTF 1.9+, every major reader
+  accepts it), not a placeholder. `rtf.ts` now also depends on
+  `images.ts` for the shared rasterizer.
+- **ODT** — `imagesToOdt` (`odf.ts`, previously text-only `buildOdt`):
+  a real `draw:frame`/`draw:image` per picture, `Pictures/imageN.*`
+  declared in `META-INF/manifest.xml` with its own media-type entry —
+  the way LibreOffice/OpenOffice actually store a picture.
+
+All three follow the established shape: PNG/JPEG pass through
+untouched, everything else rasterizes through the same canvas pipeline
+as the DOCX/PPTX/HTML/OCR embedders, and SVG sources embed their
+original vector bytes directly instead of rasterizing. Wired to all 26
+sources from batch 1 (14 direct-canvas raster types + 12 RAW preview
+types) plus EPS/PS via their TIFF-preview path — same 28-source
+coverage as `docx`/`pptx`/`html`/`text`.
+
+**Tests added:** extended `tests/converter-image-office.test.ts` (+13:
+Markdown/ODT/RTF unit tests, matrix membership, end-to-end
+`convertFile` dispatch) and confirmed no regressions in
+`tests/converter-rtf.test.ts` (existing RTF reader/text-writer tests).
+
+**Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
+183 test files, 1,521 tests, all green.
+
 ---
 
-**Current total: 1,504 pairs across 113 source formats.** Backlog has
+**Current total: 1,600 pairs across 113 source formats.** Backlog has
 6,553 demand-ranked rows in this domain; the batch loop continues
 top-down from the gap list above.

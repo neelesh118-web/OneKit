@@ -1,8 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { strFromU8, unzipSync, zlibSync } from "fflate/browser";
-import { imageToHtml, imagesToDocx, wrapImageAsHtml } from "../src/core/converter/documents";
+import { imageToHtml, imageToMarkdown, imagesToDocx, wrapImageAsHtml, wrapImageAsMarkdown } from "../src/core/converter/documents";
 import { imagesToPptx } from "../src/core/converter/pptx";
+import { imagesToOdt } from "../src/core/converter/odf";
+import { imageToRtf, imageToRtfDocument } from "../src/core/converter/rtf";
 import { convertFile } from "../src/core/converter/convert";
 import { targetsFor } from "../src/core/converter/matrix";
 
@@ -153,8 +155,8 @@ describe("images → PPTX (real embedded pictures)", () => {
   });
 });
 
-describe("converter matrix — image sources gained docx/pptx/html targets", () => {
-  it("lists docx, pptx and html for every raster image source", () => {
+describe("converter matrix — image sources gained docx/pptx/html/markdown/odt/rtf targets", () => {
+  it("lists docx, pptx, html, markdown, odt and rtf for every raster image source", () => {
     for (const source of [
       "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif",
       "image-svg", "image-tiff", "image-ico", "image-dds", "image-tga", "image-ppm",
@@ -165,6 +167,9 @@ describe("converter matrix — image sources gained docx/pptx/html targets", () 
       expect(targets).toContain("docx");
       expect(targets).toContain("pptx");
       expect(targets).toContain("html");
+      expect(targets).toContain("markdown");
+      expect(targets).toContain("odt");
+      expect(targets).toContain("rtf");
     }
   });
 });
@@ -265,6 +270,110 @@ describe("images → text (OCR via the bundled tesseract.js engine)", () => {
     for (const source of ["image-png", "image-jpeg", "image-tiff", "image-icns", "raw-nef"] as const) {
       expect(targetsFor(source)).toContain("text");
     }
+  });
+});
+
+describe("images → Markdown (real embedded picture, data: URI)", () => {
+  it("embeds a real PNG as a data: URI markdown image reference", async () => {
+    const png = tinyPng(4, 4, 11, 22, 33);
+    const md = new TextDecoder().decode(await imageToMarkdown({ bytes: png, name: "photo.png" }));
+    expect(md).toMatch(/^!\[photo\.png\]\(data:image\/png;base64,/);
+    const b64 = /base64,([^)]+)\)/.exec(md)![1]!;
+    const decoded = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    expect(Array.from(decoded)).toEqual(Array.from(png));
+  });
+
+  it("strips brackets from the alt text so the markdown stays well-formed", () => {
+    const svg = encoder.encode('<svg xmlns="http://www.w3.org/2000/svg"/>');
+    const md = new TextDecoder().decode(wrapImageAsMarkdown(svg, "image/svg+xml", "a [weird] name.svg"));
+    expect(md).toContain("![a weird name.svg]");
+  });
+
+  it("surfaces embedding failures honestly", async () => {
+    await expect(
+      imageToMarkdown(
+        { bytes: encoder.encode("junk"), name: "y.png" },
+        { rasterize: async () => encoder.encode("still not an image") }
+      )
+    ).rejects.toThrow(/Couldn't embed/);
+  });
+
+  it("converts a real PNG through convertFile into markdown", async () => {
+    const result = await convertFile({ bytes: tinyPng(4, 4, 1, 2, 3), name: "photo.png" }, "markdown");
+    expect(result.name).toBe("photo.md");
+    expect(new TextDecoder().decode(result.bytes)).toContain("data:image/png;base64,");
+  });
+});
+
+describe("images → ODT (real embedded pictures)", () => {
+  it("embeds a real PNG picture in a valid ODT package", async () => {
+    const odt = await imagesToOdt([{ bytes: tinyPng(20, 10, 200, 40, 40), name: "photo.png" }]);
+    const files = unzipSync(odt);
+    expect(Object.keys(files)).toContain("Pictures/image1.png");
+    expect(Array.from(files["Pictures/image1.png"]!)).toEqual(Array.from(tinyPng(20, 10, 200, 40, 40)));
+    const content = strFromU8(files["content.xml"]!);
+    expect(content).toContain("<draw:frame");
+    expect(content).toContain('xlink:href="Pictures/image1.png"');
+    const manifest = strFromU8(files["META-INF/manifest.xml"]!);
+    expect(manifest).toContain('manifest:full-path="Pictures/image1.png"');
+    expect(manifest).toContain('manifest:media-type="image/png"');
+  });
+
+  it("packs multiple images, one draw:frame each", async () => {
+    const odt = await imagesToOdt([
+      { bytes: tinyPng(4, 4, 1, 1, 1), name: "a.png" },
+      { bytes: tinyPng(4, 4, 2, 2, 2), name: "b.png" }
+    ]);
+    const files = unzipSync(odt);
+    expect(Object.keys(files)).toContain("Pictures/image1.png");
+    expect(Object.keys(files)).toContain("Pictures/image2.png");
+    const content = strFromU8(files["content.xml"]!);
+    expect((content.match(/<draw:frame/g) ?? []).length).toBe(2);
+  });
+
+  it("rejects an empty batch", async () => {
+    await expect(imagesToOdt([])).rejects.toThrow(/at least one image/);
+  });
+
+  it("converts a real PNG through convertFile into an ODT", async () => {
+    const result = await convertFile({ bytes: tinyPng(6, 6, 4, 5, 6), name: "photo.png" }, "odt");
+    expect(result.name).toBe("photo.odt");
+    const files = unzipSync(result.bytes);
+    expect(Object.keys(files)).toContain("Pictures/image1.png");
+  });
+});
+
+describe("images → RTF (real embedded \\pict)", () => {
+  it("hex-encodes a PNG into a valid RTF \\pngblip picture", () => {
+    const png = tinyPng(4, 4, 5, 6, 7);
+    const rtf = imageToRtf(png, "image/png", 4, 4);
+    expect(rtf).toContain("{\\rtf1");
+    expect(rtf).toContain("\\pict\\pngblip");
+    // The hex payload decodes back to the exact same PNG bytes.
+    const hexMatch = /\\pichgoal\d+\n([0-9a-f]+)\}/.exec(rtf)!;
+    const hex = hexMatch[1]!;
+    const decoded = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < decoded.length; i++) decoded[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+    expect(Array.from(decoded)).toEqual(Array.from(png));
+  });
+
+  it("uses jpegblip for JPEG sources", () => {
+    const rtf = imageToRtf(new Uint8Array([1, 2, 3]), "image/jpeg", 10, 10);
+    expect(rtf).toContain("\\jpegblip");
+  });
+
+  it("rasterizes non-PNG/JPEG sources before wrapping (imageToRtfDocument)", async () => {
+    const rtf = await imageToRtfDocument(
+      { bytes: encoder.encode("fake webp"), name: "x.webp" },
+      { rasterize: async () => tinyPng(2, 2, 1, 1, 1) }
+    );
+    expect(rtf).toContain("\\pngblip");
+  });
+
+  it("converts a real PNG through convertFile into RTF", async () => {
+    const result = await convertFile({ bytes: tinyPng(4, 4, 9, 9, 9), name: "photo.png" }, "rtf");
+    expect(result.name).toBe("photo.rtf");
+    expect(new TextDecoder().decode(result.bytes)).toContain("\\pngblip");
   });
 });
 

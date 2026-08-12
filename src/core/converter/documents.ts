@@ -308,6 +308,35 @@ export async function imageToHtml(
   return wrapImageAsHtml(ready, mime, file.name);
 }
 
+/**
+ * Wraps already-encoded image bytes as a Markdown image reference with
+ * a `data:` URI — a real, self-contained embed (renders in any Markdown
+ * viewer that resolves data URIs, e.g. VS Code/most desktop renderers),
+ * not a broken file-path link.
+ */
+export function wrapImageAsMarkdown(bytes: Uint8Array, mime: string, alt: string): Uint8Array {
+  const base64 = bytesToBase64(bytes);
+  const md = `![${alt.replace(/[[\]]/g, "")}](data:${mime};base64,${base64})\n`;
+  return new TextEncoder().encode(md);
+}
+
+/**
+ * Images → Markdown: rasterizes non-PNG/JPEG sources first, then embeds
+ * the real picture (see wrapImageAsMarkdown). SVG sources should call
+ * wrapImageAsMarkdown directly with the original bytes instead.
+ */
+export async function imageToMarkdown(
+  file: { bytes: Uint8Array; name: string },
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<Uint8Array> {
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
+  const ready = await rasterize(file.bytes, file.name);
+  const type = detectFromBytes(ready, "unknown");
+  const mime = type === "image-jpeg" ? "image/jpeg" : type === "image-png" ? "image/png" : null;
+  if (!mime) throw new Error(`Couldn't embed ${file.name} in the document.`);
+  return wrapImageAsMarkdown(ready, mime, file.name);
+}
+
 /* Text-ish → PDF ----------------------------------------------------- */
 
 /** Plain text → PDF (word-wrapped paragraphs, like the HTML path). */

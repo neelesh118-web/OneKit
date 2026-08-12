@@ -5,8 +5,11 @@
  * tables, stylesheets, metadata, embedded pictures. The writer emits the
  * plain RTF that Word, Pages and LibreOffice all open.
  *
- * Layout, tables and embedded images aren't preserved — the text is.
+ * Layout and tables aren't preserved for text sources — the text is.
+ * Image sources do get a real embedded picture (see imageToRtf below).
  */
+import { bytesToHex } from "./text";
+import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
 
 /** Destinations whose contents are markup, not readable text. */
 const SKIPPED_DESTINATIONS = new Set([
@@ -269,4 +272,41 @@ export function textToRtf(text: string): string {
     "\\f0\\fs22\n" +
     `${body}\n}`
   );
+}
+
+/* Image → RTF (real embedded \pict, not a placeholder) ---------------- */
+
+/**
+ * Wraps already-encoded PNG/JPEG bytes as a real embedded RTF picture
+ * (`\pict\pngblip`/`\jpegblip`, hex-encoded — the RTF 1.9+ shape every
+ * major reader accepts). `width`/`height` are the image's pixel size at
+ * 96 DPI; RTF measures pictures in twips (1px = 15 twips at 96 DPI).
+ */
+export function imageToRtf(bytes: Uint8Array, mime: "image/png" | "image/jpeg", width: number, height: number): string {
+  const blip = mime === "image/png" ? "pngblip" : "jpegblip";
+  const w = Math.max(1, Math.round(width * 15));
+  const h = Math.max(1, Math.round(height * 15));
+  const hex = bytesToHex(bytes);
+  return (
+    "{\\rtf1\\ansi\\ansicpg1252\\deff0\n" +
+    "{\\fonttbl{\\f0\\fswiss\\fcharset0 Helvetica;}}\n" +
+    "\\f0\\fs22\n" +
+    `{\\pict\\${blip}\\picw${w}\\pich${h}\\picwgoal${w}\\pichgoal${h}\n${hex}}\n}`
+  );
+}
+
+/**
+ * Images → RTF: rasterizes non-PNG/JPEG sources first (same pipeline as
+ * the DOCX/PPTX embedders), then wraps the real picture in a minimal
+ * RTF document via imageToRtf.
+ */
+export async function imageToRtfDocument(
+  file: { bytes: Uint8Array; name: string },
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<string> {
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
+  const [prepared] = await rasterizeForEmbed([file], rasterize);
+  if (!prepared) throw new Error(`Couldn't embed ${file.name} in the document.`);
+  const mime = prepared.ext === "jpeg" ? "image/jpeg" : "image/png";
+  return imageToRtf(prepared.bytes, mime, prepared.width, prepared.height);
 }

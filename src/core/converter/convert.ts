@@ -40,9 +40,9 @@ import { extractRawPreviewJpeg } from "./raw-photo";
 import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { fb2ToHtml, fb2Title, htmlzToHtml, mobiToHtml, txtzToHtml } from "./ebooks";
-import { odpToSlides, odtToHtml } from "./odf";
+import { imagesToOdt, odpToSlides, odtToHtml } from "./odf";
 import { imagesToPptx, pptxToSlides, slidesToHtml } from "./pptx";
-import { rtfToHtml } from "./rtf";
+import { imageToRtfDocument, rtfToHtml } from "./rtf";
 import { abwToHtml, oebToHtml, pmlToHtml, rstToHtml, texToHtml, zabwToHtml } from "./markup";
 import * as docs from "./documents";
 import * as txt from "./text";
@@ -285,16 +285,22 @@ async function runConversion(
       if (target === "pptx") return imagesToPptx([{ bytes, name: "image" }]);
       if (target === "html") return docs.imageToHtml({ bytes, name: "image" });
       if (target === "text") return toBytes(await runOcr(bytes, "image", opts));
+      if (target === "markdown") return docs.imageToMarkdown({ bytes, name: "image" });
+      if (target === "odt") return imagesToOdt([{ bytes, name: "image" }]);
+      if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes, name: "image" }));
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "image-svg":
       if (target === "text") return toBytes(toText(bytes));
       // SVG embeds directly — the browser renders it natively, no rasterization needed.
       if (target === "html") return docs.wrapImageAsHtml(bytes, "image/svg+xml", "image");
-      if (target === "pdf" || target === "docx" || target === "pptx") {
+      if (target === "markdown") return docs.wrapImageAsMarkdown(bytes, "image/svg+xml", "image");
+      if (target === "pdf" || target === "docx" || target === "pptx" || target === "odt" || target === "rtf") {
         // Rasterize to PNG first, then pack into the container (reuses both pipelines).
         const png = await convertImage(bytes, "image-png", opts.canvas, opts.image, source);
         if (target === "pdf") return docs.imagesToPdf([{ bytes: png, name: "image" }]);
         if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
+        if (target === "odt") return imagesToOdt([{ bytes: png, name: "image" }]);
+        if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
         return imagesToPptx([{ bytes: png, name: "image" }]);
       }
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
@@ -323,6 +329,9 @@ async function runConversion(
       if (target === "pptx") return imagesToPptx([{ bytes: preview, name: "image" }]);
       if (target === "html") return docs.imageToHtml({ bytes: preview, name: "image" });
       if (target === "text") return toBytes(await runOcr(preview, "image", opts));
+      if (target === "markdown") return docs.imageToMarkdown({ bytes: preview, name: "image" });
+      if (target === "odt") return imagesToOdt([{ bytes: preview, name: "image" }]);
+      if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: preview, name: "image" }));
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
     }
     case "eps":
@@ -336,11 +345,17 @@ async function runConversion(
         const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
         return docs.imagesToPdf([{ bytes: png, name: "image" }]);
       }
-      if (target === "docx" || target === "pptx" || target === "html" || target === "text") {
+      if (
+        target === "docx" || target === "pptx" || target === "html" || target === "text" ||
+        target === "markdown" || target === "odt" || target === "rtf"
+      ) {
         const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
         if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
         if (target === "pptx") return imagesToPptx([{ bytes: png, name: "image" }]);
         if (target === "html") return docs.imageToHtml({ bytes: png, name: "image" });
+        if (target === "markdown") return docs.imageToMarkdown({ bytes: png, name: "image" });
+        if (target === "odt") return imagesToOdt([{ bytes: png, name: "image" }]);
+        if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
         return toBytes(await runOcr(png, "image", opts));
       }
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-tiff");

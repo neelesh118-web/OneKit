@@ -10,6 +10,7 @@
 import { strFromU8, unzipSync, zipSync } from "fflate/browser";
 import { escapeXml, innerTextLines, xmlFragmentText } from "./xml-text";
 import { linesToSlide, type Slide } from "./pptx";
+import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
 
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
 
@@ -138,5 +139,85 @@ export function buildOdt(paragraphs: string[]): Uint8Array {
     "content.xml": enc(content),
     "styles.xml": enc(styles),
     "meta.xml": enc(meta)
+  });
+}
+
+/* Images → ODT (real embedded pictures) --------------------------------- */
+
+/** Pixels at 96 DPI, in centimetres — the unit ODF's svg:width/height wants. */
+const PX_TO_CM = 2.54 / 96;
+
+/**
+ * Builds a valid .odt with one real embedded picture per image (a
+ * `draw:frame`/`draw:image` referencing `Pictures/imageN.*`, declared in
+ * the manifest) — the way LibreOffice/OpenOffice store a picture, not a
+ * text placeholder. Non-PNG/JPEG sources rasterize first, same pipeline
+ * as the DOCX/PPTX/RTF embedders.
+ */
+export async function imagesToOdt(
+  files: { bytes: Uint8Array; name: string }[],
+  deps: { rasterize?: (bytes: Uint8Array, name: string) => Promise<Uint8Array> } = {}
+): Promise<Uint8Array> {
+  if (files.length === 0) throw new Error("Pick at least one image to put in the document.");
+  const rasterize = deps.rasterize ?? defaultImageRasterizer;
+  const prepared = await rasterizeForEmbed(files, rasterize);
+
+  const media: Record<string, Uint8Array> = {};
+  const manifestEntries: string[] = [];
+  const bodyParts: string[] = [];
+  prepared.forEach((img, i) => {
+    const ext = img.ext === "jpeg" ? "jpg" : "png";
+    const mediaType = img.ext === "jpeg" ? "image/jpeg" : "image/png";
+    const path = `Pictures/image${i + 1}.${ext}`;
+    media[path] = img.bytes;
+    manifestEntries.push(`<manifest:file-entry manifest:full-path="${path}" manifest:media-type="${mediaType}"/>`);
+    const w = Math.max(0.01, img.width * PX_TO_CM).toFixed(3);
+    const h = Math.max(0.01, img.height * PX_TO_CM).toFixed(3);
+    bodyParts.push(
+      `<text:p><draw:frame draw:name="${escapeXml(img.name)}" text:anchor-type="paragraph" svg:width="${w}cm" svg:height="${h}cm">` +
+        `<draw:image xlink:href="${path}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>` +
+        `</draw:frame></text:p>`
+    );
+  });
+
+  const content =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<office:document-content ` +
+    `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+    `xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" ` +
+    `xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" ` +
+    `xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" ` +
+    `xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" ` +
+    `xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" ` +
+    `office:version="1.3">` +
+    `<office:automatic-styles/>` +
+    `<office:body><office:text>${bodyParts.join("")}</office:text></office:body>` +
+    `</office:document-content>`;
+  const styles =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" office:version="1.3">` +
+    `<office:styles/></office:document-styles>`;
+  const manifest =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3">` +
+    `<manifest:file-entry manifest:full-path="/" manifest:media-type="${MIME_TEXT}"/>` +
+    `<manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>` +
+    `<manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>` +
+    manifestEntries.join("") +
+    `</manifest:manifest>`;
+  const meta =
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
+    `xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" office:version="1.3">` +
+    `<office:meta><meta:generator>OneKit</meta:generator></office:meta></office:document-meta>`;
+
+  return zipSync({
+    mimetype: [enc(MIME_TEXT), { level: 0 }],
+    "META-INF/manifest.xml": enc(manifest),
+    "content.xml": enc(content),
+    "styles.xml": enc(styles),
+    "meta.xml": enc(meta),
+    ...media
   });
 }
