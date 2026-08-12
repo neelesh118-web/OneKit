@@ -96,6 +96,12 @@ tests). All real bytes, real signatures, honest rejections — no stubs.
   ".ai" would be a stretch of the Honesty Rule (a plain PDF doesn't
   carry the AI-specific private data Illustrator's own writer embeds);
   not implemented this round.
+- **Audio → WebM** (`mp3/wav/flac/m4a/aac/aiff/ogg → webm`) — WebM
+  strictly expects Opus/Vorbis audio, and this codebase has neither
+  encoder (only MP3/FLAC/AIFF/WAV). Muxing MP3 into a `.webm` the way
+  `audio-mp4` already muxes MP3 into MP4 would risk failing strict WebM
+  readers rather than just "working in most players" the way the M4A
+  case does; not implemented this round.
 
 ## Remaining backlog (top gaps as of this batch, by rank)
 
@@ -209,8 +215,36 @@ reached in Node rather than silently falling through to GIF).
 **Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
 183 test files, 1,523 tests, all green.
 
+### Batch 5 — TIFF→TIFF and AIFF→AIFF (real re-encodes, not no-ops)
+
+**Pairs: 1,633 → 1,635 (+2). Sources: 113 (unchanged).**
+
+The backlog explicitly wants `tif↔tiff` and `aif↔aiff` — which, since
+`.tif`/`.tiff` and `.aif`/`.aiff` already detect as the exact same
+`FileType`, means "convert the format to itself." That's not a no-op
+here: `image-png`/`-jpeg`/`-webp`/`-gif`/`-bmp`/`-avif` and
+`audio-wav` already include themselves as targets because
+re-encoding through the canvas/PCM pipeline is a genuine operation
+(recompression, and for WAV, `normalizeWav`'s canonical-form pass).
+TIFF and AIFF just hadn't been given the same treatment yet:
+`image-tiff`'s target list was a filtered copy of `IMAGE_AND_PDF`
+excluding itself for no real reason (simplified to just
+`IMAGE_AND_PDF`, matching PNG/JPEG/etc. exactly), and `audio-aiff`
+now includes `audio-aiff` with an explicit `encodeAiff(parsed)`
+branch in `convert.ts` (previously the fallthrough would have
+silently returned WAV bytes labelled `.aiff` — a real bug this closes
+before it could ship as a matrix entry).
+
+**Tests added:** `tests/converter-aiff.test.ts` (+2: matrix
+membership, real `convertFile` round-trip verifying sample
+rate/channels/samples survive); `tests/converter-image-office.test.ts`
+(+1: matrix membership for TIFF→TIFF).
+
+**Gate:** `npx tsc --noEmit` clean; `npx vitest run --pool=threads` —
+183 test files, 1,526 tests, all green.
+
 ---
 
-**Current total: 1,633 pairs across 113 source formats.** Backlog has
+**Current total: 1,635 pairs across 113 source formats.** Backlog has
 6,553 demand-ranked rows in this domain; the batch loop continues
 top-down from the gap list above.

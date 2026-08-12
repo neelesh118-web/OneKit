@@ -907,6 +907,10 @@ async function runConversion(
       if (target === "audio-flac") return wavToFlac(wav);
       if (target === "audio-ogg") return wavToOgg(wav);
       if (target === "audio-mp4") return wavToMp4(wav);
+      // AIFF → AIFF: re-encodes through the same parse/re-encode pass as
+      // every other target here — a real normalization pass (canonical
+      // form), not a byte-identical no-op.
+      if (target === "audio-aiff") return encodeAiff(parsed);
       return wav;
     }
     case "audio-midi": {

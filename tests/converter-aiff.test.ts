@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { encodeAiff, isAiff, parseAiff } from "../src/core/converter/aiff";
+import { convertFile } from "../src/core/converter/convert";
+import { targetsFor } from "../src/core/converter/matrix";
 
 /** Builds an AIFF/AIFF-C by hand, the shapes the reader meets in the wild. */
 function buildAiff(opts: {
@@ -84,6 +86,24 @@ describe("converter AIFF writing", () => {
     expect(() => encodeAiff({ sampleRate: 44100, channels: 2, samples: new Float32Array() })).toThrow(
       /No audio samples/
     );
+  });
+});
+
+describe("converter AIFF → AIFF (real re-encode, not a no-op)", () => {
+  it("is offered as a target — the .aif/.aiff round trip the backlog asks for", () => {
+    expect(targetsFor("audio-aiff")).toContain("audio-aiff");
+  });
+
+  it("re-encodes through convertFile into a fresh, valid AIFF", async () => {
+    const samples = new Float32Array([0, 0.5, -0.5, 0.25]);
+    const source = encodeAiff({ sampleRate: 22050, channels: 1, samples });
+    const result = await convertFile({ bytes: source, name: "clip.aif" }, "audio-aiff");
+    expect(result.name).toBe("clip.aiff");
+    expect(isAiff(result.bytes)).toBe(true);
+    const back = parseAiff(result.bytes);
+    expect(back.sampleRate).toBe(22050);
+    expect(back.channels).toBe(1);
+    for (let i = 0; i < samples.length; i++) expect(back.samples[i]!).toBeCloseTo(samples[i]!, 2);
   });
 });
 

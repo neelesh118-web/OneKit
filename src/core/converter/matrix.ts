@@ -107,7 +107,10 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
     ...IMAGE_TARGETS.filter((t) => t !== "image-svg"),
     "text", "pdf", "docx", "pptx", "html", "markdown", "odt", "rtf", "txt-base64", "txt-hex"
   ],
-  "image-tiff": [...IMAGE_TARGETS.filter((t) => t !== "image-tiff"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
+  // TIFF → TIFF is a real re-encode (through the canvas pipeline, same
+  // as PNG→PNG above) — not a no-op, so it's not filtered out like the
+  // other single-purpose raster containers below.
+  "image-tiff": IMAGE_AND_PDF,
   "image-ico": [...IMAGE_TARGETS.filter((t) => t !== "image-ico"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-dds": [...IMAGE_TARGETS.filter((t) => t !== "image-dds"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
   "image-tga": [...IMAGE_TARGETS.filter((t) => t !== "image-tga"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex"],
@@ -194,7 +197,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "audio-ogg": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "audio-m4a": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "audio-flac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
-  "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
+  "audio-aiff": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   "audio-aac": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-mp4", "txt-base64", "txt-hex"],
   // A video frame is captured as a PNG, then any raster target reaches
   // it through the same canvas pipeline still images use (see

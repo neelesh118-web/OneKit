@@ -172,6 +172,10 @@ describe("converter matrix — image sources gained docx/pptx/html/markdown/odt/
       expect(targets).toContain("rtf");
     }
   });
+
+  it("offers TIFF → TIFF as a real re-encode (through the canvas pipeline), not filtered out like the other single-purpose raster containers", () => {
+    expect(targetsFor("image-tiff")).toContain("image-tiff");
+  });
 });
 
 describe("images → HTML (real embedded picture, self-contained page)", () => {
