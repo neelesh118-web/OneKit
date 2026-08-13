@@ -242,9 +242,14 @@ const OFFICE_TARGETS = new Set<TargetFormat>([
 /** Targets the epub case routes through renderDocument (OFFICE_TARGETS + cbz). */
 const IMAGE_OR_DOC_TARGETS = new Set<TargetFormat>(["image-png", "image-jpeg", "image-webp", "image-gif", "image-svg"]);
 
-/** Prose targets an image reaches by OCR-ing the picture first. */
+/**
+ * Prose targets an image reaches by OCR-ing the picture first. EPUB is
+ * deliberately absent — image → EPUB is the image-based photo album, not
+ * the OCR text, so each image case handles it before this branch.
+ */
 const OCR_DOC_TARGETS = new Set<TargetFormat>([
-  "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4"
+  "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4",
+  "mobi", "azw", "fb2", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", "txt-url"
 ]);
 
 /** The spreadsheet/data containers every table and record source can produce. */
@@ -379,9 +384,11 @@ async function renderTable(csv: string, title: string, target: TargetFormat, opt
   if (target === "pdf") return docs.csvToPdf(csv);
   if (target === "image-svg") return docs.csvToSvg(csv);
   if (target === "svgz") return arch.gzipBytes(docs.csvToSvg(csv));
-  if (target === "image-png" || target === "image-jpeg" || target === "image-webp" || target === "image-gif") {
+  if (target.startsWith("image-")) {
+    // Every raster target renders the table's SVG through the canvas
+    // pipeline — the same rule the image sources use.
     const svg = docs.csvToSvg(csv);
-    return convertImage(svg, target, opts.canvas, opts.image, "image-svg");
+    return convertImage(svg, target as ImageTarget, opts.canvas, opts.image, "image-svg");
   }
   return renderDocument(docs.csvToHtml(csv), title, target, opts);
 }
@@ -559,6 +566,9 @@ async function runConversion(
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes, name: "image" }));
       if (target === "prc" || target === "pdb") return await mobiFromHtml(toText(await docs.imageToHtml({ bytes, name: "image" })), { title: "Image" });
       if (target === "tex") return toBytes(docs.htmlToLatex(toText(await docs.imageToHtml({ bytes, name: "image" })), "Image"));
+      // Image → EPUB keeps the picture itself (a photo album, the same rule
+      // comic pages use); every other prose target reads the OCR text.
+      if (target === "epub") return docs.epubFromImages("Image", [{ bytes, name: "image" }]);
       // Text-document targets read the picture with OCR and render the
       // recognised text into each prose format (same rule as image → text).
       if (OCR_DOC_TARGETS.has(target)) {
@@ -582,6 +592,8 @@ async function runConversion(
       if (target === "cbz" || target === "cbc") {
         return arch.filesToZip({ "page-01.png": await convertImage(bytes, "image-png", opts.canvas, opts.image, source) });
       }
+      // Image → EPUB keeps the drawing itself (the SVG embeds directly).
+      if (target === "epub") return docs.epubFromHtml("Image", toText(docs.wrapImageAsHtml(bytes, "image/svg+xml", "image")));
       // SVG embeds directly — the browser renders it natively, no rasterization needed.
       if (target === "html") return docs.wrapImageAsHtml(bytes, "image/svg+xml", "image");
       if (target === "markdown") return docs.wrapImageAsMarkdown(bytes, "image/svg+xml", "image");
@@ -625,6 +637,7 @@ async function runConversion(
       if (target === "odt") return imagesToOdt([{ bytes: preview, name: "image" }]);
       if (target === "odp") return imagesToOdp([{ bytes: preview, name: "image" }]);
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: preview, name: "image" }));
+      if (target === "epub") return docs.epubFromImages("Image", [{ bytes: preview, name: "image" }]);
       if (OCR_DOC_TARGETS.has(target)) {
         const text = await runOcr(preview, "image", opts);
         return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
@@ -649,6 +662,7 @@ async function runConversion(
       if (target === "odt") return imagesToOdt([{ bytes: jpeg, name: "image" }]);
       if (target === "odp") return imagesToOdp([{ bytes: jpeg, name: "image" }]);
       if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: jpeg, name: "image" }));
+      if (target === "epub") return docs.epubFromImages("Image", [{ bytes: jpeg, name: "image" }]);
       if (OCR_DOC_TARGETS.has(target)) {
         const text = await runOcr(jpeg, "image", opts);
         return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
@@ -683,6 +697,10 @@ async function runConversion(
         if (target === "odp") return imagesToOdp([{ bytes: png, name: "image" }]);
         if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
         return toBytes(await runOcr(png, "image", opts));
+      }
+      if (target === "epub") {
+        const png = await convertImage(preview, "image-png", opts.canvas, opts.image, "image-tiff");
+        return docs.epubFromImages("Image", [{ bytes: png, name: "image" }]);
       }
       if (OCR_DOC_TARGETS.has(target)) {
         const text = await runOcr(preview, "image", opts);
@@ -1077,6 +1095,7 @@ async function runConversion(
     }
     case "text": {
       const text = toText(bytes);
+      if (target === "text") return bytes; // identity (text-url routes here)
       if (target === "txt-base64") return toBytes(txt.textToBase64(text));
       if (target === "txt-hex") return toBytes(txt.textToHex(text));
       if (target === "pdf") return docs.textToPdf(text);
@@ -1095,6 +1114,11 @@ async function runConversion(
         return toBytes(
           `<!doctype html>\n<html><head><meta charset=\"utf-8\"></head>\n<body>\n<pre>${docs.escapeHtml(text)}</pre>\n</body>\n</html>`
         );
+      }
+      // Text → image renders the text as an SVG and pushes it through the
+      // raster pipeline — every image target the matrix offers is honest.
+      if (target.startsWith("image-")) {
+        return convertImage(docs.textToSvg(text), target as ImageTarget, opts.canvas, opts.image, "image-svg");
       }
       return toBytes(txt.textToUrl(text));
     }
@@ -1264,10 +1288,11 @@ async function runConversion(
       return convertDecodedBytes(txt.hexToBytes(toText(bytes)), target, opts);
     }
     case "text-url": {
+      // A URL-encoded text file IS text — decode it, then every target the
+      // text source reaches applies (same rule the base64/hex sources use).
       const decoded = urlToText(toText(bytes));
       if (!decoded.ok) throw new Error(decoded.error);
-      if (target === "pdf") return docs.textToPdf(decoded.value);
-      return toBytes(decoded.value);
+      return runConversion("text", target, toBytes(decoded.value), opts);
     }
     case "csv": {
       const csv = toText(bytes);
@@ -1280,7 +1305,7 @@ async function runConversion(
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
       if (target === "epub") return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
       if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
-      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target) || target === "text" || target.startsWith("image-")) {
         return renderTable(csv, "Spreadsheet", target, opts);
       }
       return docs.csvToXlsx(csv);
@@ -1298,7 +1323,7 @@ async function runConversion(
       if (target === "markdown") return toBytes(`\`\`\`json\n${docs.jsonToText(json)}\n\`\`\``);
       if (target === "jsonl") return toBytes(docs.jsonToJsonl(json));
       if (target === "toml") return toBytes(docs.jsonToToml(json));
-      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target) || target === "text" || target.startsWith("image-")) {
         return renderTable(docs.jsonToCsv(json), "Data", target);
       }
       return toBytes(docs.jsonToText(json));
@@ -1316,7 +1341,7 @@ async function runConversion(
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
       if (target === "epub") return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
       if (target === "jsonl") return toBytes(docs.csvToJsonl(csv));
-      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target) || target === "text" || target.startsWith("image-")) {
         return renderTable(csv, "Spreadsheet", target, opts);
       }
       return toBytes(docs.csvToHtml(csv));
@@ -1332,7 +1357,7 @@ async function runConversion(
       if (target === "epub") return docs.epubFromHtml("Data", docs.jsonToHtml(json));
       if (target === "markdown") return toBytes(`\`\`\`yaml\n${yaml.trim()}\n\`\`\``);
       if (target === "toml") return toBytes(docs.jsonToToml(json));
-      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target) || target === "text" || target.startsWith("image-")) {
         return renderTable(docs.jsonToCsv(json), "Data", target);
       }
       return toBytes(json);
@@ -1354,7 +1379,12 @@ async function runConversion(
       if (target === "yaml") return toBytes(docs.jsonToYaml(docs.xmlToJson(xml)));
       if (target === "markdown") return toBytes(`\`\`\`xml\n${xml.trim()}\n\`\`\``);
       if (target === "xlsx") return docs.csvToXlsx(docs.xmlToCsv(xml));
-      return toBytes(xml); // xml → text is a validated passthrough
+      if (target === "text") return toBytes(xml); // validated passthrough
+      // The table interpretation covers every other data/document target.
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target) || target === "csv" || target === "pdf" || target === "docx" || target === "epub") {
+        return renderTable(docs.xmlToCsv(xml), "XML data", target, opts);
+      }
+      return toBytes(xml);
     }
     case "toml": {
       const toml = toText(bytes);
@@ -1412,7 +1442,7 @@ async function runConversion(
       if (target === "markdown") return toBytes(docs.csvToMarkdown(csv));
       if (target === "pdf") return docs.csvToPdf(csv);
       if (target === "docx") return docs.htmlToDocx(docs.csvToHtml(csv));
-      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target)) {
+      if (SHEET_TARGETS.has(target) || OFFICE_TARGETS.has(target) || target === "text" || target.startsWith("image-")) {
         return renderTable(csv, "Spreadsheet", target, opts);
       }
       return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
@@ -1426,6 +1456,17 @@ async function runConversion(
             .map(([name, data]) => `${name} (${data.length} bytes)`)
             .join("\n")
         );
+      }
+      if (target === "cbz" || target === "cbc") {
+        // A ZIP of image files IS a comic archive — pack the pages exactly
+        // like the .cbz source does.
+        const pages = Object.entries(files)
+          .filter(([name, data]) => data.length > 0 && /\.(?:png|jpe?g|gif|webp|bmp|avif|tiff?|ico|dds|tga|ppm|psd|icns)$/i.test(name))
+          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+        if (pages.length === 0) throw new Error("This ZIP contains no image files to pack into a comic.");
+        const packed: Record<string, Uint8Array> = {};
+        for (const [name, data] of pages) packed[name] = data;
+        return arch.filesToZip(packed);
       }
       return arch.gzipBytes(bytes);
     }

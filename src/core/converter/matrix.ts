@@ -93,7 +93,10 @@ const SVG_TARGETS: TargetFormat[] = [
   ...IMAGE_TARGETS.filter((t) => t !== "image-svg"),
   "text", "pdf", "docx", "pptx", "html", "markdown", "odt", "odp", "rtf",
   ...IMAGE_SMALL_EXTRA,
-  "txt-base64", "txt-hex"
+  "txt-base64", "txt-hex",
+  // SVG text is directly extractable, so the prose targets apply without
+  // OCR — same rule the document sources follow.
+  "epub", "mobi", "azw", "fb2", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", "txt-url"
 ];
 
 /**
@@ -105,7 +108,11 @@ const SVG_TARGETS: TargetFormat[] = [
  */
 const IMAGE_AND_PDF: TargetFormat[] = [
   ...IMAGE_TARGETS, "pdf", "docx", "docm", "dotx", "pptx", "pptm", "potx", "ppsx", "html", "text", "markdown", "odt", "odp", "rtf", "prc", "pdb", "tex", "txt-base64", "txt-hex",
-  ...IMAGE_OCR_DOCS, "svgz", "cbz", "cbc"
+  ...IMAGE_OCR_DOCS, "svgz", "cbz", "cbc",
+  // The OCR'd text reaches every prose format the document renderer
+  // supports (image → text is real OCR, so each format is honest).
+  // EPUB is image-based (photo album), the rest read the recognised text.
+  "epub", "mobi", "azw", "fb2", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", "txt-url"
 ];
 
 /**
@@ -136,7 +143,7 @@ function imageAndPdfExcept(...own: TargetFormat[]): TargetFormat[] {
  */
 const TABLE_TARGETS: TargetFormat[] = [
   "csv", "tsv", "json", "yaml", "xml", "xlsx", "xlsm", "xltx", "xltm", "xls", "ods", "toml", "ini", "sql", "properties", "opml", "jsonl", "vcf", "ics", "geojson",
-  "html", "markdown", "pdf", "docx", "epub", "rtf", "odt", "odp", "org", "textile", "mediawiki", "asciidoc",
+  "html", "markdown", "text", "pdf", "docx", "epub", "rtf", "odt", "odp", "pptx", "mobi", "azw", "fb2", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "txt-url", "azw3", "azw4", "abw", "zabw",
   "mhtml", "xhtml", "ps", "eps", "odg", "svgz",
   ...IMAGE_TARGETS,
   "txt-base64", "txt-hex"
@@ -184,21 +191,24 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // as PNG→PNG above) — not a no-op, so it's not filtered out like the
   // other single-purpose raster containers below.
   "image-tiff": IMAGE_AND_PDF,
-  "image-ico": [...IMAGE_TARGETS.filter((t) => t !== "image-ico"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-dds": [...IMAGE_TARGETS.filter((t) => t !== "image-dds"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-tga": [...IMAGE_TARGETS.filter((t) => t !== "image-tga"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-ppm": [...IMAGE_TARGETS.filter((t) => t !== "image-ppm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-psd": [...IMAGE_TARGETS.filter((t) => t !== "image-psd"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-icns": [...IMAGE_TARGETS.filter((t) => t !== "image-icns"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-pbm": [...IMAGE_TARGETS.filter((t) => t !== "image-pbm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-pgm": [...IMAGE_TARGETS.filter((t) => t !== "image-pgm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-pam": [...IMAGE_TARGETS.filter((t) => t !== "image-pam"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-xbm": [...IMAGE_TARGETS.filter((t) => t !== "image-xbm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-qoi": [...IMAGE_TARGETS.filter((t) => t !== "image-qoi"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-farbfeld": [...IMAGE_TARGETS.filter((t) => t !== "image-farbfeld"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-pcx": [...IMAGE_TARGETS.filter((t) => t !== "image-pcx"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-xpm": [...IMAGE_TARGETS.filter((t) => t !== "image-xpm"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
-  "image-wbmp": [...IMAGE_TARGETS.filter((t) => t !== "image-wbmp"), "pdf", "docx", "pptx", "html", "text", "markdown", "odt", "rtf", "txt-base64", "txt-hex", ...IMAGE_SMALL_EXTRA],
+  // Every smaller raster format decodes to pixels first, then runs the
+  // exact same pipeline as the main image sources — the full image+document
+  // reach is honest (including the OCR prose and image-based EPUB).
+  "image-ico": imageAndPdfExcept("image-ico"),
+  "image-dds": imageAndPdfExcept("image-dds"),
+  "image-tga": imageAndPdfExcept("image-tga"),
+  "image-ppm": imageAndPdfExcept("image-ppm"),
+  "image-psd": imageAndPdfExcept("image-psd"),
+  "image-icns": imageAndPdfExcept("image-icns"),
+  "image-pbm": imageAndPdfExcept("image-pbm"),
+  "image-pgm": imageAndPdfExcept("image-pgm"),
+  "image-pam": imageAndPdfExcept("image-pam"),
+  "image-xbm": imageAndPdfExcept("image-xbm"),
+  "image-qoi": imageAndPdfExcept("image-qoi"),
+  "image-farbfeld": imageAndPdfExcept("image-farbfeld"),
+  "image-pcx": imageAndPdfExcept("image-pcx"),
+  "image-xpm": imageAndPdfExcept("image-xpm"),
+  "image-wbmp": imageAndPdfExcept("image-wbmp"),
   pdf: ["text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "cbc", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "txt-base64", "txt-hex", "txt-url", "opml"],
   docx: ["html", "markdown", "text", "pdf", "docm", "dotx", "epub", "htmlz", "txtz", "csv", "xlsx", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   docm: ["html", "markdown", "text", "pdf", "docx", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
@@ -226,13 +236,16 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   fb3: docTargetsExcept(),
   // AZW4 is a Kindle container wrapping a PDF — the whole PDF pipeline is
   // honest from it (extract the drawing), same reach as the pdf row.
-  azw4: ["pdf", "text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "cbc", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "txt-base64", "txt-hex", "txt-url", "opml"],
+  // AZW4 routes through the full PDF pipeline (runConversion("pdf", …)),
+  // so the pdf row's every target is honestly reachable.
+  azw4: ["pdf", "text", "markdown", "html", ...IMAGE_TARGETS, "cbz", "cbc", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "svgz", "abw", "zabw", "txt-base64", "txt-hex", "txt-url", "opml"],
   htmlz: docTargetsExcept("htmlz"),
   txtz: docTargetsExcept("txtz"),
   // Comic pages reach prose targets by OCR-ing every page (real tesseract.js,
-  // not a filename dump) — the same rule the image sources use.
-  cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbc", "text", "markdown", "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4", ...IMAGE_TARGETS],
-  cbc: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbz", "text", "markdown", "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4", ...IMAGE_TARGETS],
+  // not a filename dump) — the same rule the image sources use. EPUB is the
+  // image-based comic book; the other prose targets read the OCR text.
+  cbz: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbc", "text", "markdown", "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4", "mobi", "azw", "fb2", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", "txt-url", ...IMAGE_TARGETS],
+  cbc: ["pdf", "epub", "html", "docx", "docm", "dotx", "cbz", "text", "markdown", "rst", "abw", "zabw", "xhtml", "mhtml", "ps", "eps", "odg", "azw3", "azw4", "mobi", "azw", "fb2", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", "txt-url", ...IMAGE_TARGETS],
   dxf: ["pdf", "html", "text", "markdown", "docx", "docm", "dotx", "epub", "htmlz", "txtz", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "org", "textile", "mediawiki", "asciidoc", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbc", "txt-base64", "txt-hex", "txt-url", "opml", ...IMAGE_TARGETS],
   // Illustrator files carry a PDF payload since CS6, so every document
   // and raster target is honestly reachable through the PDF pipeline
@@ -307,21 +320,25 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // Legacy OLE2 office documents (StarWriter/StarCalc/StarDraw, Visio):
   // the body text reads out of the document stream, so the text-based
   // targets apply — same rule as the Apple iWork readers.
-  sdw: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
-  sdc: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
-  sda: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
-  vsd: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
+  // Legacy OLE2 office documents funnel through the shared document
+  // renderer, so the full prose document set is honestly reachable.
+  sdw: docTargetsExcept(),
+  sdc: docTargetsExcept(),
+  sda: docTargetsExcept(),
+  vsd: docTargetsExcept(),
   // Psion TCR: a zlib-compressed text file — decompress and read as text.
-  tcr: ["pdf", "text", "html", "markdown", "docx", "rtf", "odt", "epub", "mobi", "azw", "prc", "pdb", "fb2", "tex", "rst", "xhtml", "mhtml", "odg", "pptx", "pptm", "potx", "ppsx", "odp", "txt-base64", "txt-hex"],
+  tcr: docTargetsExcept(),
   xhtml: docTargetsExcept("xhtml"),
   mhtml: docTargetsExcept("mhtml"),
   svgz: SVG_TARGETS.filter((t) => t !== "svgz"),
-  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbz", "cbc", ...IMAGE_TARGETS],
+  text: ["txt-base64", "txt-hex", "txt-url", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbz", "cbc", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", ...IMAGE_TARGETS],
   csv: tableTargetsExcept("csv"),
-  json: [...tableTargetsExcept("json"), "text"],
+  json: tableTargetsExcept("json"),
   tsv: tableTargetsExcept("tsv"),
   yaml: tableTargetsExcept("yaml"),
-  xml: ["json", "text", "yaml", "html", "markdown", "csv", "xlsx", "txt-base64", "txt-hex"],
+  // XML is treated as a table source (xmlToCsv is the shared reader), so
+  // the full data + document target set is honestly reachable.
+  xml: tableTargetsExcept("xml"),
   ini: ["json", "yaml", "xml", "text", "markdown", "toml", "txt-base64", "txt-hex"],
   toml: ["json", "yaml", "xml", "csv", "markdown", "text", "txt-base64", "txt-hex"],
   qif: recordTargets(),
@@ -353,7 +370,9 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // no preview throws a clear per-file error at conversion time.
   eps: imageAndPdfExcept("eps"),
   ps: imageAndPdfExcept("ps"),
-  zip: ["tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
+  // A ZIP of image files IS a comic archive — pack the pages the same way
+  // the .cbz source does.
+  zip: ["tar", "gzip", "text", "json", "cbz", "cbc", "txt-base64", "txt-hex"],
   tar: ["zip", "gzip", "text", "json", "txt-base64", "txt-hex"],
   gzip: ["zip", "tar", "text", "txt-base64", "txt-hex"],
   "font-ttf": ["font-woff", "font-woff2", "txt-base64", "txt-hex"],
@@ -384,7 +403,9 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "text-hex": [...IMAGE_TARGETS, ...RECORD_DOCS],
   opml: recordTargets("opml"),
   plist: recordTargets(),
-  "text-url": ["text", "pdf"],
+  // A URL-encoded text file IS text — decode it, then every target the
+  // text source reaches applies (same rule the base64/hex sources follow).
+  "text-url": ["text", "pdf", "docx", "docm", "dotx", "html", "markdown", "epub", "rtf", "odt", "odp", "pptx", "pptm", "potx", "ppsx", "fb2", "mobi", "azw", "prc", "pdb", "tex", "rst", "mhtml", "xhtml", "ps", "eps", "odg", "azw3", "azw4", "svgz", "abw", "zabw", "cbz", "cbc", "htmlz", "txtz", "org", "textile", "mediawiki", "asciidoc", "opml", ...IMAGE_TARGETS, "txt-base64", "txt-hex"],
   vcf: recordTargets("vcf"),
   ics: recordTargets("ics"),
   srt: subtitleTargets("srt"),
