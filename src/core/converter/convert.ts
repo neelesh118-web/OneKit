@@ -57,6 +57,7 @@ import { xpsToHtml } from "./xps";
 import { pubToHtml } from "./pub";
 import { emfToSvg, emfToText, wmfToSvg, wmfToText } from "./metafile";
 import { cgmToSvg, cgmToText } from "./cgm";
+import { chmToHtml } from "./chm";
 import { skToHtml, skToSvg } from "./sketch";
 import { swfToHtml } from "./swf";
 import { hwpxToHtml } from "./hwpx";
@@ -937,6 +938,10 @@ async function runConversion(
       return renderDocument(pubToHtml(bytes), "Publisher document", target, opts);
     // Windows metafiles: the supported record subset renders to SVG; the
     // text records read as prose for every document target.
+    case "chm":
+      // Compiled HTML Help: the LZX-compressed content stream holds every
+      // help page — page text reads as prose, rendered as a document.
+      return renderDocument(chmToHtml(bytes), "CHM help", target, opts);
     case "cgm":
       // Binary CGM vector drawings: the primitive subset renders to SVG,
       // the TEXT records read as prose — same rule as the metafiles.

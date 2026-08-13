@@ -281,6 +281,7 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   emf: docTargetsExcept(),
   wmf: docTargetsExcept(),
   cgm: docTargetsExcept(),
+  chm: docTargetsExcept(),
   // sK1/Sketch vector drawings: basic shapes render to SVG, text objects
   // read as prose, plain-text fallback for anything unparseable.
   sk1: docTargetsExcept(),
