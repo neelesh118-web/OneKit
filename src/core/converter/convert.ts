@@ -38,6 +38,9 @@ import {
 } from "./video";
 import { base64ToBytes, base64ToText, hexToBytes, hexToText, urlToText } from "./text";
 import { extractRawPreviewJpeg } from "./raw-photo";
+import { dbfToRecords, tcxToRecords, wplToRecords, xspfToRecords } from "./records-r17";
+import { figToText, pltToText, slaToHtml } from "./prose-r17";
+import { flatOdfToHtml, odfTableToCsv, readOdfContentXml } from "./odf";
 import { extractEpsPreviewTiff } from "./eps";
 import { encodeAiff, parseAiff } from "./aiff";
 import { encodeAu, parseAu } from "./au";
@@ -210,7 +213,35 @@ export const MIME_BY_TARGET: Record<TargetFormat, string> = {
   ics: "text/calendar",
   "txt-base64": "text/plain",
   "txt-hex": "text/plain",
-  "txt-url": "text/plain"
+  "txt-url": "text/plain",
+  "image-psb": "image/vnd.adobe.photoshop",
+  "audio-opus": "audio/opus",
+  "audio-weba": "audio/webm",
+  "video-3gp": "video/3gpp",
+  "video-3g2": "video/3gpp2",
+  "video-ogv": "video/ogg",
+  ott: "application/vnd.oasis.opendocument.text-template",
+  otp: "application/vnd.oasis.opendocument.presentation-template",
+  ots: "application/vnd.oasis.opendocument.spreadsheet-template",
+  otg: "application/vnd.oasis.opendocument.drawing-template",
+  fodt: "application/vnd.oasis.opendocument.text-flat-xml",
+  fods: "application/vnd.oasis.opendocument.spreadsheet-flat-xml",
+  fodp: "application/vnd.oasis.opendocument.presentation-flat-xml",
+  sxw: "application/vnd.sun.xml.writer",
+  sxc: "application/vnd.sun.xml.calc",
+  sxi: "application/vnd.sun.xml.impress",
+  tcx: "application/vnd.garmin.tcx+xml",
+  dbf: "application/x-dbf",
+  sla: "application/x-scribus",
+  fig: "application/x-xfig",
+  plt: "application/x-hpgl",
+  wpl: "application/vnd.ms-wpl",
+  xspf: "application/xspf+xml",
+  apk: "application/vnd.android.package-archive",
+  jar: "application/java-archive",
+  war: "application/java-archive",
+  ear: "application/java-archive",
+  ipa: "application/x-ios-app"
 };
 
 const toBytes = (text: string): Uint8Array => new TextEncoder().encode(text);
@@ -532,14 +563,15 @@ async function runConversion(
     case "image-gif":
     case "image-bmp":
     case "image-avif":
-    // TIFF, ICO, DDS, TGA, PPM, PSD and ICNS are decoded to pixels first,
-    // then take the same canvas path as every other raster format.
+    // TIFF, ICO, DDS, TGA, PPM, PSD, PSB and ICNS are decoded to pixels
+    // first, then take the same canvas path as every other raster format.
     case "image-tiff":
     case "image-ico":
     case "image-dds":
     case "image-tga":
     case "image-ppm":
     case "image-psd":
+    case "image-psb":
     case "image-icns":
     case "image-pbm":
     case "image-pgm":
@@ -776,12 +808,25 @@ async function runConversion(
     case "rtf":
       return renderDocument(rtfToHtml(toText(bytes)), "Document", target, opts);
     case "odt":
+    case "ott":
+    case "otg":
+    case "sxw":
+      // OpenDocument text templates (ott), drawing templates (otg) and
+      // OpenOffice 1.x text (sxw) share the same text:p body — one reader.
       return renderDocument(odtToHtml(bytes), "Document", target, opts);
+    // Flat ODF (fodt/fodp) is the same body XML in a single file.
+    case "fodt":
+    case "fodp":
+      return renderDocument(flatOdfToHtml(toText(bytes)), "Document", target, opts);
     // OpenDocument drawings keep their text in the same text:h/text:p tags
     // as ODT, so the same reader serves both flavours.
     case "odg":
       return renderDocument(odtToHtml(bytes), "Drawing", target, opts);
     case "odp":
+    case "otp":
+    case "sxi":
+      // OpenDocument presentation templates (otp) and OpenOffice 1.x decks
+      // (sxi) share the same draw:page content — real slides, same reader.
       if (target === "odp") return slidesToOdp(odpToSlides(bytes));
       return renderDocument(slidesToHtml(odpToSlides(bytes), "Presentation"), "Presentation", target, opts);
     case "pptx":
@@ -831,6 +876,13 @@ async function runConversion(
       // every style instead of rebuilding from CSV.
       if (source === "xlsm" && target === "xlsx") return docs.xlsmToXlsx(bytes);
       return renderTable(await docs.xlsxToCsv(bytes), "Spreadsheet", target, opts);
+    // ODF spreadsheet flavours (ots/sxc) and flat ODS (fods) read through
+    // the shared table:table-row walker.
+    case "ots":
+    case "sxc":
+      return renderTable(odfTableToCsv(readOdfContentXml(bytes, "." + source)), "Spreadsheet", target, opts);
+    case "fods":
+      return renderTable(odfTableToCsv(toText(bytes)), "Spreadsheet", target, opts);
     case "epub": {
       if (target === "cbz") return docs.epubImagesToCbz(bytes);
       const html = docs.epubToHtml(bytes);
@@ -1209,6 +1261,31 @@ async function runConversion(
       if (records.length === 0) throw new Error("No placemarks with coordinates found in this KML file.");
       return routeRecords(records, "Records", target);
     }
+    case "tcx": {
+      const records = tcxToRecords(toText(bytes));
+      return routeRecords(records, "Garmin activity", target);
+    }
+    case "dbf": {
+      const records = dbfToRecords(bytes);
+      return routeRecords(records, "Table", target);
+    }
+    case "wpl": {
+      const records = wplToRecords(toText(bytes));
+      return routeRecords(records, "Playlist", target);
+    }
+    case "xspf": {
+      const records = xspfToRecords(toText(bytes));
+      return routeRecords(records, "Playlist", target);
+    }
+    case "sla":
+      // Scribus documents: the zip's document.xml ITEXT runs read as prose.
+      return renderDocument(slaToHtml(bytes), "Scribus document", target, opts);
+    case "fig":
+      // Xfig drawings: the text records read as prose.
+      return renderDocument(`<pre>${docs.escapeHtml(figToText(toText(bytes)))}</pre>`, "Xfig drawing", target, opts);
+    case "plt":
+      // HPGL plotter files: the LB label records read as prose.
+      return renderDocument(`<pre>${docs.escapeHtml(pltToText(toText(bytes)))}</pre>`, "HPGL plot", target, opts);
     case "bookmarks": {
       const records = docs.bookmarksToRecords(toText(bytes));
       if (records.length === 0) throw new Error("No bookmarked links found in this file.");
@@ -1447,14 +1524,31 @@ async function runConversion(
       }
       return docs.epubFromHtml("Spreadsheet", docs.csvToHtml(csv));
     }
-    case "zip": {
+    case "zip":
+    case "apk":
+    case "jar":
+    case "war":
+    case "ear":
+    case "ipa": {
+      // App packages (APK/JAR/WAR/EAR/IPA) are ZIP containers — the same
+      // extraction/listing paths apply.
       const files = arch.unzipToFiles(bytes);
+      if (target === "zip") return arch.filesToZip(files);
       if (target === "tar") return arch.filesToTar(files);
       if (target === "text") {
         return toBytes(
           Object.entries(files)
             .map(([name, data]) => `${name} (${data.length} bytes)`)
             .join("\n")
+        );
+      }
+      if (target === "json") {
+        return toBytes(
+          JSON.stringify(
+            Object.fromEntries(Object.entries(files).map(([name, data]) => [name, data.length])),
+            null,
+            2
+          )
         );
       }
       if (target === "cbz" || target === "cbc") {
@@ -1518,7 +1612,12 @@ async function runConversion(
     case "audio-ogg":
     case "audio-m4a":
     case "audio-aac":
-    case "audio-flac": {
+    case "audio-flac":
+    // M4B audiobooks, raw Opus and WebM audio decode through the same Web
+    // Audio pipeline as the other non-WAV sources.
+    case "audio-m4b":
+    case "audio-opus":
+    case "audio-weba": {
       const decode = opts.audioDecoder ?? decodeAudioInBrowser;
       if (target === "audio-mp3") return anyToMp3(bytes, decode);
       if (target === "audio-flac") return anyToFlac(bytes, decode);
@@ -1602,6 +1701,9 @@ async function runConversion(
     case "video-mp4":
     case "video-webm":
     case "video-mov":
+    case "video-3gp":
+    case "video-3g2":
+    case "video-ogv":
       // mp4 → mov is a pure container remux (QuickTime brand swap) — no
       // re-encoding, so it runs without any media stack. webm → mov is
       // not offered: that would need a local H.264 encoder.

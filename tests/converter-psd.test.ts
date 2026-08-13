@@ -137,10 +137,10 @@ describe("PSD codec", () => {
     expect(Array.from(decoded.data.filter((_, i) => i % 4 === 3))).toEqual([9, 9, 9, 9]); // alpha (run-length)
   });
 
-  it("honestly rejects non-PSD bytes, PSB, ZIP compression, and unsupported colour modes/depth", () => {
+  it("honestly rejects non-PSD bytes, ZIP compression, and unsupported colour modes/depth", () => {
     expect(() => decodePsd(new Uint8Array(30))).toThrow(/8BPS signature/);
-    const psb = buildPsd({ width: 1, height: 1, channels: 3, colorMode: 3, planes: [], version: 2 });
-    expect(() => decodePsd(psb)).toThrow(/large-document PSB/);
+    // PSB (version 2) is now a supported source — round-17 tests decode a
+    // correctly-built large-document fixture end-to-end.
     const cmyk = buildPsd({ width: 1, height: 1, channels: 4, colorMode: 4, planes: [] });
     expect(() => decodePsd(cmyk)).toThrow(/RGB and Grayscale/);
     const depth16 = buildPsd({ width: 1, height: 1, channels: 3, colorMode: 3, depth: 16, planes: [] });

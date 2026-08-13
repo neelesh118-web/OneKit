@@ -31,6 +31,11 @@ export type FileType =
   | "image-qoi" | "image-farbfeld" | "image-pcx" | "image-xpm" | "image-wbmp"
   | "audio-au" | "audio-voc"
   | "opml" | "plist" | "ssv" | "psv" | "dif" | "gnumeric"
+  | "image-psb" | "audio-m4b" | "audio-opus" | "audio-weba"
+  | "video-3gp" | "video-3g2" | "video-ogv"
+  | "ott" | "otp" | "ots" | "otg" | "fodt" | "fods" | "fodp" | "sxw" | "sxc" | "sxi"
+  | "tcx" | "dbf" | "sla" | "fig" | "plt" | "wpl" | "xspf"
+  | "apk" | "jar" | "war" | "ear" | "ipa"
   | "unknown";
 
 export const TYPE_LABELS: Record<FileType, string> = {
@@ -89,6 +94,18 @@ export const TYPE_LABELS: Record<FileType, string> = {
   opml: "OPML outline", plist: "Apple plist", ssv: "SSV spreadsheet", psv: "PSV spreadsheet",
   dif: "DIF spreadsheet", gnumeric: "gnumeric spreadsheet",
   "image-icns": "Apple icon (ICNS)",
+  "image-psb": "Photoshop Large Document (PSB)",
+  "audio-m4b": "M4B audiobook", "audio-opus": "Opus audio", "audio-weba": "WebM audio (WEBA)",
+  "video-3gp": "3GP video", "video-3g2": "3G2 video", "video-ogv": "Ogg video (OGV)",
+  ott: "OpenDocument text template (OTT)", otp: "OpenDocument presentation template (OTP)",
+  ots: "OpenDocument spreadsheet template (OTS)", otg: "OpenDocument drawing template (OTG)",
+  fodt: "Flat ODF text (FODT)", fods: "Flat ODF spreadsheet (FODS)", fodp: "Flat ODF presentation (FODP)",
+  sxw: "OpenOffice 1.x text (SXW)", sxc: "OpenOffice 1.x spreadsheet (SXC)", sxi: "OpenOffice 1.x presentation (SXI)",
+  tcx: "Garmin TCX activity", dbf: "dBASE table (DBF)", sla: "Scribus document (SLA)",
+  fig: "Xfig drawing (FIG)", plt: "HPGL plotter file (PLT)", wpl: "Windows Media playlist (WPL)",
+  xspf: "XSPF playlist",
+  apk: "Android package (APK)", jar: "Java archive (JAR)", war: "Web archive (WAR)",
+  ear: "Enterprise archive (EAR)", ipa: "iOS app package (IPA)",
   unknown: "Unknown format"
 };
 
@@ -148,6 +165,15 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-xpm": ["xpm"], "image-wbmp": ["wbmp", "wap"],
   "audio-au": ["au", "snd"], "audio-voc": ["voc"],
   opml: ["opml"], plist: ["plist"], ssv: ["ssv"], psv: ["psv"], dif: ["dif"], gnumeric: ["gnumeric"],
+  "image-psb": ["psb"],
+  "audio-m4b": ["m4b"], "audio-opus": ["opus"], "audio-weba": ["weba"],
+  "video-3gp": ["3gp", "3gpp"], "video-3g2": ["3g2"], "video-ogv": ["ogv"],
+  ott: ["ott"], otp: ["otp"], ots: ["ots"], otg: ["otg"],
+  fodt: ["fodt"], fods: ["fods"], fodp: ["fodp"],
+  sxw: ["sxw"], sxc: ["sxc"], sxi: ["sxi"],
+  tcx: ["tcx"], dbf: ["dbf"], sla: ["sla"], fig: ["fig"], plt: ["plt", "hpgl"],
+  wpl: ["wpl"], xspf: ["xspf"],
+  apk: ["apk"], jar: ["jar"], war: ["war"], ear: ["ear"], ipa: ["ipa"],
   unknown: []
 };
 
@@ -246,7 +272,9 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     return "image-ico";
   }
   if (asciiAt(bytes, 0, "DDS ")) return "image-dds";
-  if (asciiAt(bytes, 0, "8BPS")) return "image-psd";
+  // Photoshop's large-document format (PSB) carries version 2 in the header;
+  // everything else with the 8BPS signature is a regular PSD.
+  if (asciiAt(bytes, 0, "8BPS")) return bytes[5] === 2 ? "image-psb" : "image-psd";
   if (asciiAt(bytes, 0, "icns")) return "image-icns";
   if (hasPrefix(bytes, [0x50, 0x36]) || hasPrefix(bytes, [0x50, 0x33])) return "image-ppm"; // "P6"/"P3"
   if (hasPrefix(bytes, [0x50, 0x31]) || hasPrefix(bytes, [0x50, 0x34])) return "image-pbm"; // "P1"/"P4"
@@ -314,6 +342,10 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (asciiAt(bytes, 0, "wOFF")) return "font-woff";
   if (asciiAt(bytes, 0, "wOF2")) return "font-woff2";
   if (asciiAt(bytes, 0, "ID3")) return "audio-mp3";
+  // Ogg's first page carries the codec ID at offset 28: OpusHead for Opus,
+  // "theora" for Ogg video — checked before the generic Ogg → audio-ogg.
+  if (asciiAt(bytes, 0, "OggS") && asciiAt(bytes, 28, "OpusHead")) return "audio-opus";
+  if (asciiAt(bytes, 0, "OggS") && asciiAt(bytes, 28, "theora")) return "video-ogv";
   if (asciiAt(bytes, 0, "OggS")) return "audio-ogg";
   if (asciiAt(bytes, 0, "RIFF") && asciiAt(bytes, 8, "WAVE")) return "audio-wav";
   if (asciiAt(bytes, 0, "fLaC")) return "audio-flac";
@@ -333,15 +365,23 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     }
     return "mobi";
   }
-  // MP4/MOV/M4A share the ftyp box — the brand tells video from audio.
+  // MP4/MOV/M4A/M4B share the ftyp box — the brand tells video from audio.
+  // The 3GP family uses the same ISO-BMFF container with its own brands.
+  if (asciiAt(bytes, 4, "ftyp3gp") || asciiAt(bytes, 4, "ftyp3g2")) {
+    return fallback === "video-3g2" ? "video-3g2" : "video-3gp";
+  }
   if (asciiAt(bytes, 4, "ftypM4A")) return "audio-m4a";
+  if (asciiAt(bytes, 4, "ftypM4B ")) return "audio-m4b";
   if (asciiAt(bytes, 4, "ftypisom") || asciiAt(bytes, 4, "ftypmp42") || asciiAt(bytes, 4, "ftypavc1") ||
       asciiAt(bytes, 4, "ftypmp41") || asciiAt(bytes, 4, "ftypdash") || asciiAt(bytes, 4, "ftypcmfc") ||
       // Apple's .m4v brand — the exact same MP4/ISO-BMFF container.
       asciiAt(bytes, 4, "ftypM4V ") || asciiAt(bytes, 4, "ftypM4VP")) return "video-mp4";
   if (asciiAt(bytes, 4, "ftypqt")) return "video-mov";
-  // WebM/Matroska EBML header.
-  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "video-webm";
+  // WebM/Matroska EBML header. .weba files are WebM audio — the EBML
+  // signature is identical, so the extension breaks the tie.
+  if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return fallback === "audio-weba" ? "audio-weba" : "video-webm";
+  }
   // MP3 frame sync (no ID3 tag): FF FB / FF F3 / FF F2.
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) return "audio-mp3";
   // Raw AAC in an ADTS stream: FF F1 (MPEG-4) / FF F9 (MPEG-2).
@@ -366,6 +406,18 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x4c, 0x00, 0x52, 0x00, 0x46, 0x00])) return "lrf";
   // WordPerfect: 0xFF 0x00 (WP 6.x) or 0xFF 0x01-0x03 (WP 5.x).
   if (bytes[0] === 0xff && (bytes[1] ?? 0xff) <= 0x03) return "wpd";
+  // dBASE tables: a valid version byte, a header that ends with the field
+  // terminator 0x0D, and a plausible record count + lengths.
+  if (bytes.length >= 33) {
+    const dbfVersion = bytes[0]!;
+    const dbfValid = [0x02, 0x03, 0x04, 0x05, 0x30, 0x31, 0x32, 0x43, 0x63, 0x83, 0x8b, 0xcb, 0xf5];
+    const dview = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const headerLen = dview.getUint16(8, true);
+    const recordLen = dview.getUint16(10, true);
+    if (dbfValid.includes(dbfVersion) && headerLen >= 33 && headerLen <= bytes.length && recordLen > 0) {
+      if (bytes[headerLen - 1] === 0x0d) return "dbf";
+    }
+  }
   // OLE2 compound files hold .xls, .doc and .ppt alike — only the workbook
   // stream is readable here, so anything else stays unknown rather than
   // claiming a conversion that doesn't exist.
@@ -424,6 +476,13 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.presentation")) return "odp";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.spreadsheet")) return "ods";
     if (window.includes("mimetypeapplication/vnd.oasis.opendocument.drawing")) return "odg";
+    // OpenDocument template flavours carry their own mimetypes.
+    if (window.includes("mimetypeapplication/vnd.oasis.opendocument.text-template")) return "ott";
+    if (window.includes("mimetypeapplication/vnd.oasis.opendocument.presentation-template")) return "otp";
+    if (window.includes("mimetypeapplication/vnd.oasis.opendocument.spreadsheet-template")) return "ots";
+    if (window.includes("mimetypeapplication/vnd.oasis.opendocument.drawing-template")) return "otg";
+    // Scribus documents are zip packages holding document.xml.
+    if (window.includes("document.xml") && fallback === "sla") return "sla";
     // A ZIP with a known Office/EPUB name whose container markers live past the
     // probe window (common in small files) is still that format, not a generic
     // ZIP — trust the extension rather than mislabeling it.
@@ -435,6 +494,12 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       fallback === "odg" || fallback === "pages" || fallback === "numbers" ||
       fallback === "xps" || fallback === "pub" ||
       fallback === "hwpx" || fallback === "hwp" ||
+      // OpenDocument templates, OpenOffice 1.x packages, Scribus and app
+      // packages are all zip containers the extension names.
+      fallback === "ott" || fallback === "otp" || fallback === "ots" || fallback === "otg" ||
+      fallback === "sxw" || fallback === "sxc" || fallback === "sxi" ||
+      fallback === "sla" ||
+      fallback === "apk" || fallback === "jar" || fallback === "war" || fallback === "ear" || fallback === "ipa" ||
       // Content-sniffed legacy names keep their type so the conversion
       // handler can decide from the payload.
       fallback === "et" || fallback === "doc" || fallback === "dot" || fallback === "wps" ||
@@ -493,6 +558,17 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (trimmed.startsWith("begin:vcalendar")) return "ics";
   if (trimmed.includes("<kml")) return "kml";
   if (trimmed.includes("<gpx")) return "gpx";
+  if (trimmed.includes("<trainingcenterdatabase")) return "tcx";
+  if (trimmed.includes("<office:document")) {
+    // Flat ODF — the office:body flavour tells text from spreadsheet.
+    if (trimmed.includes("office:spreadsheet")) return "fods";
+    if (trimmed.includes("office:presentation")) return "fodp";
+    return "fodt";
+  }
+  if (trimmed.startsWith("#fig") || /^#fig\s+\d/i.test(trimmed)) return "fig";
+  if (/^in\s*;/i.test(trimmed)) return "plt";
+  if (trimmed.includes("xspf")) return "xspf";
+  if (trimmed.includes("<smil") && trimmed.includes("<media")) return "wpl";
   if (trimmed.includes("netscape-bookmark")) return "bookmarks";
   if (trimmed.includes("<urlset")) return "sitemap";
   if (trimmed.includes("<rss") || trimmed.includes("<feed")) return "rss";

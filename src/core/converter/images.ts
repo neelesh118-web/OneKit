@@ -77,6 +77,8 @@ const IMAGE_SOURCES = new Set<FileType>([
   "image-tga",
   "image-ppm",
   "image-psd",
+  // PSB is the large-document sibling of PSD — same decoder, 8-byte lengths.
+  "image-psb",
   "image-icns",
   // Netpbm + X11 bitmaps — pure-JS decoders in netpbm.ts, same BMP bridge.
   "image-pbm",
@@ -191,7 +193,9 @@ function toDecodableSource(bytes: Uint8Array, source: FileType): { bytes: Uint8A
   if (source === "image-pcx") return { bytes: encodeBmp(decodePcx(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-xpm") return { bytes: encodeBmp(decodeXpm(bytes), { alpha: true }), mime: "image/bmp" };
   if (source === "image-wbmp") return { bytes: encodeBmp(decodeWbmp(bytes), { alpha: true }), mime: "image/bmp" };
-  if (source === "image-psd") return { bytes: encodeBmp(decodePsd(bytes), { alpha: true }), mime: "image/bmp" };
+  if (source === "image-psd" || source === "image-psb") {
+    return { bytes: encodeBmp(decodePsd(bytes), { alpha: true }), mime: "image/bmp" };
+  }
   if (source === "image-ico") return icoToDecodable(bytes);
   if (source === "image-icns") return { bytes: icnsToPng(bytes), mime: "image/png" };
   return { bytes, mime: sourceImageMime(source) };

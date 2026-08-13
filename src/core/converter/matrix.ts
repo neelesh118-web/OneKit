@@ -11,7 +11,12 @@ export type TargetFormat =
   | "image-png" | "image-jpeg" | "image-webp" | "image-avif" | "image-gif" | "image-ico"
   | "image-bmp" | "image-tiff" | "image-dds" | "image-svg" | "image-tga" | "image-ppm" | "image-psd"
   | "image-icns" | "image-pbm" | "image-pgm" | "image-pam" | "image-xbm"
-  | "image-qoi" | "image-farbfeld" | "image-pcx" | "image-xpm" | "image-wbmp"
+  | "image-qoi" | "image-farbfeld" | "image-pcx" | "image-xpm" | "image-wbmp" | "image-psb"
+  | "audio-m4b" | "audio-opus" | "audio-weba"
+  | "video-3gp" | "video-3g2" | "video-ogv"
+  | "ott" | "otp" | "ots" | "otg" | "fodt" | "fods" | "fodp" | "sxw" | "sxc" | "sxi"
+  | "tcx" | "dbf" | "sla" | "fig" | "plt" | "wpl" | "xspf"
+  | "apk" | "jar" | "war" | "ear" | "ipa"
   | "pdf" | "html" | "markdown" | "text" | "docx" | "docm" | "dotx" | "epub" | "htmlz" | "txtz" | "cbz" | "cbc"
   | "rtf" | "odt" | "odp" | "pptx" | "pptm" | "potx" | "ppsx" | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "tex" | "rst" | "org" | "textile" | "mediawiki" | "asciidoc"
   | "mhtml" | "xhtml" | "ps" | "eps" | "odg" | "svgz" | "abw" | "zabw" | "geojson"
@@ -62,7 +67,19 @@ export const TARGET_LABELS: Record<TargetFormat, string> = {
   ini: "INI config", sql: "SQL", properties: "Java properties", opml: "OPML outline",
   jsonl: "JSONL (NDJSON)",
   vcf: "vCard contacts", ics: "iCalendar events",
-  "txt-base64": "Base64 text", "txt-hex": "Hex text", "txt-url": "URL-encoded text"
+  "txt-base64": "Base64 text", "txt-hex": "Hex text", "txt-url": "URL-encoded text",
+  "image-psb": "Photoshop Large (PSB)",
+  "audio-opus": "Opus audio", "audio-weba": "WebM audio (WEBA)",
+  "video-3gp": "3GP video", "video-3g2": "3G2 video", "video-ogv": "Ogg video (OGV)",
+  ott: "OpenDocument text template (OTT)", otp: "OpenDocument presentation template (OTP)",
+  ots: "OpenDocument spreadsheet template (OTS)", otg: "OpenDocument drawing template (OTG)",
+  fodt: "Flat ODF text (FODT)", fods: "Flat ODF spreadsheet (FODS)", fodp: "Flat ODF presentation (FODP)",
+  sxw: "OpenOffice 1.x text (SXW)", sxc: "OpenOffice 1.x spreadsheet (SXC)", sxi: "OpenOffice 1.x presentation (SXI)",
+  tcx: "Garmin TCX activity", dbf: "dBASE table (DBF)", sla: "Scribus document (SLA)",
+  fig: "Xfig drawing (FIG)", plt: "HPGL plotter file (PLT)", wpl: "Windows Media playlist (WPL)",
+  xspf: "XSPF playlist",
+  apk: "Android package (APK)", jar: "Java archive (JAR)", war: "Web archive (WAR)",
+  ear: "Enterprise archive (EAR)", ipa: "iOS app package (IPA)"
 };
 
 /** Image sources can convert to any raster target (canvas). */
@@ -195,6 +212,9 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // exact same pipeline as the main image sources — the full image+document
   // reach is honest (including the OCR prose and image-based EPUB).
   "image-ico": imageAndPdfExcept("image-ico"),
+  // Photoshop Large Document (PSB) is the same 8BPS family with 8-byte
+  // section lengths — the flattened composite reads exactly like PSD.
+  "image-psb": imageAndPdfExcept("image-psb"),
   "image-dds": imageAndPdfExcept("image-dds"),
   "image-tga": imageAndPdfExcept("image-tga"),
   "image-ppm": imageAndPdfExcept("image-ppm"),
@@ -328,6 +348,26 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   vsd: docTargetsExcept(),
   // Psion TCR: a zlib-compressed text file — decompress and read as text.
   tcr: docTargetsExcept(),
+  // OpenDocument template flavours (ott/otp/otg) and OpenOffice 1.x packages
+  // (sxw/sxi) share the same content.xml body — the full prose set applies.
+  ott: docTargetsExcept("ott"),
+  otp: docTargetsExcept("otp"),
+  otg: docTargetsExcept("otg"),
+  sxw: docTargetsExcept("sxw"),
+  sxi: docTargetsExcept("sxi"),
+  // Flat ODF (fodt/fodp) is the same body XML in a single file.
+  fodt: docTargetsExcept("fodt"),
+  fodp: docTargetsExcept("fodp"),
+  // ODF spreadsheet flavours (ots/sxc) and flat ODS (fods) share the same
+  // table:table-row structure — the full table target set applies.
+  ots: tableTargetsExcept("ots"),
+  sxc: tableTargetsExcept("sxc"),
+  fods: tableTargetsExcept("fods"),
+  // Scribus (SLA): the zip's document.xml ITEXT runs read as prose.
+  sla: docTargetsExcept("sla"),
+  // Xfig / HPGL drawings: the text records read as prose.
+  fig: docTargetsExcept("fig"),
+  plt: docTargetsExcept("plt"),
   xhtml: docTargetsExcept("xhtml"),
   mhtml: docTargetsExcept("mhtml"),
   svgz: SVG_TARGETS.filter((t) => t !== "svgz"),
@@ -373,12 +413,24 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   // A ZIP of image files IS a comic archive — pack the pages the same way
   // the .cbz source does.
   zip: ["tar", "gzip", "text", "json", "cbz", "cbc", "txt-base64", "txt-hex"],
+  // App packages (APK/JAR/WAR/EAR/IPA) are ZIP containers — extract the
+  // entries into another archive, or list them as text/JSON.
+  apk: ["zip", "tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
+  jar: ["zip", "tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
+  war: ["zip", "tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
+  ear: ["zip", "tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
+  ipa: ["zip", "tar", "gzip", "text", "json", "txt-base64", "txt-hex"],
   tar: ["zip", "gzip", "text", "json", "txt-base64", "txt-hex"],
   gzip: ["zip", "tar", "text", "txt-base64", "txt-hex"],
   "font-ttf": ["font-woff", "font-woff2", "txt-base64", "txt-hex"],
   "font-woff": ["font-ttf", "font-woff2", "txt-base64", "txt-hex"],
   "font-woff2": ["font-ttf", "font-woff", "txt-base64", "txt-hex"],
   "font-otf": ["font-ttf", "font-woff", "font-woff2", "txt-base64", "txt-hex"],
+  // M4B audiobooks, raw Opus and WebM audio decode through the same Web
+  // Audio pipeline as the other non-WAV audio sources.
+  "audio-m4b": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-opus": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
+  "audio-weba": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
   "audio-midi": ["audio-wav", "audio-mp3", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
   "audio-mp3": ["audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
   "audio-wav": ["audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "audio-voc", "txt-base64", "txt-hex"],
@@ -397,6 +449,12 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "video-mp4": [...IMAGE_TARGETS, "video-webm", "video-mp4", "video-mov", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   "video-webm": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   "video-mov": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  // 3GP/3G2 (mobile ISO-BMFF) and Ogg video (OGV) take the same media
+  // pipeline — but there's no honest remux to MOV for them, so the
+  // video-mov target is not offered.
+  "video-3gp": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  "video-3g2": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  "video-ogv": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   // Base64/hex can hold ANY file — decode to bytes, sniff the real format,
   // then convert it like that format (image → all raster targets, etc.).
   "text-base64": [...IMAGE_TARGETS, ...RECORD_DOCS],
@@ -411,6 +469,13 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   srt: subtitleTargets("srt"),
   vtt: subtitleTargets("vtt"),
   gpx: [...recordTargets(), "kml"],
+  // Garmin TCX: trackpoint records like GPX.
+  tcx: recordTargets(),
+  // dBASE tables read as rows of key/value records.
+  dbf: recordTargets(),
+  // WPL and XSPF playlists read as media records.
+  wpl: recordTargets("wpl"),
+  xspf: recordTargets("xspf"),
   lrc: subtitleTargets("lrc"),
   sitemap: recordTargets(),
   rss: recordTargets(),
@@ -535,6 +600,34 @@ export function targetExtension(target: TargetFormat): string {
     case "txt-base64": return "txt";
     case "txt-hex": return "txt";
     case "txt-url": return "txt";
+    case "image-psb": return "psb";
+    case "audio-opus": return "opus";
+    case "audio-weba": return "weba";
+    case "video-3gp": return "3gp";
+    case "video-3g2": return "3g2";
+    case "video-ogv": return "ogv";
+    case "ott": return "ott";
+    case "otp": return "otp";
+    case "ots": return "ots";
+    case "otg": return "otg";
+    case "fodt": return "fodt";
+    case "fods": return "fods";
+    case "fodp": return "fodp";
+    case "sxw": return "sxw";
+    case "sxc": return "sxc";
+    case "sxi": return "sxi";
+    case "tcx": return "tcx";
+    case "dbf": return "dbf";
+    case "sla": return "sla";
+    case "fig": return "fig";
+    case "plt": return "plt";
+    case "wpl": return "wpl";
+    case "xspf": return "xspf";
+    case "apk": return "apk";
+    case "jar": return "jar";
+    case "war": return "war";
+    case "ear": return "ear";
+    case "ipa": return "ipa";
     case "cbz": return "cbz";
     case "cbc": return "cbc";
     case "rst": return "rst";

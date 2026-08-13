@@ -17,7 +17,7 @@ import { defaultImageRasterizer, rasterizeForEmbed } from "./images";
 const MIME_TEXT = "application/vnd.oasis.opendocument.text";
 
 /** Reads content.xml out of an OpenDocument package. */
-function contentXml(bytes: Uint8Array, kind: string): string {
+export function readOdfContentXml(bytes: Uint8Array, kind: string): string {
   let files: Record<string, Uint8Array>;
   try {
     files = unzipSync(bytes);
@@ -36,7 +36,7 @@ function contentXml(bytes: Uint8Array, kind: string): string {
  * items, and everything else becomes a paragraph.
  */
 export function odtToHtml(bytes: Uint8Array): string {
-  const xml = contentXml(bytes, ".odt");
+  const xml = readOdfContentXml(bytes, ".odt");
   const body = /<office:body[\s\S]*?<\/office:body>/.exec(xml)?.[0] ?? xml;
   const blocks: string[] = [];
   let openList = false;
@@ -76,9 +76,82 @@ export function odtToHtml(bytes: Uint8Array): string {
   );
 }
 
+/**
+ * Flat ODF (fodt/fodp) is the same body XML in a single file instead of a
+ * zip — run the identical paragraph walk on the raw document. Accepts any
+ * office:body payload (text, presentation or drawing documents share the
+ * text:h / text:p / text:list-item tags).
+ */
+export function flatOdfToHtml(xml: string): string {
+  const body = /<office:body[\s\S]*?<\/office:body>/.exec(xml)?.[0] ?? xml;
+  const blocks: string[] = [];
+  let openList = false;
+  const pattern = /<(text:h|text:p|text:list-item)(\s[^>]*)?>([\s\S]*?)<\/\1>/g;
+  for (const m of body.matchAll(pattern)) {
+    const tag = m[1]!;
+    const attrs = m[2] ?? "";
+    const text = xmlFragmentText(m[3] ?? "");
+    if (tag === "text:list-item") {
+      if (!text) continue;
+      if (!openList) {
+        blocks.push("<ul>");
+        openList = true;
+      }
+      blocks.push(`<li>${escapeXml(text)}</li>`);
+      continue;
+    }
+    if (openList) {
+      blocks.push("</ul>");
+      openList = false;
+    }
+    if (!text) continue;
+    if (tag === "text:h") {
+      const level = Math.min(6, Math.max(1, parseInt(/text:outline-level="(\d+)"/.exec(attrs)?.[1] ?? "1", 10)));
+      blocks.push(`<h${level}>${escapeXml(text)}</h${level}>`);
+    } else {
+      blocks.push(`<p>${escapeXml(text)}</p>`);
+    }
+  }
+  if (openList) blocks.push("</ul>");
+  const html = blocks.join("\n");
+  return (
+    `<!doctype html>\n<html><head><meta charset="utf-8"><title>OpenDocument text</title></head>\n` +
+    `<body>\n${html || "<p></p>"}\n</body>\n</html>`
+  );
+}
+
+/**
+ * ODF table XML → CSV. OpenDocument spreadsheets (ods/ots), OpenOffice 1.x
+ * (sxc) and flat ODF (fods) all carry the same table:table-row /
+ * table:table-cell structure inside their body — the prefix and namespace
+ * differ, but the element names don't, so one walker serves every flavour.
+ */
+export function odfTableToCsv(xml: string): string {
+  const rows: string[] = [];
+  const rowPattern = /<table:table-row([^>]*)>([\s\S]*?)<\/table:table-row>/g;
+  for (const rowMatch of xml.matchAll(rowPattern)) {
+    const rowAttrs = rowMatch[1] ?? "";
+    const cellsXml = rowMatch[2] ?? "";
+    const repeat = Math.min(1000, Math.max(1, parseInt(/table:number-rows-repeated="(\d+)"/.exec(rowAttrs)?.[1] ?? "1", 10)));
+    const cellPattern = /<table:table-cell([^>]*)>([\s\S]*?)<\/table:table-cell>/g;
+    const cells: string[] = [];
+    for (const cellMatch of cellsXml.matchAll(cellPattern)) {
+      const cellAttrs = cellMatch[1] ?? "";
+      const inner = cellMatch[2] ?? "";
+      const span = Math.min(1000, Math.max(1, parseInt(/table:number-columns-repeated="(\d+)"/.exec(cellAttrs)?.[1] ?? "1", 10)));
+      // The cell's text lives in text:p children (or the flat office:value).
+      const text = xmlFragmentText(inner).trim();
+      for (let i = 0; i < span; i++) cells.push(text);
+    }
+    const csvRow = cells.map((c) => (/[,"\n]/).test(c) ? `"${c.replace(/"/g, "\"\"")}"` : c).join(",");
+    for (let i = 0; i < repeat; i++) rows.push(csvRow);
+  }
+  return rows.join("\n");
+}
+
 /** ODP → slides, in presentation order. */
 export function odpToSlides(bytes: Uint8Array): Slide[] {
-  const xml = contentXml(bytes, ".odp");
+  const xml = readOdfContentXml(bytes, ".odp");
   const pages = [...xml.matchAll(/<draw:page(?:\s[^>]*)?>([\s\S]*?)<\/draw:page>/g)];
   if (pages.length === 0) {
     throw new Error("This .odp file has no slides to read.");

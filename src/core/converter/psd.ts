@@ -22,14 +22,28 @@ function readSectionLength(view: DataView, at: number): number {
   return view.getUint32(at, false);
 }
 
-/** Decodes a PSD's flattened composite image to RGBA. */
+/**
+ * PSB (Photoshop Large Document) is PSD with 8-byte section lengths for
+ * the Layer and Mask Information section, so the flattened composite can
+ * be read the exact same way once the header is skipped correctly.
+ */
+function readSectionLength64(view: DataView, at: number): number {
+  const hi = view.getUint32(at, false);
+  const lo = view.getUint32(at + 4, false);
+  return hi * 0x1_0000_0000 + lo;
+}
+
+/** Decodes a PSD or PSB's flattened composite image to RGBA. */
 export function decodePsd(bytes: Uint8Array): RgbaImage {
   if (bytes.length < 26) throw new Error("This PSD file is too short to read.");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const sig = String.fromCharCode(bytes[0]!, bytes[1]!, bytes[2]!, bytes[3]!);
   if (sig !== SIGNATURE) throw new Error("Not a PSD file (missing 8BPS signature).");
   const version = view.getUint16(4, false);
-  if (version !== 1) throw new Error("Only PSD version 1 is supported (not the large-document PSB format).");
+  if (version !== 1 && version !== 2) {
+    throw new Error("This 8BPS file has an unsupported version field.");
+  }
+  const isPsb = version === 2;
   const channels = view.getUint16(12, false);
   const height = view.getUint32(14, false);
   const width = view.getUint32(18, false);
@@ -47,11 +61,14 @@ export function decodePsd(bytes: Uint8Array): RgbaImage {
   const hasAlpha = channels > minChannels;
 
   let pos = 26;
-  pos += 4 + readSectionLength(view, pos); // Color Mode Data
+  pos += 4 + readSectionLength(view, pos); // Color Mode Data (4-byte in both)
   if (pos > bytes.length) throw new Error("This PSD file is truncated.");
-  pos += 4 + readSectionLength(view, pos); // Image Resources
+  pos += 4 + readSectionLength(view, pos); // Image Resources (4-byte in both)
   if (pos > bytes.length) throw new Error("This PSD file is truncated.");
-  pos += 4 + readSectionLength(view, pos); // Layer and Mask Information (layers are skipped, not decoded)
+  // Layer and Mask Information — 4-byte length in PSD, 8-byte in PSB.
+  // The layers themselves are skipped (the flattened composite is what
+  // we decode), so only the length encoding changes.
+  pos += (isPsb ? 8 : 4) + (isPsb ? readSectionLength64(view, pos) : readSectionLength(view, pos));
   if (pos + 2 > bytes.length) throw new Error("This PSD file is truncated.");
 
   const compression = view.getUint16(pos, false);
