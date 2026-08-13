@@ -629,15 +629,26 @@ async function runConversion(
       // SVG embeds directly — the browser renders it natively, no rasterization needed.
       if (target === "html") return docs.wrapImageAsHtml(bytes, "image/svg+xml", "image");
       if (target === "markdown") return docs.wrapImageAsMarkdown(bytes, "image/svg+xml", "image");
-      if (target === "pdf" || target === "docx" || target === "pptx" || target === "odt" || target === "odp" || target === "rtf") {
+      // LaTeX from the SVG's own HTML (text is directly extractable — no OCR).
+      if (target === "tex") return toBytes(docs.htmlToLatex(toText(docs.wrapImageAsHtml(bytes, "image/svg+xml", "image")), "Image"));
+      if (target === "pdf" || target === "docx" || target === "docm" || target === "dotx" ||
+          target === "pptx" || target === "pptm" || target === "potx" || target === "ppsx" ||
+          target === "odt" || target === "odp" || target === "rtf") {
         // Rasterize to PNG first, then pack into the container (reuses both pipelines).
         const png = await convertImage(bytes, "image-png", opts.canvas, opts.image, source);
         if (target === "pdf") return docs.imagesToPdf([{ bytes: png, name: "image" }]);
         if (target === "docx") return docs.imagesToDocx([{ bytes: png, name: "image" }]);
+        if (target === "docm") return docs.docxToDocm(await docs.imagesToDocx([{ bytes: png, name: "image" }]));
+        if (target === "dotx") return docs.docxToDotx(await docs.imagesToDocx([{ bytes: png, name: "image" }]));
         if (target === "odt") return imagesToOdt([{ bytes: png, name: "image" }]);
         if (target === "odp") return imagesToOdp([{ bytes: png, name: "image" }]);
         if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: png, name: "image" }));
-        return imagesToPptx([{ bytes: png, name: "image" }]);
+        const pptx = await imagesToPptx([{ bytes: png, name: "image" }]);
+        if (target === "pptx") return pptx;
+        if (target === "pptm") return docs.pptxToPptm(pptx);
+        if (target === "potx") return docs.pptxToPotx(pptx);
+        if (target === "ppsx") return docs.pptxToPpsx(pptx);
+        return pptx;
       }
       return convertImage(bytes, target as ImageTarget, opts.canvas, opts.image, source);
     case "raw-cr2":
@@ -1614,7 +1625,9 @@ async function runConversion(
     case "audio-aac":
     case "audio-flac":
     // M4B audiobooks, raw Opus and WebM audio decode through the same Web
-    // Audio pipeline as the other non-WAV sources.
+    // Audio pipeline as the other non-WAV sources. (AMR is excluded: no
+    // AMR decoder in Chromium's Android ffmpeg build, so decodeAudioData
+    // can't decode it.)
     case "audio-m4b":
     case "audio-opus":
     case "audio-weba": {
@@ -1704,6 +1717,8 @@ async function runConversion(
     case "video-3gp":
     case "video-3g2":
     case "video-ogv":
+    case "video-mkv":
+    case "video-ts":
       // mp4 → mov is a pure container remux (QuickTime brand swap) — no
       // re-encoding, so it runs without any media stack. webm → mov is
       // not offered: that would need a local H.264 encoder.

@@ -32,7 +32,7 @@ export type FileType =
   | "audio-au" | "audio-voc"
   | "opml" | "plist" | "ssv" | "psv" | "dif" | "gnumeric"
   | "image-psb" | "audio-m4b" | "audio-opus" | "audio-weba"
-  | "video-3gp" | "video-3g2" | "video-ogv"
+  | "video-3gp" | "video-3g2" | "video-ogv" | "video-mkv" | "video-ts" | "audio-amr"
   | "ott" | "otp" | "ots" | "otg" | "fodt" | "fods" | "fodp" | "sxw" | "sxc" | "sxi"
   | "tcx" | "dbf" | "sla" | "fig" | "plt" | "wpl" | "xspf"
   | "apk" | "jar" | "war" | "ear" | "ipa"
@@ -97,6 +97,8 @@ export const TYPE_LABELS: Record<FileType, string> = {
   "image-psb": "Photoshop Large Document (PSB)",
   "audio-m4b": "M4B audiobook", "audio-opus": "Opus audio", "audio-weba": "WebM audio (WEBA)",
   "video-3gp": "3GP video", "video-3g2": "3G2 video", "video-ogv": "Ogg video (OGV)",
+  "video-mkv": "Matroska video (MKV)", "video-ts": "MPEG transport stream (TS/M2TS/MTS/MOD)",
+  "audio-amr": "AMR audio",
   ott: "OpenDocument text template (OTT)", otp: "OpenDocument presentation template (OTP)",
   ots: "OpenDocument spreadsheet template (OTS)", otg: "OpenDocument drawing template (OTG)",
   fodt: "Flat ODF text (FODT)", fods: "Flat ODF spreadsheet (FODS)", fodp: "Flat ODF presentation (FODP)",
@@ -168,6 +170,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   "image-psb": ["psb"],
   "audio-m4b": ["m4b"], "audio-opus": ["opus"], "audio-weba": ["weba"],
   "video-3gp": ["3gp", "3gpp"], "video-3g2": ["3g2"], "video-ogv": ["ogv"],
+  "video-mkv": ["mkv"], "video-ts": ["ts", "m2ts", "mts", "mod"], "audio-amr": ["amr"],
   ott: ["ott"], otp: ["otp"], ots: ["ots"], otg: ["otg"],
   fodt: ["fodt"], fods: ["fods"], fodp: ["fodp"],
   sxw: ["sxw"], sxc: ["sxc"], sxi: ["sxi"],
@@ -378,10 +381,21 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
       asciiAt(bytes, 4, "ftypM4V ") || asciiAt(bytes, 4, "ftypM4VP")) return "video-mp4";
   if (asciiAt(bytes, 4, "ftypqt")) return "video-mov";
   // WebM/Matroska EBML header. .weba files are WebM audio — the EBML
-  // signature is identical, so the extension breaks the tie.
+  // signature is identical, so the extension breaks the tie. The same
+  // goes for .mkv: Matroska shares the EBML magic with WebM, only the
+  // DocType inside differs, so the extension picks the right one.
   if (bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    if (fallback === "video-mkv") return "video-mkv";
     return fallback === "audio-weba" ? "audio-weba" : "video-webm";
   }
+  // MPEG transport streams (TS/M2TS/MTS/MOD) repeat the 0x47 sync byte
+  // every 188 bytes (or 192 with the M2TS 4-byte timestamp prefix).
+  if (bytes.length > 384 && bytes[0] === 0x47 &&
+      (bytes[188] === 0x47 || (bytes.length > 388 && bytes[192] === 0x47))) {
+    return "video-ts";
+  }
+  // AMR narrowband/wideband: "#!AMR\n" magic header.
+  if (asciiAt(bytes, 0, "#!AMR")) return "audio-amr";
   // MP3 frame sync (no ID3 tag): FF FB / FF F3 / FF F2.
   if (bytes.length > 2 && bytes[0] === 0xff && (bytes[1] === 0xfb || bytes[1] === 0xf3 || bytes[1] === 0xf2)) return "audio-mp3";
   // Raw AAC in an ADTS stream: FF F1 (MPEG-4) / FF F9 (MPEG-2).

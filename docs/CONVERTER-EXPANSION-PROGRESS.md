@@ -7,9 +7,57 @@ pair runs through `convertFile` — no stubs, no fake matrix entries.
 
 | | Count |
 |---|---|
-| Source formats | **107** |
-| Working pairs | **1,275** |
-| Pairs added this campaign (from 763) | **+512** |
+| Source formats | **205** |
+| Working pairs | **11,181** |
+
+## Batch 2026-08-13 — MKV / MPEG-TS sources (web-decodable containers)
+
+11,109 → **11,182 pairs** (205 sources). 72 new pairs, 1 self-target restored:
+
+- **+36 (video-mkv):** mkv → every IMAGE_TARGETS raster target (frame grab),
+  video-webm, video-mp4, the full audio extraction reach (mp3/wav/flac/
+  aiff/ogg/oga/m4a/m4b/au), txt-base64, txt-hex
+- **+36 (video-ts):** ts/m2ts/mts/mod share one MPEG-TS source row with the
+  same reach as MKV (minus the MP4-only MOV remux)
+- **+1 (audio-m4b):** restored the `audio-m4b → audio-m4b` self-target the
+  previous batch removed — it is a real decode+re-encode (through
+  `anyToMp4`), like `audio-mp4 → audio-mp4`, and the round-17 reach test
+  expects it. Added `audio-m4b` to the re-encode whitelist in the
+  no-self-targets consistency tests.
+- **AMR: detected but NOT in the matrix** — verified empirically on the
+  phone: Chromium's Android ffmpeg build has no AMR decoder, so
+  `decodeAudioData` can't decode AMR (the `<audio>` element could via
+  MediaPlayer, but the converter pipeline can't). The file is detected so
+  the app can say "AMR — no local conversion yet"; advertising targets
+  would be dishonest. AMR conversion needs the native Media3/FFmpeg layer.
+
+Why these sources: they are the ones Android's own media stack can actually
+decode inside the WebView — Chromium demuxes Matroska and MPEG-TS. MKV → MP4
+verified end-to-end on the Moto (21 MB H.264 MKV → 15.9 MB MP4,
+`ftypisom`). The remaining blocked backlog rows (avi, wmv, flv, rm, rmvb,
+mxf, mpeg, vob, wma, ac3, amr, caf, dss, xcf, raw…) need the native
+Media3/FFmpeg decoder layer — those stay `blocked`, not `done`.
+Detection: MKV via the EBML magic (with the .mkv extension breaking the
+WebM tie), MPEG-TS via the 0x47 sync-byte pattern. Covered by
+`tests/converter-batch-mkv-ts-amr.test.ts`. Backlog CSV rows for the
+covered pairs marked `done`.
+
+## Batch 2026-08-13 — SVG / SVGZ → Office document variants + TEX
+
+11,098 → **11,109 pairs** (202 sources). 12 pairs added, 1 bogus pair removed:
+
+- **+6 (svg):** svg → docm, dotx, potx, ppsx, pptm, tex
+- **+6 (svgz):** svgz → docm, dotx, potx, ppsx, pptm, tex (SVGZ shares the
+  SVG_TARGETS list, so the six came free)
+- **−1 (audio-m4b):** removed the `audio-m4b → audio-m4b` self-target that
+  the round-17 expansion introduced (a self-conversion is not a real pair;
+  fixed the matrix-consistency tests) — *reverted in the next batch: it is
+  a real decode+re-encode, see above*
+
+All 12 run through real pipelines in `convertFile` (DOCM/DOTX via the DOCX
+writer, POTX/PPSX/PPTM via the PPTX writer, TEX from the SVG's own text — no
+OCR). Covered by `tests/converter-batch-svg-docvariants.test.ts`. Backlog CSV
+rows marked `done` in the new `status` column.
 
 ## Campaign so far
 

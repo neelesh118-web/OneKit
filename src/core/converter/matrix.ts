@@ -108,7 +108,7 @@ const IMAGE_SMALL_EXTRA: TargetFormat[] = [...IMAGE_OCR_DOCS, "svgz", "cbz", "cb
 /** The shared target list every SVG-ish source can reach. */
 const SVG_TARGETS: TargetFormat[] = [
   ...IMAGE_TARGETS.filter((t) => t !== "image-svg"),
-  "text", "pdf", "docx", "pptx", "html", "markdown", "odt", "odp", "rtf",
+  "text", "pdf", "docx", "docm", "dotx", "pptx", "pptm", "potx", "ppsx", "html", "markdown", "odt", "odp", "rtf", "tex",
   ...IMAGE_SMALL_EXTRA,
   "txt-base64", "txt-hex",
   // SVG text is directly extractable, so the prose targets apply without
@@ -455,6 +455,18 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "video-3gp": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   "video-3g2": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
   "video-ogv": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  // MKV (Matroska) and MPEG transport streams (TS/M2TS/MTS/MOD) decode
+  // through the same <video> media pipeline — same honest reach as the
+  // other containers (image targets via frame grab, audio via track
+  // extraction), minus the MP4-only MOV remux.
+  "video-mkv": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  "video-ts": [...IMAGE_TARGETS, "video-webm", "video-mp4", "audio-mp3", "audio-wav", "audio-flac", "audio-aiff", "audio-ogg", "audio-oga", "audio-mp4", "audio-m4b", "audio-au", "txt-base64", "txt-hex"],
+  // AMR is deliberately NOT in the matrix: Chromium's Android ffmpeg build
+  // has no AMR decoder, so decodeAudioData can't decode it — the <audio>
+  // element could (via MediaPlayer) but the converter pipeline can't. The
+  // file is detected so the app can say "AMR — no local conversion yet",
+  // but advertising targets would be dishonest. Needs the native layer.
+  "audio-amr": [],
   // Base64/hex can hold ANY file — decode to bytes, sniff the real format,
   // then convert it like that format (image → all raster targets, etc.).
   "text-base64": [...IMAGE_TARGETS, ...RECORD_DOCS],

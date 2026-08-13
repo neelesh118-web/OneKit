@@ -204,7 +204,7 @@ describe("matrix consistency", () => {
     // image-png → image-png & co. are intentional re-encodes through the
     // canvas pipeline (same as tiff → tiff) — a real conversion, not a
     // no-op. Everything else must never list itself.
-    const reencode = new Set(["image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif", "image-tiff", "image-svg", "image-qoi", "image-farbfeld", "image-pcx", "audio-wav", "audio-aiff", "audio-au", "audio-voc", "audio-ogg", "audio-mp3", "audio-mp4", "audio-flac", "audio-midi", "video-mp4", "video-webm", "video-mov"]);
+    const reencode = new Set(["image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif", "image-tiff", "image-svg", "image-qoi", "image-farbfeld", "image-pcx", "audio-wav", "audio-aiff", "audio-au", "audio-voc", "audio-ogg", "audio-mp3", "audio-mp4", "audio-m4b", "audio-flac", "audio-midi", "video-mp4", "video-webm", "video-mov"]);
     for (const [source, targets] of Object.entries(MATRIX)) {
       if (reencode.has(source)) continue;
       expect(targets, `${source} must not list itself`).not.toContain(source);

@@ -219,7 +219,7 @@ describe("matrix consistency after round 10", () => {
       "image-png", "image-jpeg", "image-webp", "image-gif", "image-bmp", "image-avif",
       "image-tiff", "image-svg", "image-qoi", "image-farbfeld", "image-pcx",
       "audio-wav", "audio-aiff", "audio-au", "audio-voc", "audio-ogg", "audio-mp3",
-      "audio-mp4", "audio-flac", "audio-midi", "video-mp4", "video-webm", "video-mov"
+      "audio-mp4", "audio-m4b", "audio-flac", "audio-midi", "video-mp4", "video-webm", "video-mov"
     ]);
     for (const [source, targets] of Object.entries(MATRIX)) {
       expect(new Set(targets).size, `${source} has duplicates`).toBe(targets.length);
