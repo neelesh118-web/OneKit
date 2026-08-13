@@ -58,6 +58,8 @@ import { pubToHtml } from "./pub";
 import { emfToSvg, emfToText, wmfToSvg, wmfToText } from "./metafile";
 import { cgmToSvg, cgmToText } from "./cgm";
 import { chmToHtml } from "./chm";
+import { litToHtml } from "./lit";
+import { heicToJpeg } from "./heic";
 import { skToHtml, skToSvg } from "./sketch";
 import { swfToHtml } from "./swf";
 import { hwpxToHtml } from "./hwpx";
@@ -91,6 +93,8 @@ export interface ConvertOptions {
   videoAudio?: VideoAudioDeps;
   /** Injectable OCR engine for image → text (defaults to the bundled tesseract.js, real browser only). */
   ocr?: { recognize?: (dataUrl: string) => Promise<string> };
+  /** Injectable HEIC decoder (defaults to the bundled libheif WASM, browser only). */
+  heicDecode?: { toJpeg?: (bytes: Uint8Array) => Promise<Uint8Array> };
 }
 
 export const MIME_BY_TARGET: Record<TargetFormat, string> = {
@@ -419,6 +423,15 @@ export async function convertFile(
  * can locate its own asset files (`browser.runtime.getURL`); Node and
  * other hosts get an honest error instead of a fake empty result.
  */
+/**
+ * Decodes a HEIC/HEIF photo to JPEG bytes — the injectable override (used by
+ * tests) or the bundled libheif WASM decoder rendered through the canvas.
+ */
+async function runHeicDecode(bytes: Uint8Array, opts: ConvertOptions): Promise<Uint8Array> {
+  if (opts.heicDecode?.toJpeg) return opts.heicDecode.toJpeg(bytes);
+  return heicToJpeg(bytes, opts.canvas?.canvasFactory);
+}
+
 async function runOcr(bytes: Uint8Array, name: string, opts: ConvertOptions): Promise<string> {
   const dataUrl = await imageBytesToDataUrl(bytes, name);
   const recognize =
@@ -621,6 +634,30 @@ async function runConversion(
         return arch.filesToZip({ "page-01.png": await convertImage(preview, "image-png", opts.canvas, opts.image, "image-jpeg") });
       }
       return convertImage(preview, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
+    }
+    case "image-heic": {
+      // HEIC/HEIF photos (iPhone etc.) decode through the bundled libheif
+      // WASM to a JPEG, then take the exact same pipeline as the camera RAW
+      // previews above — every raster, document and OCR target.
+      const jpeg = await runHeicDecode(bytes, opts);
+      if (target === "pdf") return docs.imagesToPdf([{ bytes: jpeg, name: "image" }]);
+      if (target === "docx") return docs.imagesToDocx([{ bytes: jpeg, name: "image" }]);
+      if (target === "pptx") return imagesToPptx([{ bytes: jpeg, name: "image" }]);
+      if (target === "html") return docs.imageToHtml({ bytes: jpeg, name: "image" });
+      if (target === "text") return toBytes(await runOcr(jpeg, "image", opts));
+      if (target === "markdown") return docs.imageToMarkdown({ bytes: jpeg, name: "image" });
+      if (target === "odt") return imagesToOdt([{ bytes: jpeg, name: "image" }]);
+      if (target === "odp") return imagesToOdp([{ bytes: jpeg, name: "image" }]);
+      if (target === "rtf") return toBytes(await imageToRtfDocument({ bytes: jpeg, name: "image" }));
+      if (OCR_DOC_TARGETS.has(target)) {
+        const text = await runOcr(jpeg, "image", opts);
+        return renderDocument(`<pre>${docs.escapeHtml(text)}</pre>`, "Image", target, opts);
+      }
+      if (target === "svgz") return arch.gzipBytes(await convertImage(jpeg, "image-svg", opts.canvas, opts.image, "image-jpeg"));
+      if (target === "cbz" || target === "cbc") {
+        return arch.filesToZip({ "page-01.png": await convertImage(jpeg, "image-png", opts.canvas, opts.image, "image-jpeg") });
+      }
+      return convertImage(jpeg, target as ImageTarget, opts.canvas, opts.image, "image-jpeg");
     }
     case "eps":
     case "ps": {
@@ -942,6 +979,10 @@ async function runConversion(
       // Compiled HTML Help: the LZX-compressed content stream holds every
       // help page — page text reads as prose, rendered as a document.
       return renderDocument(chmToHtml(bytes), "CHM help", target, opts);
+    case "lit":
+      // Microsoft Reader: the LZX-compressed binary-HTML spine reads as
+      // prose through the same document renderer.
+      return renderDocument(litToHtml(bytes), "LIT ebook", target, opts);
     case "cgm":
       // Binary CGM vector drawings: the primitive subset renders to SVG,
       // the TEXT records read as prose — same rule as the metafiles.

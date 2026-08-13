@@ -176,6 +176,9 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   "image-gif": IMAGE_AND_PDF,
   "image-bmp": IMAGE_AND_PDF,
   "image-avif": IMAGE_AND_PDF,
+  // HEIC photos decode through the bundled libheif WASM — every raster and
+  // document target, but never a HEIC back out (no honest local encoder).
+  "image-heic": IMAGE_AND_PDF,
   "image-svg": SVG_TARGETS,
   // TIFF → TIFF is a real re-encode (through the canvas pipeline, same
   // as PNG→PNG above) — not a no-op, so it's not filtered out like the
@@ -282,6 +285,9 @@ export const MATRIX: Record<FileType, TargetFormat[]> = {
   wmf: docTargetsExcept(),
   cgm: docTargetsExcept(),
   chm: docTargetsExcept(),
+  // Microsoft Reader: the LZX-compressed binary-HTML content reads as prose
+  // for every document target, like CHM.
+  lit: docTargetsExcept(),
   // sK1/Sketch vector drawings: basic shapes render to SVG, text objects
   // read as prose, plain-text fallback for anything unparseable.
   sk1: docTargetsExcept(),

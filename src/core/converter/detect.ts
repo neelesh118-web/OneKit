@@ -5,14 +5,14 @@
  */
 
 export type FileType =
-  | "image-png" | "image-jpeg" | "image-webp" | "image-gif" | "image-bmp" | "image-avif" | "image-svg"
+  | "image-png" | "image-jpeg" | "image-webp" | "image-gif" | "image-bmp" | "image-avif" | "image-svg" | "image-heic"
   | "image-tiff" | "image-ico" | "image-dds"
   | "pdf" | "docx" | "docm" | "dotx" | "xlsx" | "xlsm" | "epub"
   | "rtf" | "odt" | "odp" | "ods" | "pptx" | "pptm" | "potx" | "ppsx" | "xls"
   | "fb2" | "mobi" | "azw" | "prc" | "pdb" | "azw3" | "azw4" | "snb" | "rb" | "fb3" | "htmlz" | "txtz" | "cbz" | "cbc" | "dxf" | "ai" | "audio-aiff" | "audio-aac" | "audio-midi"
   | "html" | "markdown" | "rst" | "tex" | "abw" | "zabw" | "oeb" | "pml" | "odg" | "dot" | "wps" | "doc" | "pages" | "numbers" | "key" | "ppt" | "dps" | "et" | "geojson" | "xhtml" | "mhtml" | "svgz" | "text"
   | "tcr" | "sdw" | "sdc" | "sda" | "vsd" | "xps" | "pub" | "emf" | "wmf" | "sk1"
-  | "swf" | "hwpx" | "hwp" | "lrf" | "wpd" | "cgm" | "chm"
+  | "swf" | "hwpx" | "hwp" | "lrf" | "wpd" | "cgm" | "chm" | "lit"
   | "csv" | "tsv" | "json" | "yaml" | "xml" | "ini"
   | "zip" | "tar" | "gzip"
   | "font-ttf" | "font-woff" | "font-woff2" | "font-otf"
@@ -35,7 +35,7 @@ export type FileType =
 
 export const TYPE_LABELS: Record<FileType, string> = {
   "image-png": "PNG image", "image-jpeg": "JPEG image", "image-webp": "WebP image",
-  "image-gif": "GIF image", "image-bmp": "BMP image", "image-avif": "AVIF image", "image-svg": "SVG image",
+  "image-gif": "GIF image", "image-bmp": "BMP image", "image-avif": "AVIF image", "image-heic": "HEIC photo", "image-svg": "SVG image",
   "image-tiff": "TIFF image", "image-ico": "ICO icon", "image-dds": "DDS texture",
   ai: "Illustrator (AI)",
   pdf: "PDF document", docx: "Word document", docm: "Macro-enabled Word document",
@@ -61,7 +61,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
   wmf: "Windows metafile (WMF)", sk1: "sK1 vector drawing (SK1/SK)", cgm: "Computer Graphics Metafile (CGM)",
   chm: "Compiled HTML Help (CHM)",
   swf: "Flash movie (SWF)", hwpx: "Hangul document (HWPX)", hwp: "Hangul document (HWP)",
-  lrf: "Sony ebook (LRF)", wpd: "WordPerfect document (WPD)",
+  lrf: "Sony ebook (LRF)", wpd: "WordPerfect document (WPD)", lit: "Microsoft Reader ebook (LIT)",
   xhtml: "XHTML page", mhtml: "MHTML archive", svgz: "Compressed SVG (SVGZ)", text: "Plain text",
   csv: "CSV spreadsheet", tsv: "TSV spreadsheet", json: "JSON data", yaml: "YAML data", xml: "XML data", ini: "INI config",
   zip: "ZIP archive", tar: "TAR archive", gzip: "GZIP archive",
@@ -94,7 +94,7 @@ export const TYPE_LABELS: Record<FileType, string> = {
 
 export const EXTENSIONS: Record<FileType, string[]> = {
   "image-png": ["png"], "image-jpeg": ["jpg", "jpeg", "jfif"], "image-webp": ["webp"],
-  "image-gif": ["gif"], "image-bmp": ["bmp"], "image-avif": ["avif"], "image-svg": ["svg"],
+  "image-gif": ["gif"], "image-bmp": ["bmp"], "image-avif": ["avif"], "image-heic": ["heic", "heif"], "image-svg": ["svg"],
   "image-tiff": ["tif", "tiff"], "image-ico": ["ico", "cur"], "image-dds": ["dds"],
   pdf: ["pdf"], docx: ["docx"], docm: ["docm"], dotx: ["dotx"],
   xlsx: ["xlsx"], xlsm: ["xlsm"], epub: ["epub"],
@@ -113,7 +113,7 @@ export const EXTENSIONS: Record<FileType, string[]> = {
   ppt: ["ppt", "pot", "pps"], dps: ["dps"], et: ["et"],
   tcr: ["tcr"], sdw: ["sdw"], sdc: ["sdc"], sda: ["sda"], vsd: ["vsd"],
   // .sk is the same sK1 text format under its classic short extension.
-  xps: ["xps"], pub: ["pub"], emf: ["emf"], wmf: ["wmf"], sk1: ["sk1", "sk"], cgm: ["cgm"], chm: ["chm"],
+  xps: ["xps"], pub: ["pub"], emf: ["emf"], wmf: ["wmf"], sk1: ["sk1", "sk"], cgm: ["cgm"], chm: ["chm"], lit: ["lit"],
   swf: ["swf"], hwpx: ["hwpx"], hwp: ["hwp"], lrf: ["lrf"], wpd: ["wpd"],
   geojson: ["geojson"], xhtml: ["xhtml", "xht"], mhtml: ["mhtml", "mht"], svgz: ["svgz"], text: ["txt"],
   csv: ["csv"], tsv: ["tsv"], json: ["json"], yaml: ["yaml", "yml"], xml: ["xml"], ini: ["ini"],
@@ -204,6 +204,17 @@ export function detectFromBytes(bytes: Uint8Array, fallback: FileType): FileType
   if (hasPrefix(bytes, [0x42, 0x4d])) return "image-bmp";
   if (asciiAt(bytes, 0, "RIFF") && asciiAt(bytes, 8, "WEBP")) return "image-webp";
   if (asciiAt(bytes, 4, "ftypavif") || asciiAt(bytes, 4, "ftypavis")) return "image-avif";
+  // HEIC/HEIF: ISO base media with the HEVC image brands (mif1/msf1 are the
+  // generic HEIF containers iPhones use). The extension is the tie-breaker.
+  if (
+    asciiAt(bytes, 4, "ftypheic") || asciiAt(bytes, 4, "ftypheix") ||
+    asciiAt(bytes, 4, "ftyphevc") || asciiAt(bytes, 4, "ftyphevx") ||
+    asciiAt(bytes, 4, "ftypmif1") || asciiAt(bytes, 4, "ftypmsf1")
+  ) {
+    return "image-heic";
+  }
+  // Microsoft Reader books open with their own ITOLITLS container signature.
+  if (asciiAt(bytes, 0, "ITOLITLS")) return "lit";
   // Fujifilm RAF carries its own ASCII header, not a TIFF byte-order mark.
   if (asciiAt(bytes, 0, "FUJIFILMCCD-RAW")) return "raw-raf";
   // Canon CR3 is an ISO base media (MP4-family) container with its own brand.
